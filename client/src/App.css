@@ -1,0 +1,204 @@
+
+/* styles.css */
+
+
+/* Header styles */
+.header {
+  background-color: #2c3e50;
+  padding: 10px 20px;
+  color: #fff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.nav-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Phần bên trái */
+.left-section {
+  display: flex;
+  gap: 20px; /* Khoảng cách giữa các icon */
+  align-items: center;
+}
+
+.left-section .icon {
+  font-size: 20px;
+  color: #fff;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.left-section .icon:hover {
+  color: #3498db; /* Màu khi hover */
+}
+
+
+/* Phần giữa */
+.center-section {
+  display: flex;
+  gap: 20px; /* Khoảng cách giữa các liên kết */
+}
+
+.center-section .link {
+  color: #fff;
+  text-decoration: none;
+  font-size: 16px;
+  transition: color 0.3s ease;
+}
+
+.center-section .link:hover {
+  color: #3498db; /* Màu khi hover */
+}
+
+/* Phần bên phải */
+.right-section {
+  display: flex;
+  gap: 20px; /* Khoảng cách giữa các icon */
+  align-items: center;
+}
+
+.right-section .icon {
+  font-size: 20px;
+  color: #fff;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.right-section .icon:hover {
+  color: #3498db; /* Màu khi hover */
+}
+/* Global styles */
+body {
+  margin: 0;
+  height: 100%;
+  font-family: Arial, sans-serif;
+}
+
+
+/* Sidebar styles */
+
+.sidebar a {
+  display: block;
+  margin: 10px 0;
+  color: #333;
+  text-decoration: none;
+}
+
+.sidebar img{
+  width: 100%;
+  border-radius: 50%;
+  margin: 10px 0;
+
+}
+
+/* Container styles */
+.container {
+  padding: 20px;
+}
+
+/* Form styles */
+input {
+  margin: 10px 0;
+  padding: 5px;
+  width: 100%;
+}
+
+button {
+  padding: 10px;
+  background-color: #333;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+/* styles.css */
+/* styles.css */
+
+/* Sidebar styles */
+.sidebar {
+  width: 300px; /* Rộng hơn một chút */
+  background-color: #2c3e50; /* Màu nền tối */
+  padding: 20px;
+  height: auto;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); /* Đổ bóng nhẹ */
+}
+
+.sidebar .link {
+  display: block;
+  color: #ecf0f1; /* Màu chữ sáng */
+  padding: 10px 15px;
+  margin: 5px 0;
+  text-decoration: none;
+  border-radius: 4px; /* Bo góc */
+  transition: background-color 0.3s ease; /* Hiệu ứng mượt mà */
+}
+
+.sidebar .link:hover {
+  background-color: #34495e; /* Màu nền khi hover */
+}
+
+/* Auth dropdown styles trong Sidebar */
+.sidebar .auth-dropdown {
+  position: relative;
+  margin-top: 10px;
+}
+
+.sidebar .auth-button {
+  background-color: #3498db; /* Màu nền nút Auth */
+  border: none;
+  color: white;
+  padding: 10px 15px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border-radius: 4px; /* Bo góc */
+  transition: background-color 0.3s ease; /* Hiệu ứng mượt mà */
+}
+
+.sidebar .auth-button:hover {
+  background-color: #2980b9; /* Màu nền khi hover */
+}
+
+.sidebar .auth-button::after {
+  content: '▼';
+  margin-left: 10px;
+  font-size: 12px;
+  float: right; /* Đưa mũi tên sang bên phải */
+}
+
+.sidebar .dropdown-content {
+  background-color: #34495e; /* Màu nền dropdown */
+  border-radius: 4px; /* Bo góc */
+  box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
+  margin-top: 5px;
+  overflow: hidden; /* Đảm bảo nội dung không tràn ra ngoài */
+}
+
+.sidebar .dropdown-link {
+  color: #ecf0f1; /* Màu chữ sáng */
+  padding: 10px 15px;
+  text-decoration: none;
+  display: block;
+  transition: background-color 0.3s ease; /* Hiệu ứng mượt mà */
+}
+
+.sidebar .dropdown-link:hover {
+  background-color: #2c3e50; /* Màu nền khi hover */
+}
+
+.table th {
+  text-align: center;
+  vertical-align: middle;
+  background-color: #66cc33 !important;
+  color: white !important;
+}
+
+.table td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* .sidebar.open {
+  transform: translateX(0);
+} */
