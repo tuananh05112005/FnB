@@ -1,620 +1,509 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaTimes, FaCreditCard, FaArrowLeft, FaCheck, FaChartLine, FaShoppingCart, FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
-import axios from "axios";
-import { getCart, updateCartItem, cancelCartItem, markCartItemReceived } from "../services/cartService";
-import { Modal, Button, Form } from "react-bootstrap";
+import { Modal } from "react-bootstrap";
+import {
+  FaArrowLeft,
+  FaChartLine,
+  FaCheck,
+  FaCreditCard,
+  FaShoppingCart,
+  FaTimes,
+  FaTruck,
+} from "react-icons/fa";
+
+import { api } from "../lib/api";
+import { getRole, getToken, getUserId } from "../lib/session";
+import {
+  cancelCartItem,
+  getCart,
+  markCartItemReceived,
+  updateCartItem,
+} from "../services/cartService";
+import "../styles/dashboard.css";
+import "../styles/commerce.css";
+
+const formatCurrency = (amount) =>
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(Number(amount) || 0);
 
 const Cart = () => {
+  const navigate = useNavigate();
+  const userId = getUserId();
+  const token = getToken();
+  const role = getRole();
+
   const [cartItems, setCartItems] = useState([]);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [sortField, setSortField] = useState("order_date");
+  const [sortOrder, setSortOrder] = useState("desc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(8);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [cancellationReason, setCancellationReason] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
-  const [allOrders, setAllOrders] = useState([]);
-  const [totalRevenue, setTotalRevenue] = useState(0);
-  const [sortOrder, setSortOrder] = useState("asc");
-  const [sortField, setSortField] = useState("id");
-
-  const navigate = useNavigate();
-  const user_id = localStorage.getItem("user_id");
-  const role = localStorage.getItem("role");
-  const token = localStorage.getItem("token");
-
-  // Lấy giỏ hàng từ API
-  const fetchCartItems = async () => {
-    try {
-      if (role === "admin") {
-        // Admin orders remain fetched via direct API call
-        const response = await axios.get("http://localhost:5000/api/admin/orders");
-        setCartItems(response.data);
-      } else {
-        const data = await getCart(user_id);
-        setCartItems(data);
-      }
-    } catch (error) {
-      console.error("Lỗi khi lấy giỏ hàng:", error);
-    }
-  };
-
-  // Tính tổng doanh thu
-  const fetchTotalRevenue = async () => {
-    try {
-      const response = await axios.get("http://localhost:5000/api/admin/revenue");
-      setTotalRevenue(response.data.total_revenue || 0);
-    } catch (error) {
-      console.error("Lỗi khi lấy tổng doanh thu:", error);
-    }
-  };
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (user_id && token) {
-      fetchCartItems();
-      if (role === "admin") {
-        fetchTotalRevenue();
-      }
-    } else {
-      alert("Vui lòng đăng nhập để xem giỏ hàng");
+    if (!userId || !token) {
       navigate("/login");
     }
-  }, [user_id, navigate, role, token]);
+  }, [navigate, token, userId]);
 
-  // Cập nhật số lượng sản phẩm
-  const handleQuantityChange = async (id, newQuantity) => {
-    if (!id || isNaN(newQuantity) || newQuantity < 1) {
-      console.error("Giá trị không hợp lệ:", { id, newQuantity });
+  useEffect(() => {
+    const fetchCartData = async () => {
+      try {
+        const [items, revenue] = await Promise.all([
+          role === "admin"
+            ? api.get("/api/admin/orders").then((res) => res.data)
+            : getCart(userId),
+          role === "admin"
+            ? api.get("/api/admin/revenue").then((res) => res.data.total_revenue || 0)
+            : Promise.resolve(0),
+        ]);
+
+        setCartItems(items);
+        setTotalRevenue(revenue);
+      } catch (fetchError) {
+        console.error("Không thể tải giỏ hàng:", fetchError);
+        setError("Không thể tải dữ liệu giỏ hàng lúc này.");
+      }
+    };
+
+    if (userId && token) {
+      fetchCartData();
+    }
+  }, [role, token, userId]);
+
+  const sortedItems = useMemo(() => {
+    const items = [...cartItems];
+    items.sort((a, b) => {
+      const left = a[sortField];
+      const right = b[sortField];
+
+      if (sortField === "order_date") {
+        return sortOrder === "asc"
+          ? new Date(left) - new Date(right)
+          : new Date(right) - new Date(left);
+      }
+
+      if (typeof left === "number" || typeof right === "number") {
+        return sortOrder === "asc" ? left - right : right - left;
+      }
+
+      return sortOrder === "asc"
+        ? String(left).localeCompare(String(right))
+        : String(right).localeCompare(String(left));
+    });
+
+    return items;
+  }, [cartItems, sortField, sortOrder]);
+
+  const pagedItems = sortedItems.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedItems.length / itemsPerPage));
+
+  const statusGroups = useMemo(() => {
+    const counts = {
+      pending: 0,
+      completed: 0,
+      received: 0,
+      cancelled: 0,
+    };
+
+    cartItems.forEach((item) => {
+      if (counts[item.status] !== undefined) {
+        counts[item.status] += 1;
+      }
+    });
+
+    return counts;
+  }, [cartItems]);
+
+  const refreshCart = async () => {
+    try {
+      const items =
+        role === "admin"
+          ? await api.get("/api/admin/orders").then((res) => res.data)
+          : await getCart(userId);
+      setCartItems(items);
+    } catch (refreshError) {
+      console.error("Không thể cập nhật giỏ hàng:", refreshError);
+    }
+  };
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortField(field);
+    setSortOrder(field === "order_date" ? "desc" : "asc");
+  };
+
+  const handleQuantityChange = async (itemId, quantity) => {
+    const nextQuantity = Number(quantity);
+
+    if (!itemId || Number.isNaN(nextQuantity) || nextQuantity < 1) {
       return;
     }
 
     try {
-      const response = await updateCartItem(id, { quantity: newQuantity });
-      console.log("Phản hồi từ server:", response.data);
-      fetchCartItems();
-    } catch (error) {
-      console.error("Lỗi khi cập nhật số lượng:", error);
+      await updateCartItem(itemId, { quantity: nextQuantity });
+      refreshCart();
+    } catch (updateError) {
+      console.error("Không thể cập nhật số lượng:", updateError);
+      setError("Không thể cập nhật số lượng sản phẩm.");
     }
   };
 
-  // Điều hướng đến trang thanh toán
-  const handleCheckoutItem = (item) => {
+  const handleCheckout = (item) => {
     navigate("/payment", { state: { item } });
   };
 
-  // Mở modal hủy đơn
-  const openCancelModal = (item) => {
-    setSelectedItem(item);
-    setShowCancelModal(true);
-  };
-
-  // Đóng modal hủy đơn
-  const closeCancelModal = () => {
-    setShowCancelModal(false);
-    setSelectedItem(null);
-    setCancellationReason("");
-  };
-
-  // Xác nhận hủy đơn
   const handleConfirmCancel = async () => {
-    if (!cancellationReason) {
-      alert("Vui lòng chọn lý do hủy");
+    if (!selectedItem || !cancellationReason) {
       return;
     }
 
     try {
       await cancelCartItem(selectedItem.id);
-      fetchCartItems();
-      alert("Đơn hàng đã được hủy thành công");
-      closeCancelModal();
-    } catch (error) {
-      console.error("Lỗi khi hủy đơn hàng:", error);
+      await refreshCart();
+      setShowCancelModal(false);
+      setSelectedItem(null);
+      setCancellationReason("");
+    } catch (cancelError) {
+      console.error("Không thể hủy đơn:", cancelError);
+      setError("Không thể hủy đơn hàng này.");
     }
   };
 
-  const handleReceivedItem = async (item) => {
+  const handleReceived = async (itemId) => {
     try {
-      await markCartItemReceived(item.id);
-      fetchCartItems();
-      alert("Đơn hàng đã được cập nhật thành đã nhận hàng");
-    } catch (error) {
-      console.error("Lỗi khi cập nhật trạng thái đơn hàng:", error);
+      await markCartItemReceived(itemId);
+      refreshCart();
+    } catch (receiveError) {
+      console.error("Không thể cập nhật đã nhận hàng:", receiveError);
+      setError("Không thể cập nhật trạng thái nhận hàng.");
     }
   };
 
-  // Quay về trang sản phẩm
-  const handleBackToProducts = () => {
-    navigate("/products");
+  const openCancelModal = (item) => {
+    setSelectedItem(item);
+    setShowCancelModal(true);
   };
 
-  // Tính toán dữ liệu hiển thị trên trang hiện tại
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = cartItems.slice(indexOfFirstItem, indexOfLastItem);
+  const getStatusBadge = (status) => {
+    const map = {
+      pending: ["dashboard-badge-warning", role === "admin" ? "Đang xử lý" : "Chưa thanh toán"],
+      completed: ["dashboard-badge-info", role === "admin" ? "Đang giao" : "Đã thanh toán"],
+      received: ["dashboard-badge-success", role === "admin" ? "Đã giao" : "Đã nhận hàng"],
+      cancelled: ["dashboard-badge-danger", "Đã hủy"],
+    };
 
-  // Tính toán tổng số trang
-  const totalPages = Math.ceil(cartItems.length / itemsPerPage);
+    const [variant, label] = map[status] || ["dashboard-badge-neutral", "Không xác định"];
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
-  };
-  
-  // Xử lý sắp xếp
-  const handleSort = (field) => {
-    const order = sortField === field && sortOrder === "asc" ? "desc" : "asc";
-    setSortField(field);
-    setSortOrder(order);
-
-    const sortedCartItems = [...cartItems].sort((a, b) => {
-      if (a[field] < b[field]) return order === "asc" ? -1 : 1;
-      if (a[field] > b[field]) return order === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    setCartItems(sortedCartItems);
+    return <span className={`dashboard-badge ${variant}`}>{label}</span>;
   };
 
-  const getSortIcon = (field) => {
-    if (sortField !== field) return <FaSort className="ms-1 text-muted" />;
-    return sortOrder === "asc" ? <FaSortUp className="ms-1 text-primary" /> : <FaSortDown className="ms-1 text-primary" />;
-  };
-
-  return (
-    <div className="min-vh-100" style={{ backgroundColor: "#f8f9fa" }}>
-      <div className="container py-4">
-        {/* Header Section */}
-        <div className="text-center mb-5">
-          <div className="d-inline-flex align-items-center justify-content-center mb-3" 
-               style={{ 
-                 width: "80px", 
-                 height: "80px", 
-                 background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                 borderRadius: "50%"
-               }}>
-            <FaShoppingCart className="text-white" size={35} />
-          </div>
-          <h1 className="display-4 fw-bold text-dark mb-2">
-            {role === "admin" ? "Quản lý đơn hàng" : "Giỏ hàng của tôi"}
-          </h1>
-          <p className="text-muted fs-5">
-            {role === "admin" ? "Theo dõi và quản lý tất cả đơn hàng" : "Quản lý các sản phẩm đã đặt"}
-          </p>
-        </div>
-
-        {/* Revenue Card for Admin */}
-        {role === "admin" && (
-          <div className="row mb-4">
-            <div className="col-md-6 mx-auto">
-              <div className="card shadow-lg border-0" style={{ 
-                borderRadius: "20px",
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-              }}>
-                <div className="card-body text-center text-white py-4">
-                  <FaChartLine size={40} className="mb-3" />
-                  <h3 className="fw-bold mb-2">Tổng doanh thu</h3>
-                  <h2 className="display-5 fw-bold">{formatCurrency(totalRevenue)}</h2>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Back Button */}
-        <div className="mb-4">
-          <button
-            className="btn btn-outline-primary btn-lg px-4 py-2 shadow-sm"
-            onClick={handleBackToProducts}
-            style={{ borderRadius: "25px" }}
-          >
-            <FaArrowLeft className="me-2" />
-            <span className="d-none d-sm-inline">Quay về trang sản phẩm</span>
-            <span className="d-sm-none">Quay lại</span>
-          </button>
-        </div>
-
-        {/* Stats Card */}
-        <div className="row mb-4">
-          <div className="col-md-4 mx-auto">
-            <div className="card shadow-sm border-0" style={{ borderRadius: "15px" }}>
-              <div className="card-body text-center">
-                <h5 className="text-muted mb-2">Tổng số đơn hàng</h5>
-                <h3 className="fw-bold text-primary">{cartItems.length}</h3>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Desktop Table */}
-        <div className="d-none d-lg-block">
-          <div className="card shadow-lg border-0" style={{ borderRadius: "20px" }}>
-            <div className="card-header bg-white border-0 py-4" style={{ borderRadius: "20px 20px 0 0" }}>
-              <h5 className="mb-0 fw-bold text-dark">
-                <FaShoppingCart className="me-2 text-primary" />
-                Danh sách đơn hàng
-              </h5>
-            </div>
-            <div className="card-body p-0">
-              <div className="table-responsive">
-                <table className="table table-hover mb-0 align-middle">
-                  <thead style={{ backgroundColor: "#f8f9fa" }}>
-                    <tr>
-                      <th className="text-center py-3 fw-bold">STT</th>
-                
-                      <th className="text-center py-3 fw-bold">Hình ảnh</th>
-                      <th className="text-center py-3 fw-bold">Mã SP</th>
-                      <th className="text-center py-3 fw-bold">Tên sản phẩm</th>
-                      <th className="text-center py-3 fw-bold">Giá</th>
-                      <th className="text-center py-3 fw-bold">SL</th>
-                      <th className="text-center py-3 fw-bold">Thành tiền</th>
-                      <th className="text-center py-3 fw-bold">Size</th>
-                      <th 
-                        className="text-center py-3 fw-bold" 
-                        onClick={() => handleSort("order_date")}
-                        style={{ cursor: "pointer" }}
-                      >
-                        Ngày đặt {getSortIcon("order_date")}
-                      </th>
-                      <th className="text-center py-3 fw-bold">Trạng thái</th>
-                      <th className="text-center py-3 fw-bold">Hành động</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentItems.map((item, index) => (
-                      <tr key={item.id} style={{ borderBottom: "1px solid #eef2f7" }}>
-                        <td className="text-center py-3 fw-semibold">{indexOfFirstItem + index + 1}</td>
-  
-
-                        <td className="text-center py-3">
-                          <div className="d-flex justify-content-center">
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="rounded-3 shadow-sm"
-                              style={{ width: "80px", height: "80px", objectFit: "cover" }}
-                            />
-                          </div>
-                        </td>
-                        <td className="text-center py-3">
-                          <span className="badge bg-primary px-3 py-2 fs-6">{item.code}</span>
-                        </td>
-                        <td className="text-center py-3 fw-semibold">{item.name}</td>
-                        <td className="text-center py-3 fw-bold text-success">{formatCurrency(item.price)}</td>
-                        <td className="text-center py-3">
-                          <input
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            onChange={(e) =>
-                              handleQuantityChange(item.id, parseInt(e.target.value))
-                            }
-                            className="form-control form-control-sm mx-auto text-center fw-bold"
-                            disabled={
-                              item.status === "completed" ||
-                              item.status === "cancelled" ||
-                              item.status === "received"
-                            }
-                            style={{ width: "70px", borderRadius: "10px" }}
-                          />
-                        </td>
-                        <td className="text-center py-3 fw-bold text-primary">
-                          {formatCurrency(item.price * item.quantity)}
-                        </td>
-                        <td className="text-center py-3">
-                          <span className="badge bg-info px-3 py-2">{item.size}</span>
-                        </td>
-                        <td className="text-center py-3">
-                          {new Date(item.order_date).toLocaleDateString('vi-VN')}
-                        </td>
-                        <td className="text-center py-3">
-                          {getStatusBadge(item.status, role)}
-                        </td>
-                        <td className="text-center py-3">
-                          {getActionButtons(item, role)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Cards */}
-        <div className="d-lg-none">
-          {currentItems.map((item, index) => (
-            <div key={item.id} className="card mb-4 shadow-lg border-0" style={{ borderRadius: "20px" }}>
-              <div className="card-header bg-gradient-primary text-white d-flex justify-content-between align-items-center py-3"
-                   style={{ 
-                     background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                     borderRadius: "20px 20px 0 0"
-                   }}>
-                <span className="badge bg-white text-primary px-3 py-2 fw-bold">
-                  #{indexOfFirstItem + index + 1}
-                </span>
-                <span className="fw-bold">{item.code}</span>
-                {getStatusBadge(item.status, role)}
-              </div>
-              <div className="row g-0">
-                <div className="col-4 p-3">
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="img-fluid rounded-3 shadow-sm h-100 object-fit-cover"
-                    style={{ minHeight: "120px" }}
-                  />
-                </div>
-                <div className="col-8">
-                  <div className="card-body p-3">
-
-                    <h5 className="card-title fw-bold mb-3">{item.name}</h5>
-                    
-                    <div className="row mb-3">
-                      <div className="col-6">
-                        <div className="mb-2">
-                          <small className="text-muted">Giá:</small>
-                          <div className="fw-bold text-success">{formatCurrency(item.price)}</div>
-                        </div>
-                        <div className="mb-2">
-                          <small className="text-muted">Kích thước:</small>
-                          <div><span className="badge bg-info">{item.size}</span></div>
-                        </div>
-                      </div>
-                      <div className="col-6">
-                        <div className="mb-2">
-                          <small className="text-muted">Số lượng:</small>
-                          <input
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            onChange={(e) =>
-                              handleQuantityChange(item.id, parseInt(e.target.value))
-                            }
-                            className="form-control form-control-sm text-center fw-bold mt-1"
-                            disabled={
-                              item.status === "completed" ||
-                              item.status === "cancelled" ||
-                              item.status === "received"
-                            }
-                            style={{ borderRadius: "8px" }}
-                          />
-                        </div>
-                        <div className="mb-2">
-                          <small className="text-muted">Thành tiền:</small>
-                          <div className="fw-bold text-primary">{formatCurrency(item.price * item.quantity)}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mb-3">
-                      <small className="text-muted">Ngày đặt:</small>
-                      <div>{new Date(item.order_date).toLocaleDateString('vi-VN')}</div>
-                    </div>
-
-                    <div className="d-grid gap-2">
-                      {getActionButtonsMobile(item, role)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Pagination */}
-        <div className="d-flex justify-content-center mt-5">
-          <div className="card shadow-sm border-0" style={{ borderRadius: "15px" }}>
-            <div className="card-body p-3">
-              <div className="d-flex align-items-center">
-                <button
-                  className="btn btn-outline-primary me-3"
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  style={{ borderRadius: "10px", minWidth: "100px" }}
-                >
-                  <span className="d-none d-sm-inline">Trang trước</span>
-                  <span className="d-sm-none">←</span>
-                </button>
-                
-                <div className="mx-3">
-                  <span className="badge bg-primary fs-6 px-4 py-2" style={{ borderRadius: "10px" }}>
-                    {currentPage} / {totalPages}
-                  </span>
-                </div>
-                
-                <button
-                  className="btn btn-outline-primary ms-3"
-                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  style={{ borderRadius: "10px", minWidth: "100px" }}
-                >
-                  <span className="d-none d-sm-inline">Trang sau</span>
-                  <span className="d-sm-none">→</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Cancel Modal */}
-        <Modal show={showCancelModal} onHide={closeCancelModal} fullscreen="sm-down" centered>
-          <Modal.Header closeButton className="border-0">
-            <Modal.Title className="fw-bold">
-              <FaTimes className="me-2 text-danger" />
-              Hủy đơn hàng
-            </Modal.Title>
-          </Modal.Header>
-          <Modal.Body className="p-4">
-            <Form>
-              <Form.Group className="mb-3">
-                <Form.Label className="fw-semibold mb-3">Vui lòng chọn lý do hủy:</Form.Label>
-                <Form.Control
-                  as="select"
-                  value={cancellationReason}
-                  onChange={(e) => setCancellationReason(e.target.value)}
-                  className="form-control-lg"
-                  style={{ borderRadius: "10px" }}
-                >
-                  <option value="">-- Chọn lý do hủy --</option>
-                  <option value="Không còn nhu cầu">Không còn nhu cầu</option>
-                  <option value="Đặt nhầm sản phẩm">Đặt nhầm sản phẩm</option>
-                  <option value="Giao hàng chậm">Giao hàng chậm</option>
-                  <option value="Lý do khác">Lý do khác</option>
-                </Form.Control>
-              </Form.Group>
-            </Form>
-          </Modal.Body>
-          <Modal.Footer className="border-0 p-4">
-            <Button 
-              variant="outline-secondary" 
-              onClick={closeCancelModal}
-              className="px-4 py-2"
-              style={{ borderRadius: "10px" }}
-            >
-              Đóng
-            </Button>
-            <Button 
-              variant="danger" 
-              onClick={handleConfirmCancel}
-              className="px-4 py-2"
-              style={{ borderRadius: "10px" }}
-            >
-              <FaTimes className="me-2" />
-              Xác nhận hủy
-            </Button>
-          </Modal.Footer>
-        </Modal>
-      </div>
-    </div>
-  );
-
-  // Helper functions for status badges and action buttons
-  function getStatusBadge(status, role) {
-    const baseStyle = "badge px-3 py-2 fs-6";
-    
+  const renderActions = (item) => {
     if (role === "user") {
-      switch (status) {
-        case "pending":
-          return <span className={`${baseStyle} bg-warning`}>Chưa thanh toán</span>;
-        case "completed":
-          return <span className={`${baseStyle} bg-primary`}>Đã thanh toán</span>;
-        case "received":
-          return <span className={`${baseStyle} bg-success`}>Đã nhận hàng</span>;
-        case "cancelled":
-          return <span className={`${baseStyle} bg-danger`}>Đã hủy</span>;
-        default:
-          return <span className={`${baseStyle} bg-secondary`}>Không xác định</span>;
-      }
-    } else {
-      switch (status) {
-        case "pending":
-          return <span className={`${baseStyle} bg-warning`}>Đang xử lý</span>;
-        case "completed":
-          return <span className={`${baseStyle} bg-primary`}>Đang giao</span>;
-        case "received":
-          return <span className={`${baseStyle} bg-success`}>Đã giao</span>;
-        case "cancelled":
-          return <span className={`${baseStyle} bg-danger`}>Đơn bị hủy</span>;
-        default:
-          return <span className={`${baseStyle} bg-secondary`}>Không xác định</span>;
-      }
-    }
-  }
-
-  function getActionButtons(item, role) {
-    if (role === "user") {
-      if (item.status === "completed" && item.status !== "received") {
-        return (
-          <div className="d-flex gap-2 justify-content-center">
-            <button
-              className="btn btn-outline-danger btn-sm px-3"
-              onClick={() => openCancelModal(item)}
-              style={{ borderRadius: "8px" }}
-            >
-              <FaTimes className="me-1" /> Hủy
-            </button>
-            <button
-              className="btn btn-outline-success btn-sm px-3"
-              onClick={() => handleReceivedItem(item)}
-              style={{ borderRadius: "8px" }}
-            >
-              <FaCheck className="me-1" /> Đã nhận
-            </button>
-          </div>
-        );
-      } else if (item.status === "pending") {
+      if (item.status === "pending") {
         return (
           <button
-            className="btn btn-success btn-sm px-3"
-            onClick={() => handleCheckoutItem(item)}
-            style={{ borderRadius: "8px" }}
+            type="button"
+            className="dashboard-btn dashboard-btn-primary"
+            onClick={() => handleCheckout(item)}
           >
-            <FaCreditCard className="me-1" /> Thanh toán
+            <FaCreditCard />
+            Thanh toán
           </button>
         );
       }
-    } else {
-      if (item.status !== "cancelled" && item.status !== "received") {
-        return (
-          <button
-            className="btn btn-outline-danger btn-sm px-3"
-            onClick={() => openCancelModal(item)}
-            style={{ borderRadius: "8px" }}
-          >
-            <FaTimes className="me-1" /> Hủy đơn
-          </button>
-        );
-      }
-    }
-    return <span className="text-muted">--</span>;
-  }
 
-  function getActionButtonsMobile(item, role) {
-    if (role === "user") {
-      if (item.status === "completed" && item.status !== "received") {
+      if (item.status === "completed") {
         return (
           <>
             <button
-              className="btn btn-outline-danger"
-              onClick={() => openCancelModal(item)}
-              style={{ borderRadius: "10px" }}
+              type="button"
+              className="dashboard-btn dashboard-btn-success"
+              onClick={() => handleReceived(item.id)}
             >
-              <FaTimes className="me-2" /> Hủy đơn
+              <FaCheck />
+              Đã nhận
             </button>
             <button
-              className="btn btn-outline-success"
-              onClick={() => handleReceivedItem(item)}
-              style={{ borderRadius: "10px" }}
+              type="button"
+              className="dashboard-btn dashboard-btn-danger"
+              onClick={() => openCancelModal(item)}
             >
-              <FaCheck className="me-2" /> Đã nhận hàng
+              <FaTimes />
+              Hủy đơn
             </button>
           </>
         );
-      } else if (item.status === "pending") {
-        return (
-          <button
-            className="btn btn-success"
-            onClick={() => handleCheckoutItem(item)}
-            style={{ borderRadius: "10px" }}
-          >
-            <FaCreditCard className="me-2" /> Thanh toán
-          </button>
-        );
-      }
-    } else {
-      if (item.status !== "cancelled" && item.status !== "delivered") {
-        return (
-          <button
-            className="btn btn-outline-danger"
-            onClick={() => openCancelModal(item)}
-            style={{ borderRadius: "10px" }}
-          >
-            <FaTimes className="me-2" /> Hủy đơn
-          </button>
-        );
       }
     }
-    return null;
-  }
+
+    if (role === "admin" && !["cancelled", "received"].includes(item.status)) {
+      return (
+        <button
+          type="button"
+          className="dashboard-btn dashboard-btn-danger"
+          onClick={() => openCancelModal(item)}
+        >
+          <FaTimes />
+          Hủy đơn
+        </button>
+      );
+    }
+
+    return <span className="dashboard-count">Không có thao tác</span>;
+  };
+
+  return (
+    <div className="dashboard-page">
+      <div className="dashboard-shell">
+        <div className="dashboard-header">
+          <div className="dashboard-title-wrap">
+            <div className="dashboard-icon">
+              <FaShoppingCart />
+            </div>
+            <div>
+              <h1 className="dashboard-title">
+                {role === "admin" ? "Quản lý đơn hàng" : "Giỏ hàng của tôi"}
+              </h1>
+              <p className="dashboard-subtitle">
+                {role === "admin"
+                  ? "Theo dõi tình trạng đơn và tổng doanh thu trong một màn hình."
+                  : "Kiểm tra đơn đang xử lý, thanh toán và xác nhận nhận hàng."}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="dashboard-back-btn"
+            onClick={() => navigate("/products")}
+          >
+            <FaArrowLeft />
+            Quay lại sản phẩm
+          </button>
+        </div>
+
+        {role === "admin" && (
+          <section className="dashboard-panel dashboard-panel-dark" style={{ marginBottom: 18 }}>
+            <div className="dashboard-panel-body">
+              <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+                <div className="dashboard-stat-icon" style={{ background: "rgba(255,255,255,0.14)" }}>
+                  <FaChartLine />
+                </div>
+                <div>
+                  <span className="commerce-kpi-label" style={{ color: "rgba(255,255,255,0.7)" }}>
+                    Tổng doanh thu
+                  </span>
+                  <h2 style={{ margin: "8px 0 0", fontSize: "2.2rem", fontWeight: 800 }}>
+                    {formatCurrency(totalRevenue)}
+                  </h2>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        <div className="dashboard-stats-grid" style={{ marginBottom: 18 }}>
+          {[
+            { icon: <FaShoppingCart />, label: "Tổng đơn", value: cartItems.length, bg: "#f3e8ff", color: "#7c3aed" },
+            { icon: <FaCreditCard />, label: "Đang xử lý", value: statusGroups.pending, bg: "#fff7ed", color: "#f59e0b" },
+            { icon: <FaTruck />, label: "Đang giao", value: statusGroups.completed, bg: "#eff6ff", color: "#2563eb" },
+            { icon: <FaTimes />, label: "Đã hủy", value: statusGroups.cancelled, bg: "#fef2f2", color: "#ef4444" },
+          ].map((item) => (
+            <article key={item.label} className="dashboard-stat">
+              <div
+                className="dashboard-stat-icon"
+                style={{ background: item.bg, color: item.color }}
+              >
+                {item.icon}
+              </div>
+              <div>
+                <p className="dashboard-stat-value">{item.value}</p>
+                <p className="dashboard-stat-label">{item.label}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        {error && <div className="commerce-alert commerce-alert-danger">{error}</div>}
+
+        <div className="dashboard-toolbar" style={{ marginBottom: 18 }}>
+          <div className="dashboard-toolbar-group">
+            <button
+              type="button"
+              className={`dashboard-chip ${sortField === "order_date" ? "active" : ""}`}
+              onClick={() => handleSort("order_date")}
+            >
+              Ngày đặt {sortField === "order_date" ? `(${sortOrder})` : ""}
+            </button>
+            <button
+              type="button"
+              className={`dashboard-chip ${sortField === "price" ? "active" : ""}`}
+              onClick={() => handleSort("price")}
+            >
+              Giá {sortField === "price" ? `(${sortOrder})` : ""}
+            </button>
+            <button
+              type="button"
+              className={`dashboard-chip ${sortField === "name" ? "active" : ""}`}
+              onClick={() => handleSort("name")}
+            >
+              Tên {sortField === "name" ? `(${sortOrder})` : ""}
+            </button>
+          </div>
+          <span className="dashboard-count">{sortedItems.length} đơn hàng</span>
+        </div>
+
+        <section className="dashboard-panel">
+          <div className="dashboard-panel-header">
+            <h2 className="dashboard-panel-title">
+              <span className="dashboard-panel-title-dot" />
+              Danh sách đơn hàng
+            </h2>
+          </div>
+
+          {pagedItems.length === 0 ? (
+            <div className="dashboard-empty">Chưa có đơn hàng nào trong danh sách.</div>
+          ) : (
+            <div className="dashboard-table-wrap">
+              <table className="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Sản phẩm</th>
+                    <th>Giá</th>
+                    <th>SL</th>
+                    <th>Thành tiền</th>
+                    <th>Ngày đặt</th>
+                    <th>Trạng thái</th>
+                    <th>Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedItems.map((item, index) => (
+                    <tr key={item.id}>
+                      <td className="dashboard-index">
+                        {String((currentPage - 1) * itemsPerPage + index + 1).padStart(2, "0")}
+                      </td>
+                      <td>
+                        <div className="dashboard-product">
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="dashboard-thumb"
+                          />
+                          <div>
+                            <div style={{ fontWeight: 800 }}>{item.name}</div>
+                            <span className="dashboard-code">{item.code || "SP"}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="dashboard-money">{formatCurrency(item.price)}</td>
+                      <td>
+                        <input
+                          className="dashboard-qty"
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          disabled={["completed", "cancelled", "received"].includes(item.status)}
+                          onChange={(event) =>
+                            handleQuantityChange(item.id, event.target.value)
+                          }
+                        />
+                      </td>
+                      <td className="dashboard-money-primary">
+                        {formatCurrency(Number(item.price) * Number(item.quantity))}
+                      </td>
+                      <td>{new Date(item.order_date).toLocaleDateString("vi-VN")}</td>
+                      <td>{getStatusBadge(item.status)}</td>
+                      <td>
+                        <div className="dashboard-action-row">{renderActions(item)}</div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <div className="dashboard-toolbar" style={{ marginTop: 18 }}>
+          <span className="dashboard-count">
+            Trang {currentPage}/{totalPages}
+          </span>
+          <div className="dashboard-toolbar-group">
+            <button
+              type="button"
+              className="dashboard-btn dashboard-btn-secondary"
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              Trước
+            </button>
+            <button
+              type="button"
+              className="dashboard-btn dashboard-btn-primary"
+              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Sau
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <Modal show={showCancelModal} onHide={() => setShowCancelModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Huy đơn hàng</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <label htmlFor="cancel-reason" className="dashboard-field" style={{ gap: 10 }}>
+            <span>Lý do hủy</span>
+            <select
+              id="cancel-reason"
+              className="dashboard-select"
+              value={cancellationReason}
+              onChange={(event) => setCancellationReason(event.target.value)}
+            >
+              <option value="">Chọn lý do</option>
+              <option value="Không còn nhu cầu">Không còn nhu cầu</option>
+              <option value="Đặt nhầm sản phẩm">Đặt nhầm sản phẩm</option>
+              <option value="Giao hàng chậm">Giao hàng chậm</option>
+              <option value="Lý do khác">Lý do khác</option>
+            </select>
+          </label>
+        </Modal.Body>
+        <Modal.Footer>
+          <button
+            type="button"
+            className="dashboard-btn dashboard-btn-secondary"
+            onClick={() => setShowCancelModal(false)}
+          >
+            Đóng
+          </button>
+          <button
+            type="button"
+            className="dashboard-btn dashboard-btn-danger"
+            onClick={handleConfirmCancel}
+          >
+            Xác nhận hủy
+          </button>
+        </Modal.Footer>
+      </Modal>
+    </div>
+  );
 };
 
 export default Cart;

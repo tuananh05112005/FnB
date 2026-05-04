@@ -1,92 +1,86 @@
-import { FaUser, FaMapMarkerAlt, FaPhone, FaTruck } from "react-icons/fa";
+import { FaMapMarkerAlt, FaPhone, FaTruck, FaUser } from "react-icons/fa";
+
 const DeliveryForm = ({
   paymentInfo,
   handlePaymentInfoChange,
   handleOpenMap,
-  handleNextStep}
-) => {
-  return (
-    <div className="card border-0 shadow-sm">
-      <div className="card-header bg-light py-3">
-        <h5 className="mb-0">
-          <FaTruck className="me-2 text-success" />
-          Thông tin giao hàng
-        </h5>
+  handleNextStep,
+}) => (
+  <section className="dashboard-panel">
+    <div className="dashboard-panel-header">
+      <h2 className="dashboard-panel-title">
+        <span className="dashboard-panel-title-dot" />
+        <FaTruck />
+        Thong tin giao hang
+      </h2>
+    </div>
+    <div className="dashboard-panel-body">
+      <div className="dashboard-form-grid">
+        <div className="dashboard-field">
+          <label htmlFor="payment-name">
+            <FaUser style={{ marginRight: 8 }} />
+            Ten nguoi nhan
+          </label>
+          <input
+            id="payment-name"
+            name="name"
+            className="dashboard-input"
+            value={paymentInfo.name}
+            onChange={handlePaymentInfoChange}
+            placeholder="Nhap ten nguoi nhan"
+          />
+        </div>
+        <div className="dashboard-field">
+          <label htmlFor="payment-phone">
+            <FaPhone style={{ marginRight: 8 }} />
+            So dien thoai
+          </label>
+          <input
+            id="payment-phone"
+            name="phone"
+            className="dashboard-input"
+            value={paymentInfo.phone}
+            onChange={handlePaymentInfoChange}
+            placeholder="Nhap so dien thoai"
+          />
+        </div>
       </div>
-      <div className="card-body p-4">
-        <form>
-          <div className="mb-4">
-            <label htmlFor="name" className="form-label">
-              <FaUser className="me-2 text-muted" />
-              Tên người nhận
-            </label>
-            <input
-              type="text"
-              className="form-control form-control-lg border-0 bg-light"
-              id="name"
-              name="name"
-              placeholder="Nhập tên người nhận"
-              value={paymentInfo.name}
-              onChange={handlePaymentInfoChange}
-              required
-            />
-          </div>
-          <div className="mb-4">
-            <label htmlFor="address" className="form-label">
-              <FaMapMarkerAlt className="me-2 text-muted" />
-              Địa chỉ
-            </label>
-            <div className="input-group">
-              <input
-                type="text"
-                className="form-control form-control-lg border-0 bg-light"
-                id="address"
-                name="address"
-                placeholder="Nhập địa chỉ giao hàng"
-                value={paymentInfo.address}
-                onChange={handlePaymentInfoChange}
-                required
-              />
-              <button
-                className="btn btn-outline-secondary"
-                type="button"
-                onClick={handleOpenMap}
-              >
-                <FaMapMarkerAlt /> Chọn trên bản đồ
-              </button>
-            </div>
-            <small className="text-muted">
-              Hoặc click vào nút để chọn địa chỉ trên bản đồ
-            </small>
-          </div>
-          <div className="mb-4">
-            <label htmlFor="phone" className="form-label">
-              <FaPhone className="me-2 text-muted" />
-              Số điện thoại
-            </label>
-            <input
-              type="text"
-              className="form-control form-control-lg border-0 bg-light"
-              id="phone"
-              name="phone"
-              placeholder="Nhập số điện thoại liên hệ"
-              value={paymentInfo.phone}
-              onChange={handlePaymentInfoChange}
-              required
-            />
-          </div>
-          <div className="d-grid">
-            <button
-              type="button"
-              className="btn btn-success btn-lg py-3"
-              onClick={handleNextStep}
-            >
-              Tiếp tục
-            </button>
-          </div>
-        </form>
+
+      <div className="dashboard-field" style={{ marginTop: 16 }}>
+        <label htmlFor="payment-address">
+          <FaMapMarkerAlt style={{ marginRight: 8 }} />
+          Dia chi nhan hang
+        </label>
+        <div className="dashboard-toolbar-group">
+          <input
+            id="payment-address"
+            name="address"
+            className="dashboard-input"
+            value={paymentInfo.address}
+            onChange={handlePaymentInfoChange}
+            placeholder="Nhap dia chi giao hang"
+          />
+          <button
+            type="button"
+            className="dashboard-btn dashboard-btn-secondary"
+            onClick={handleOpenMap}
+          >
+            Chon tren ban do
+          </button>
+        </div>
+      </div>
+
+      <div className="dashboard-form-actions">
+        <button
+          type="button"
+          className="dashboard-btn dashboard-btn-primary"
+          onClick={handleNextStep}
+        >
+          Tiep tuc
+        </button>
       </div>
     </div>
-  );
-};
+  </section>
+);
+
 export default DeliveryForm;

@@ -1,54 +1,48 @@
 import { FaShoppingCart } from "react-icons/fa";
-const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
-  };
 
+const formatCurrency = (amount) =>
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(Number(amount) || 0);
 
- const ProductInfo = ({item}) => {
-    return (
-      <div className="card border-0 shadow-sm mb-4 overflow-hidden">
-        <div className="card-header bg-light py-3">
-          <h5 className="mb-0">
-            <FaShoppingCart className="me-2 text-success" />
-            Thông tin sản phẩm
-          </h5>
-        </div>
-        <div className="card-body">
-          {item && (
-            <div className="row align-items-center">
-              <div className="col-md-2 text-center mb-3 mb-md-0">
-                <div className="bg-light p-3 rounded">
-                  <img
-                    src={item.image || "https://via.placeholder.com/100"}
-                    alt={item.name}
-                    className="img-fluid"
-                    style={{ maxHeight: "80px", objectFit: "contain" }}
-                  />
-                </div>
-              </div>
-              <div className="col-md-6 mb-3 mb-md-0">
-                <h5 className="fw-bold mb-1">{item.name}</h5>
-                <p className="text-muted small mb-0">Mã sản phẩm: {item.product_id}</p>
-                <div className="mt-2">
-                  <span className="badge bg-light text-dark me-2">
-                    Số lượng: {item.quantity}
-                  </span>
-                  <span className="badge bg-light text-dark">
-                    Đơn giá: {formatCurrency(item.price)}
-                  </span>
-                </div>
-              </div>
-              <div className="col-md-4 text-md-end">
-                <p className="text-muted mb-1">Tổng tiền:</p>
-                <h4 className="text-success fw-bold">
-                  {formatCurrency(item.price * item.quantity)}
-                </h4>
-              </div>
-            </div>
-          )}
+const ProductInfo = ({ item }) => (
+  <section className="dashboard-panel">
+    <div className="dashboard-panel-header">
+      <h2 className="dashboard-panel-title">
+        <span className="dashboard-panel-title-dot" />
+        <FaShoppingCart />
+        Thong tin san pham
+      </h2>
+    </div>
+    <div className="dashboard-panel-body">
+      <div className="dashboard-product" style={{ alignItems: "stretch" }}>
+        <img
+          src={item?.image || "https://via.placeholder.com/120"}
+          alt={item?.name || "San pham"}
+          className="dashboard-thumb"
+          style={{ width: 96, height: 96 }}
+        />
+        <div style={{ flex: 1 }}>
+          <h3 className="commerce-product-title">{item?.name}</h3>
+          <p className="dashboard-subtitle" style={{ marginTop: 8 }}>
+            Ma san pham: {item?.product_id || item?.id}
+          </p>
+          <div className="commerce-meta" style={{ marginTop: 12 }}>
+            <span className="dashboard-badge dashboard-badge-neutral">
+              So luong: {item?.quantity}
+            </span>
+            <span className="dashboard-badge dashboard-badge-info">
+              Don gia: {formatCurrency(item?.price)}
+            </span>
+            <span className="dashboard-badge dashboard-badge-success">
+              Tong: {formatCurrency(Number(item?.price) * Number(item?.quantity))}
+            </span>
+          </div>
         </div>
       </div>
-    );
-  };
+    </div>
+  </section>
+);
 
 export default ProductInfo;

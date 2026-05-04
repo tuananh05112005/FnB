@@ -1,9 +1,13 @@
-import React, { useState } from "react";
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import { Container, Form, Button, Card, Alert } from "react-bootstrap";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { FaEnvelope, FaKey, FaLock, FaRedo } from "react-icons/fa";
+
+import { api } from "../../lib/api";
+import "../../styles/dashboard.css";
+import "../../styles/commerce.css";
 
 const ForgotPassword = () => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -12,17 +16,17 @@ const ForgotPassword = () => {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const navigate = useNavigate();
-
   const handleSendOTP = async () => {
     setError("");
     setMessage("");
+
     try {
-      await axios.post("http://localhost:5000/api/send-otp", { email });
-      setMessage("OTP đã được gửi về email!");
+      await api.post("/api/send-otp", { email });
+      setMessage("OTP da duoc gui ve email.");
       setStep(2);
-    } catch (err) {
-      setError("Không thể gửi OTP. Vui lòng thử lại.");
+    } catch (sendError) {
+      console.error("Khong the gui OTP:", sendError);
+      setError("Khong the gui OTP. Vui long thu lai.");
     }
   };
 
@@ -31,98 +35,145 @@ const ForgotPassword = () => {
     setMessage("");
 
     if (newPassword !== confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp.");
+      setError("Mat khau xac nhan khong khop.");
       return;
     }
 
     try {
-      await axios.post("http://localhost:5000/api/reset-password", {
+      await api.post("/api/reset-password", {
         email,
         otp_code: otp,
         new_password: newPassword,
       });
-      setMessage("Đặt lại mật khẩu thành công. Đang chuyển về trang đăng nhập...");
-
-      setTimeout(() => {
-        navigate("/login"); // hoặc thay bằng "/dang-nhap"
-      }, 2000);
-    } catch (err) {
-      setError("OTP không hợp lệ hoặc đã hết hạn.");
+      setMessage("Dat lai mat khau thanh cong. Dang chuyen ve trang dang nhap...");
+      setTimeout(() => navigate("/login"), 1500);
+    } catch (resetError) {
+      console.error("Khong the dat lai mat khau:", resetError);
+      setError("OTP khong hop le hoac da het han.");
     }
   };
 
   return (
-    <Container className="d-flex justify-content-center align-items-center vh-100">
-      <Card style={{ width: "400px", borderRadius: "15px" }}>
-        <Card.Body className="p-4">
-          <h4 className="text-center fw-bold mb-4">Quên mật khẩu</h4>
+    <div className="dashboard-page commerce-auth-shell">
+      <section className="dashboard-panel commerce-auth-card">
+        <div className="dashboard-panel-body">
+          <div className="dashboard-title-wrap" style={{ marginBottom: 24 }}>
+            <div className="dashboard-icon">
+              <FaRedo />
+            </div>
+            <div>
+              <h1 className="dashboard-title" style={{ fontSize: "2rem" }}>
+                Quen mat khau
+              </h1>
+              <p className="dashboard-subtitle">
+                Lay lai mat khau bang OTP gui qua email.
+              </p>
+            </div>
+          </div>
 
-          {error && <Alert variant="danger">{error}</Alert>}
-          {message && <Alert variant="success">{message}</Alert>}
+          {error && <div className="commerce-alert commerce-alert-danger">{error}</div>}
+          {message && (
+            <div className="commerce-alert commerce-alert-success" style={{ marginTop: 12 }}>
+              {message}
+            </div>
+          )}
 
           {step === 1 ? (
-            <>
-              <Form.Group className="mb-3">
-                <Form.Label>Email đã đăng ký</Form.Label>
-                <Form.Control
+            <div style={{ marginTop: error || message ? 16 : 0 }}>
+              <div className="dashboard-field">
+                <label htmlFor="forgot-email">
+                  <FaEnvelope style={{ marginRight: 8 }} />
+                  Email da dang ky
+                </label>
+                <input
+                  id="forgot-email"
                   type="email"
-                  placeholder="Nhập email"
+                  className="dashboard-input"
                   value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setError("");
-                    setMessage("");
-                  }}
-                  required
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="Nhap email"
                 />
-              </Form.Group>
-              <Button variant="primary" onClick={handleSendOTP} className="w-100 mb-2">
-                Gửi mã OTP
-              </Button>
-              <Button variant="secondary" className="w-100" onClick={() => navigate("/login")}>
-                Quay lại đăng nhập
-              </Button>
-            </>
+              </div>
+              <div className="dashboard-form-actions" style={{ justifyContent: "stretch", marginTop: 24 }}>
+                <button
+                  type="button"
+                  className="dashboard-btn dashboard-btn-primary"
+                  style={{ width: "100%" }}
+                  onClick={handleSendOTP}
+                >
+                  Gui OTP
+                </button>
+              </div>
+            </div>
           ) : (
-            <>
-              <Form.Group className="mb-3">
-                <Form.Label>Mã OTP</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Nhập mã OTP"
+            <div style={{ marginTop: error || message ? 16 : 0 }}>
+              <div className="dashboard-field">
+                <label htmlFor="forgot-otp">
+                  <FaKey style={{ marginRight: 8 }} />
+                  Ma OTP
+                </label>
+                <input
+                  id="forgot-otp"
+                  className="dashboard-input"
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
+                  onChange={(event) => setOtp(event.target.value)}
+                  placeholder="Nhap ma OTP"
                 />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Mật khẩu mới</Form.Label>
-                <Form.Control
+              </div>
+
+              <div className="dashboard-field" style={{ marginTop: 16 }}>
+                <label htmlFor="forgot-password">
+                  <FaLock style={{ marginRight: 8 }} />
+                  Mat khau moi
+                </label>
+                <input
+                  id="forgot-password"
                   type="password"
-                  placeholder="Nhập mật khẩu mới"
+                  className="dashboard-input"
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={(event) => setNewPassword(event.target.value)}
                 />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Xác nhận mật khẩu</Form.Label>
-                <Form.Control
+              </div>
+
+              <div className="dashboard-field" style={{ marginTop: 16 }}>
+                <label htmlFor="forgot-confirm-password">
+                  <FaLock style={{ marginRight: 8 }} />
+                  Xac nhan mat khau
+                </label>
+                <input
+                  id="forgot-confirm-password"
                   type="password"
-                  placeholder="Nhập lại mật khẩu"
+                  className="dashboard-input"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
                 />
-              </Form.Group>
-              <Button variant="success" onClick={handleResetPassword} className="w-100 mb-2">
-                Xác nhận đặt lại mật khẩu
-              </Button>
-              <Button variant="secondary" onClick={() => setStep(1)} className="w-100">
-                Quay lại
-              </Button>
-            </>
+              </div>
+
+              <div className="dashboard-form-actions" style={{ justifyContent: "stretch", marginTop: 24 }}>
+                <button
+                  type="button"
+                  className="dashboard-btn dashboard-btn-secondary"
+                  onClick={() => setStep(1)}
+                >
+                  Quay lai
+                </button>
+                <button
+                  type="button"
+                  className="dashboard-btn dashboard-btn-primary"
+                  onClick={handleResetPassword}
+                >
+                  Dat lai mat khau
+                </button>
+              </div>
+            </div>
           )}
-        </Card.Body>
-      </Card>
-    </Container>
+
+          <p className="dashboard-subtitle" style={{ marginTop: 18 }}>
+            <Link to="/login">Ve trang dang nhap</Link>
+          </p>
+        </div>
+      </section>
+    </div>
   );
 };
 

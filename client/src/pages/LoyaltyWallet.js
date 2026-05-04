@@ -64,9 +64,8 @@ const LoyaltyWallet = () => {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
-        .lw { font-family:'Nunito',sans-serif; padding:72px 24px 28px; background:#f0f2f8; min-height:100vh; }
-        .lw h1 { font-size:1.4rem; font-weight:800; color:#1a2036; margin:0 0 3px; }
+        .lw { font-family: "Be Vietnam Pro", "Segoe UI", sans-serif; padding:88px 24px 32px; background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.08), transparent 18%), linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%); min-height:100vh; }
+
         .lw-sub { font-size:0.8rem; color:#8899bb; margin:0 0 20px; }
         .lw-panel { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(26,32,64,.07); overflow:hidden; margin-bottom:14px; }
         .lw-ph { display:flex; align-items:center; gap:8px; padding:14px 20px; border-bottom:1px solid #f0f2f8; font-size:.88rem; font-weight:700; color:#1a2036; }
@@ -81,17 +80,17 @@ const LoyaltyWallet = () => {
         .lw-table td { padding:12px 16px; border:none; vertical-align:middle; }
         .lw-code { background:#f5f3ff; color:#6d28d9; font-weight:800; font-size:.8rem; padding:3px 9px; border-radius:6px; border:1px dashed #c4b5fd; }
         .lw-badge { display:inline-flex; align-items:center; padding:3px 9px; border-radius:20px; font-size:.72rem; font-weight:700; }
-        .lw-btn-send { height:28px; padding:0 12px; border-radius:7px; font-size:.76rem; font-weight:700; font-family:'Nunito',sans-serif; cursor:pointer; border:none; background:#f5f3ff; color:#6d28d9; transition:background .14s; }
+        .lw-btn-send { height:28px; padding:0 12px; border-radius:7px; font-size:.76rem; font-weight:700; font-family: "Be Vietnam Pro", "Segoe UI", sans-serif; cursor:pointer; border:none; background:#f5f3ff; color:#6d28d9; transition:background .14s; }
         .lw-btn-send:hover { background:#ede9fe; }
         .lw-empty { padding:32px; text-align:center; color:#c4cde0; font-size:.84rem; font-weight:600; }
         .lw-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:11px; }
         .lw-label { display:block; font-size:.7rem; font-weight:700; color:#8899bb; text-transform:uppercase; letter-spacing:.4px; margin-bottom:5px; }
-        .lw-input, .lw-select { width:100%; height:36px; border:1.5px solid #e8ecf4; border-radius:8px; padding:0 11px; font-size:.86rem; font-family:'Nunito',sans-serif; color:#1a2036; background:#f8f9ff; outline:none; box-sizing:border-box; transition:border-color .17s; }
+        .lw-input, .lw-select { width:100%; height:36px; border:1.5px solid #e8ecf4; border-radius:8px; padding:0 11px; font-size:.86rem; font-family: "Be Vietnam Pro", "Segoe UI", sans-serif; color:#1a2036; background:#f8f9ff; outline:none; box-sizing:border-box; transition:border-color .17s; }
         .lw-input:focus, .lw-select:focus { border-color:#6d28d9; box-shadow:0 0 0 3px rgba(109,40,217,.1); background:#fff; }
-        .lw-select-multi { width:100%; min-height:90px; border:1.5px solid #e8ecf4; border-radius:8px; padding:7px 11px; font-size:.86rem; font-family:'Nunito',sans-serif; color:#1a2036; background:#f8f9ff; outline:none; box-sizing:border-box; }
+        .lw-select-multi { width:100%; min-height:90px; border:1.5px solid #e8ecf4; border-radius:8px; padding:7px 11px; font-size:.86rem; font-family: "Be Vietnam Pro", "Segoe UI", sans-serif; color:#1a2036; background:#f8f9ff; outline:none; box-sizing:border-box; }
         .lw-select-multi:focus { border-color:#6d28d9; box-shadow:0 0 0 3px rgba(109,40,217,.1); }
         .lw-hint { font-size:.7rem; color:#b0bdd4; margin-top:5px; }
-        .lw-btn-save { height:36px; padding:0 22px; border-radius:8px; border:none; background:linear-gradient(135deg,#6d28d9,#4c1d95); color:#fff; font-size:.84rem; font-weight:700; font-family:'Nunito',sans-serif; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(109,40,217,.28); transition:opacity .14s; }
+        .lw-btn-save { height:36px; padding:0 22px; border-radius:8px; border:none; background:linear-gradient(135deg,#6d28d9,#4c1d95); color:#fff; font-size:.84rem; font-weight:700; font-family: "Be Vietnam Pro", "Segoe UI", sans-serif; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(109,40,217,.28); transition:opacity .14s; }
         .lw-btn-save:hover { opacity:.9; }
         .lw-points-box { background:#fefce8; border:1.5px solid #fde68a; border-radius:12px; padding:14px 20px; display:flex; align-items:center; gap:14px; margin-bottom:14px; }
         .lw-points-icon { width:42px; height:42px; border-radius:10px; background:#fef08a; display:flex; align-items:center; justify-content:center; color:#854d0e; flex-shrink:0; }
@@ -106,8 +105,21 @@ const LoyaltyWallet = () => {
       `}</style>
 
       <div className="lw">
-        <h1>{role === "admin" ? "Quản lý Voucher" : "Ví tích điểm"}</h1>
-        <p className="lw-sub">{role === "admin" ? "Tạo và phân phát voucher tới người dùng" : "Điểm thưởng và voucher của bạn"}</p>
+        <div className="dashboard-header">
+          <div className="dashboard-title-wrap">
+            <div className="dashboard-icon">
+              {role === "admin" ? <FaTicketAlt /> : <FaStar />}
+            </div>
+            <div>
+              <h1 className="dashboard-title">
+                {role === "admin" ? "Quản lý Voucher" : "Ví tích điểm"}
+              </h1>
+              <p className="dashboard-subtitle">
+                {role === "admin" ? "Tạo và phân phát voucher tới người dùng" : "Điểm thưởng và voucher của bạn"}
+              </p>
+            </div>
+          </div>
+        </div>
 
         {role === "admin" ? (
           <>

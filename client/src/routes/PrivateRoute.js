@@ -1,20 +1,17 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { useEffect, useRef } from "react";
+
+import { getRole, getToken } from "../lib/session";
 
 const PrivateRoute = ({ children, allowedRoles }) => {
-  const token = localStorage.getItem("token");
-  const role = localStorage.getItem("role");
+  const token = getToken();
+  const role = getRole();
   const location = useLocation();
-  const alertShownRef = useRef(false); // chỉ cho alert 1 lần duy nhất
 
-  useEffect(() => {
-    if ((!token || !allowedRoles.includes(role)) && !alertShownRef.current) {
-      alert("Bạn không có quyền truy cập trang này!");
-      alertShownRef.current = true; // chặn hiển thị lại
-    }
-  }, [token, role, allowedRoles]);
+  if (!token) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
 
-  if (!token || !allowedRoles.includes(role)) {
+  if (!allowedRoles.includes(role)) {
     return <Navigate to="/products" state={{ from: location }} replace />;
   }
 

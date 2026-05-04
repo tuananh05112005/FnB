@@ -1,314 +1,261 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-import { useParams, useNavigate } from "react-router-dom";
-import {
-  Container,
-  Row,
-  Col,
-  Form,
-  Button,
-  Alert,
-  Card,
-} from "react-bootstrap";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { FaArrowLeft, FaHistory, FaSave } from "react-icons/fa";
 
-const EditProductPage = () => {
+import { api } from "../../lib/api";
+import { getProduct, updateProduct } from "../../services/productService";
+import "../../styles/dashboard.css";
+import "../../styles/commerce.css";
+
+const defaultProduct = {
+  image: "",
+  code: "",
+  name: "",
+  price: "",
+  description: "",
+  size: "",
+};
+
+const EditProductForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize editingProduct with default values
-  const [editingProduct, setEditingProduct] = useState({
-    image: "",
-    code: "",
-    name: "",
-    price: "",
-    description: "",
-    size: "",
-  });
-
-  // State for error management
-  const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [editingProduct, setEditingProduct] = useState(defaultProduct);
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
-    const fetchHistory = async () => {
+    const fetchData = async () => {
       try {
-        const response = await axios.get(
-          `http://localhost:5000/api/product/${id}/history`
-        );
-        setHistory(response.data);
-      } catch (err) {
-        console.error("Lỗi khi lấy lịch sử chỉnh sửa:", err);
-      }
-    };
+        const [productData, historyData] = await Promise.all([
+          getProduct(id),
+          api.get(`/api/product/${id}/history`).then((res) => res.data).catch(() => []),
+        ]);
 
-    fetchHistory();
-  }, [id]);
-
-  // Fetch product data from API
-  useEffect(() => {
-    const fetchProduct = async () => {
-      setIsLoading(true);
-      try {
-        const response = await axios.get(
-          `http://localhost:5000/api/products/${id}`
-        );
-        if (response.data) {
-          setEditingProduct(response.data);
-        } else {
-          console.error("Không tìm thấy sản phẩm");
-          navigate("/products");
-        }
-      } catch (error) {
-        console.error("Lỗi khi lấy thông tin sản phẩm:", error);
-        if (error.response && error.response.status === 404) {
-          alert("Sản phẩm không tồn tại");
-          navigate("/products");
-        }
+        setEditingProduct(productData || defaultProduct);
+        setHistory(historyData);
+      } catch (fetchError) {
+        console.error("Khong the tai du lieu san pham:", fetchError);
+        setError("Khong the tai thong tin san pham.");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchProduct();
-  }, [id, navigate]);
+    fetchData();
+  }, [id]);
 
-  // Handle input changes in form
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setEditingProduct({
-      ...editingProduct,
-      [name]: value,
-    });
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+    setEditingProduct((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handle product update
   const handleUpdateProduct = async () => {
     try {
       setError("");
-      await axios.put(
-        `http://localhost:5000/api/products/${id}`,
-        editingProduct
+      setSuccessMessage("");
+      await updateProduct(id, editingProduct);
+      setSuccessMessage("Cap nhat san pham thanh cong.");
+      setTimeout(() => navigate("/products"), 1200);
+    } catch (updateError) {
+      console.error("Khong the cap nhat san pham:", updateError);
+      setError(
+        updateError.response?.status === 400
+          ? "Ma hoac ten san pham da ton tai."
+          : "Co loi xay ra khi cap nhat san pham."
       );
-      setSuccessMessage("Cập nhật sản phẩm thành công!");
-      setTimeout(() => {
-        navigate("/products");
-      }, 1500);
-    } catch (error) {
-      console.error("Lỗi khi cập nhật sản phẩm:", error);
-      if (error.response && error.response.status === 400) {
-        setError("Mã sản phẩm hoặc tên sản phẩm đã tồn tại");
-      } else {
-        setError("Có lỗi xảy ra khi cập nhật sản phẩm");
-      }
     }
   };
 
   if (isLoading) {
     return (
-      <Container
-        className="d-flex justify-content-center align-items-center"
-        style={{ minHeight: "70vh" }}
-      >
-        <div className="text-center">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Đang tải...</span>
-          </div>
-          <p className="mt-2">Đang tải thông tin sản phẩm...</p>
+      <div className="dashboard-page">
+        <div className="dashboard-shell">
+          <section className="dashboard-panel">
+            <div className="dashboard-empty">Dang tai thong tin san pham...</div>
+          </section>
         </div>
-      </Container>
+      </div>
     );
   }
 
   return (
-    <Container className="py-5">
-      <Row className="justify-content-center">
-        <Col md={10} lg={8}>
-          <Card className="shadow-lg border-0">
-            <Card.Header className="bg-primary text-white p-4">
-              <h2 className="mb-0 text-center">Chỉnh sửa sản phẩm</h2>
-            </Card.Header>
-            <Card.Body className="p-4">
-              {error && (
-                <Alert variant="danger" className="mb-4">
-                  <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                  {error}
-                </Alert>
-              )}
-              {successMessage && (
-                <Alert variant="success" className="mb-4">
-                  <i className="bi bi-check-circle-fill me-2"></i>
-                  {successMessage}
-                </Alert>
-              )}
+    <div className="dashboard-page">
+      <div className="dashboard-shell">
+        <div className="dashboard-header">
+          <div className="dashboard-title-wrap">
+            <div className="dashboard-icon">
+              <FaSave />
+            </div>
+            <div>
+              <h1 className="dashboard-title">Chinh sua san pham</h1>
+              <p className="dashboard-subtitle">
+                Cap nhat thong tin va theo doi lich su thay doi cua san pham.
+              </p>
+            </div>
+          </div>
 
-              <Form>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-4">
-                      <Form.Label className="fw-bold">Hình ảnh URL</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="image"
-                        value={editingProduct.image}
-                        onChange={handleInputChange}
-                        className="py-2"
-                        placeholder="Nhập URL hình ảnh"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-4">
-                      <Form.Label className="fw-bold">Mã sản phẩm</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="code"
-                        value={editingProduct.code}
-                        onChange={handleInputChange}
-                        className="py-2"
-                        placeholder="Nhập mã sản phẩm"
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
+          <button
+            type="button"
+            className="dashboard-back-btn"
+            onClick={() => navigate("/products")}
+          >
+            <FaArrowLeft />
+            Quay lai
+          </button>
+        </div>
 
-                <Form.Group className="mb-4">
-                  <Form.Label className="fw-bold">Tên sản phẩm</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="name"
-                    value={editingProduct.name}
-                    onChange={handleInputChange}
-                    className="py-2"
-                    placeholder="Nhập tên sản phẩm"
-                  />
-                </Form.Group>
-
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-4">
-                      <Form.Label className="fw-bold">Giá (VND)</Form.Label>
-                      <Form.Control
-                        type="number"
-                        name="price"
-                        value={editingProduct.price}
-                        onChange={handleInputChange}
-                        className="py-2"
-                        placeholder="Nhập giá sản phẩm"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-4">
-                      <Form.Label className="fw-bold">Kích cỡ</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="size"
-                        value={editingProduct.size}
-                        onChange={handleInputChange}
-                        className="py-2"
-                        placeholder="Nhập kích cỡ"
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-
-                <Form.Group className="mb-4">
-                  <Form.Label className="fw-bold">Mô tả sản phẩm</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={4}
-                    name="description"
-                    value={editingProduct.description}
-                    onChange={handleInputChange}
-                    className="py-2"
-                    placeholder="Nhập mô tả chi tiết về sản phẩm"
-                  />
-                </Form.Group>
-
-                <div className="d-flex justify-content-center gap-3 mt-4">
-                  <Button
-                    variant="secondary"
-                    onClick={() => navigate("/products")}
-                    className="px-4 py-2"
-                  >
-                    Quay về
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={handleUpdateProduct}
-                    className="px-4 py-2"
-                  >
-                    Cập nhật sản phẩm
-                  </Button>
-                </div>
-              </Form>
-            </Card.Body>
-          </Card>
-
-          {editingProduct.image && (
-            <Card className="mt-4 shadow-sm border-0">
-              <Card.Header className="bg-light p-3">
-                <h4 className="mb-0">Xem trước hình ảnh</h4>
-              </Card.Header>
-              <Card.Body className="p-3 text-center">
-                <img
-                  src={editingProduct.image}
-                  alt={editingProduct.name}
-                  className="img-fluid"
-                  style={{ maxHeight: "300px", objectFit: "contain" }}
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src =
-                      "https://via.placeholder.com/300x300?text=Hình+ảnh+không+tồn+tại";
-                  }}
-                />
-              </Card.Body>
-              <div className="text-end mt-3">
-                <Button
-                  variant="outline-primary"
-                  onClick={() => setShowHistory(!showHistory)}
-                >
-                  {showHistory
-                    ? "Ẩn lịch sử chỉnh sửa 🕒"
-                    : "Xem lịch sử chỉnh sửa 🕒"}
-                </Button>
+        <section className="dashboard-panel commerce-form-card">
+          <div className="dashboard-panel-body">
+            {error && <div className="commerce-alert commerce-alert-danger">{error}</div>}
+            {successMessage && (
+              <div className="commerce-alert commerce-alert-success" style={{ marginTop: 12 }}>
+                {successMessage}
               </div>
-            </Card>
-          )}
-          {showHistory && history.length > 0 && (
-            <Card className="mt-4 shadow-sm border-0">
-              <Card.Header className="bg-light p-3">
-                <h4 className="mb-0">🕒 Lịch sử chỉnh sửa</h4>
-              </Card.Header>
-              <Card.Body className="p-3">
-                {history.map((log) => (
-                  <div key={log.id} className="mb-3 border-bottom pb-2">
-                    <p className="mb-1">
-                      <strong>🕒 Thời gian:</strong>{" "}
-                      {new Date(log.edit_time).toLocaleString("vi-VN")}
-                    </p>
-                    <p className="mb-1">
-                      <strong>👤 Người sửa:</strong> {log.edited_by}
-                    </p>
-                    <p className="mb-1 fw-bold">📝 Nội dung thay đổi:</p>
-                    <pre
-                      className="bg-light p-2 rounded"
-                      style={{ whiteSpace: "pre-wrap", fontSize: "0.9rem" }}
-                    >
-                      {JSON.stringify(JSON.parse(log.changed_fields), null, 2)}
-                    </pre>
-                  </div>
-                ))}
-              </Card.Body>
-            </Card>
-          )}
-        </Col>
-      </Row>
-    </Container>
+            )}
+
+            <div className="dashboard-form-grid" style={{ marginTop: error || successMessage ? 16 : 0 }}>
+              <div className="dashboard-field">
+                <label htmlFor="edit-image">Hinh anh URL</label>
+                <input
+                  id="edit-image"
+                  name="image"
+                  className="dashboard-input"
+                  value={editingProduct.image || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="dashboard-field">
+                <label htmlFor="edit-code">Ma san pham</label>
+                <input
+                  id="edit-code"
+                  name="code"
+                  className="dashboard-input"
+                  value={editingProduct.code || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="dashboard-field">
+                <label htmlFor="edit-name">Ten san pham</label>
+                <input
+                  id="edit-name"
+                  name="name"
+                  className="dashboard-input"
+                  value={editingProduct.name || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="dashboard-field">
+                <label htmlFor="edit-price">Gia ban</label>
+                <input
+                  id="edit-price"
+                  name="price"
+                  type="number"
+                  className="dashboard-input"
+                  value={editingProduct.price || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="dashboard-field">
+                <label htmlFor="edit-size">Kich co</label>
+                <input
+                  id="edit-size"
+                  name="size"
+                  className="dashboard-input"
+                  value={editingProduct.size || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+
+            <div className="dashboard-field" style={{ marginTop: 16 }}>
+              <label htmlFor="edit-description">Mo ta</label>
+              <textarea
+                id="edit-description"
+                name="description"
+                className="dashboard-textarea"
+                value={editingProduct.description || ""}
+                onChange={handleInputChange}
+              />
+            </div>
+
+            <div className="dashboard-form-actions">
+              <button
+                type="button"
+                className="dashboard-btn dashboard-btn-secondary"
+                onClick={() => navigate("/products")}
+              >
+                Huy
+              </button>
+              <button
+                type="button"
+                className="dashboard-btn dashboard-btn-primary"
+                onClick={handleUpdateProduct}
+              >
+                <FaSave />
+                Luu thay doi
+              </button>
+            </div>
+
+            {editingProduct.image && (
+              <div className="dashboard-preview">
+                <h3 className="commerce-product-title" style={{ marginBottom: 16 }}>
+                  Xem truoc hinh anh
+                </h3>
+                <div className="commerce-image-preview">
+                  <img
+                    src={editingProduct.image}
+                    alt={editingProduct.name}
+                    onError={(event) => {
+                      event.currentTarget.src =
+                        "https://via.placeholder.com/320x220?text=Khong+the+tai+anh";
+                    }}
+                  />
+                </div>
+                <div className="dashboard-form-actions">
+                  <button
+                    type="button"
+                    className="dashboard-btn dashboard-btn-secondary"
+                    onClick={() => setShowHistory((prev) => !prev)}
+                  >
+                    <FaHistory />
+                    {showHistory ? "An lich su" : "Xem lich su"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {showHistory && (
+              <div className="commerce-history-log" style={{ marginTop: 18 }}>
+                {history.length === 0 ? (
+                  <div className="dashboard-mini-card">Chua co lich su chinh sua.</div>
+                ) : (
+                  history.map((log) => (
+                    <div key={log.id} className="commerce-history-item">
+                      <div className="commerce-meta">
+                        <span className="dashboard-badge dashboard-badge-neutral">
+                          {new Date(log.edit_time).toLocaleString("vi-VN")}
+                        </span>
+                        <span className="dashboard-badge dashboard-badge-info">
+                          {log.edited_by}
+                        </span>
+                      </div>
+                      <pre className="commerce-json">
+                        {JSON.stringify(JSON.parse(log.changed_fields), null, 2)}
+                      </pre>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    </div>
   );
 };
 
-export default EditProductPage;
+export default EditProductForm;

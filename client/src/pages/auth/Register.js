@@ -1,105 +1,123 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import { Container, Form, Button, Card, Alert } from 'react-bootstrap';
-import { FaUser, FaEnvelope, FaLock, FaUserPlus } from 'react-icons/fa';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { FaEnvelope, FaLock, FaUser, FaUserPlus } from "react-icons/fa";
+
+import { register as registerUser } from "../../services/authService";
+import "../../styles/dashboard.css";
+import "../../styles/commerce.css";
 
 const Register = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const navigate = useNavigate();
-  
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const [formData, setFormData] = useState({ name: "", email: "", password: "" });
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
+    setIsSubmitting(true);
+
     try {
-      const response = await axios.post('http://localhost:5000/register', {
-        name,
-        email,
-        password,
-      });
-      alert(response.data.message);
-      navigate('/login');
-    } catch (error) {
-      setError('Đăng ký thất bại. Vui lòng thử lại.');
+      await registerUser(formData);
+      navigate("/login");
+    } catch (registerError) {
+      console.error("Khong the dang ky:", registerError);
+      setError("Dang ky that bai. Vui long thu lai.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
-  
+
   return (
-    <Container className="d-flex justify-content-center align-items-center vh-100">
-      <Card className="shadow-lg border-0" style={{ width: '400px', borderRadius: '15px' }}>
-        <Card.Body className="p-4">
-          <h2 className="text-center mb-4 fw-bold">Đăng ký</h2>
-          
-          {error && <Alert variant="danger">{error}</Alert>}
-          
-          <Form onSubmit={handleSubmit}>
-            <Form.Group className="mb-3">
-              <div className="input-group">
-                <span className="input-group-text bg-primary text-white">
-                  <FaUser />
-                </span>
-                <Form.Control
-                  type="text"
-                  placeholder="Nhập tên"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  className="py-2"
-                />
-              </div>
-            </Form.Group>
-            
-            <Form.Group className="mb-3">
-              <div className="input-group">
-                <span className="input-group-text bg-primary text-white">
-                  <FaEnvelope />
-                </span>
-                <Form.Control
-                  type="email"
-                  placeholder="Nhập email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="py-2"
-                />
-              </div>
-            </Form.Group>
-            
-            <Form.Group className="mb-4">
-              <div className="input-group">
-                <span className="input-group-text bg-primary text-white">
-                  <FaLock />
-                </span>
-                <Form.Control
-                  type="password"
-                  placeholder="Nhập mật khẩu"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="py-2"
-                />
-              </div>
-            </Form.Group>
-            
-            <Button 
-              variant="success" 
-              type="submit" 
-              className="w-100 py-2 d-flex align-items-center justify-content-center"
-            >
-              <FaUserPlus className="me-2" /> Đăng ký
-            </Button>
-          </Form>
-          
-          <div className="text-center mt-4">
-            <p className="mb-0">
-              Đã có tài khoản? <a href="/login" className="text-decoration-none fw-bold">Đăng nhập ngay</a>
-            </p>
+    <div className="dashboard-page commerce-auth-shell">
+      <section className="dashboard-panel commerce-auth-card">
+        <div className="dashboard-panel-body">
+          <div className="dashboard-title-wrap" style={{ marginBottom: 24 }}>
+            <div className="dashboard-icon">
+              <FaUserPlus />
+            </div>
+            <div>
+              <h1 className="dashboard-title" style={{ fontSize: "2rem" }}>
+                Dang ky tai khoan
+              </h1>
+              <p className="dashboard-subtitle">Tao tai khoan moi de bat dau mua hang.</p>
+            </div>
           </div>
-        </Card.Body>
-      </Card>
-    </Container>
+
+          {error && <div className="commerce-alert commerce-alert-danger">{error}</div>}
+
+          <form onSubmit={handleSubmit} style={{ marginTop: error ? 16 : 0 }}>
+            <div className="dashboard-field">
+              <label htmlFor="register-name">
+                <FaUser style={{ marginRight: 8 }} />
+                Ho ten
+              </label>
+              <input
+                id="register-name"
+                name="name"
+                className="dashboard-input"
+                value={formData.name}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="dashboard-field" style={{ marginTop: 16 }}>
+              <label htmlFor="register-email">
+                <FaEnvelope style={{ marginRight: 8 }} />
+                Email
+              </label>
+              <input
+                id="register-email"
+                name="email"
+                type="email"
+                className="dashboard-input"
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="dashboard-field" style={{ marginTop: 16 }}>
+              <label htmlFor="register-password">
+                <FaLock style={{ marginRight: 8 }} />
+                Mat khau
+              </label>
+              <input
+                id="register-password"
+                name="password"
+                type="password"
+                className="dashboard-input"
+                value={formData.password}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="dashboard-form-actions" style={{ justifyContent: "stretch", marginTop: 24 }}>
+              <button
+                type="submit"
+                className="dashboard-btn dashboard-btn-primary"
+                disabled={isSubmitting}
+                style={{ width: "100%" }}
+              >
+                <FaUserPlus />
+                {isSubmitting ? "Dang tao tai khoan..." : "Dang ky"}
+              </button>
+            </div>
+          </form>
+
+          <p className="dashboard-subtitle" style={{ marginTop: 18 }}>
+            Da co tai khoan? <Link to="/login">Dang nhap ngay</Link>
+          </p>
+        </div>
+      </section>
+    </div>
   );
 };
 

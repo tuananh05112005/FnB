@@ -1,9 +1,11 @@
-import axios from "axios";
 import { useEffect, useState } from "react";
 import { Alert, Button, Card, Container, Form } from "react-bootstrap";
 import { FaEnvelope, FaGoogle, FaLock, FaSignInAlt } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+
 import { auth, googleProvider, signInWithPopup } from "../../config/firebase";
+import { api } from "../../lib/api";
+import { clearSession, saveSession } from "../../lib/session";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -11,53 +13,59 @@ const Login = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  // Xử lý đăng xuất khi vào trang đăng nhập
   useEffect(() => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("user_id");
-    auth.signOut(); // Đăng xuất khỏi Firebase nếu có
+    clearSession();
+    auth.signOut();
   }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
+
     try {
-      const response = await axios.post("http://localhost:5000/login", {
+      const response = await api.post("/login", {
         email,
         password,
       });
-      localStorage.setItem("user_id", response.data.user_id); // Lưu user_id
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("role", response.data.role);
-      alert("Đăng nhập thành công!");
+
+      saveSession({
+        userId: response.data.user_id,
+        token: response.data.token,
+        role: response.data.role,
+        name: response.data.name,
+      });
+
       navigate("/");
-    } catch (error) {
-      setError("Đăng nhập thất bại. Vui lòng kiểm tra lại email và mật khẩu.");
+    } catch (requestError) {
+      setError("Dang nhap that bai. Vui long kiem tra lai email va mat khau.");
     }
   };
 
- const handleGoogleLogin = async () => {
-  try {
-    const result = await signInWithPopup(auth, googleProvider);
-    const user = result.user;
-    const token = await user.getIdToken(); // <- Lấy ID Token từ Firebase
+  const handleGoogleLogin = async () => {
+    setError("");
 
-    const response = await axios.post("http://localhost:5000/login/google", {
-      idToken: token,
-    });
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      const idToken = await user.getIdToken();
 
-    localStorage.setItem("token", response.data.token);
-    localStorage.setItem("user_id", response.data.user_id);
-    localStorage.setItem("role", response.data.role);
+      const response = await api.post("/login/google", {
+        idToken,
+      });
 
-    alert("Đăng nhập Google thành công!");
-    navigate("/");
-  } catch (error) {
-    console.error("Lỗi đăng nhập Google:", error);
-    setError("Đăng nhập bằng Google thất bại.");
-  }
-};
+      saveSession({
+        token: response.data.token,
+        userId: response.data.user_id,
+        role: response.data.role,
+        name: response.data.name || user.displayName || "",
+      });
 
+      navigate("/");
+    } catch (requestError) {
+      console.error("Google login failed:", requestError);
+      setError("Dang nhap bang Google that bai.");
+    }
+  };
 
   return (
     <Container className="d-flex justify-content-center align-items-center vh-100">
@@ -66,8 +74,9 @@ const Login = () => {
         style={{ width: "400px", borderRadius: "15px" }}
       >
         <Card.Body className="p-4">
-          <h2 className="text-center mb-4 fw-bold">Đăng nhập</h2>
+          <h2 className="text-center mb-4 fw-bold">Dang nhap</h2>
           {error && <Alert variant="danger">{error}</Alert>}
+
           <Form onSubmit={handleSubmit}>
             <Form.Group className="mb-3">
               <div className="input-group">
@@ -76,14 +85,15 @@ const Login = () => {
                 </span>
                 <Form.Control
                   type="email"
-                  placeholder="Nhập email"
+                  placeholder="Nhap email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(event) => setEmail(event.target.value)}
                   required
                   className="py-2"
                 />
               </div>
             </Form.Group>
+
             <Form.Group className="mb-4">
               <div className="input-group">
                 <span className="input-group-text bg-primary text-white">
@@ -91,45 +101,50 @@ const Login = () => {
                 </span>
                 <Form.Control
                   type="password"
-                  placeholder="Nhập mật khẩu"
+                  placeholder="Nhap mat khau"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(event) => setPassword(event.target.value)}
                   required
                   className="py-2"
                 />
               </div>
             </Form.Group>
+
             <Button
               variant="primary"
               type="submit"
               className="w-100 mb-3 py-2 d-flex align-items-center justify-content-center"
             >
-              <FaSignInAlt className="me-2" /> Đăng nhập
+              <FaSignInAlt className="me-2" /> Dang nhap
             </Button>
+
             <div className="text-center mt-3">
               <p className="mb-0">
-                <a href="/forgot-password" className="text-decoration-none">
-                  Quên mật khẩu?
-                </a>
+                <Link to="/forgot-password" className="text-decoration-none">
+                  Quen mat khau?
+                </Link>
               </p>
             </div>
+
             <div className="text-center mb-3">
-              <span className="text-muted">hoặc</span>
+              <span className="text-muted">hoac</span>
             </div>
+
             <Button
               variant="outline-danger"
               className="w-100 py-2 d-flex align-items-center justify-content-center"
               onClick={handleGoogleLogin}
             >
-              <FaGoogle className="me-2" /> Đăng nhập bằng Google
+              <FaGoogle className="me-2" /> Dang nhap bang Google
             </Button>
           </Form>
+
           <div className="text-center mt-4">
             <p className="mb-0">
-              Chưa có tài khoản?{" "}
-              <a href="/register" className="text-decoration-none fw-bold">
-                Đăng ký ngay
-              </a>
+              Chua co tai khoan?{" "}
+              <Link to="/register" className="text-decoration-none fw-bold">
+                Dang ky ngay
+              </Link>
             </p>
           </div>
         </Card.Body>

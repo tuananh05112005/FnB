@@ -1,25 +1,26 @@
-// [IMPORT giữ nguyên như bạn có]
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
-import { FaArrowLeft } from "react-icons/fa";
+import { Button, Modal } from "react-bootstrap";
+import { FaArrowLeft, FaCheckCircle, FaMapMarkedAlt, FaWallet } from "react-icons/fa";
 import {
   MapContainer,
-  TileLayer,
   Marker,
   Popup,
+  TileLayer,
   useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Modal, Button } from "react-bootstrap";
 
-import ProductInfo from "../components/payment/ProductInfo";
+import { api } from "../lib/api";
+import { getUserId } from "../lib/session";
 import DeliveryForm from "../components/payment/DeliveryForm";
 import PaymentMethod from "../components/payment/PaymentMethod";
+import ProductInfo from "../components/payment/ProductInfo";
 import ProgressBar from "../components/payment/ProgressBar";
+import "../styles/dashboard.css";
+import "../styles/commerce.css";
 
-// Cấu hình icon Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
@@ -27,11 +28,13 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
 });
 
+const DEFAULT_POSITION = [10.762622, 106.660172];
+
 const PaymentPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { item } = location.state || {};
-  const user_id = localStorage.getItem("user_id");
+  const userId = getUserId();
 
   const [paymentInfo, setPaymentInfo] = useState({
     name: "",
@@ -39,102 +42,71 @@ const PaymentPage = () => {
     phone: "",
     paymentMethod: "cash",
   });
-  const [orderSaved, setOrderSaved] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
-  const [position] = useState([10.762622, 106.660172]);
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [qrUrl, setQrUrl] = useState("");
+  const [orderSaved, setOrderSaved] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!item) navigate("/cart");
+    if (!item) {
+      navigate("/carts");
+    }
   }, [item, navigate]);
 
-  const handlePaymentInfoChange = (e) => {
-    const { name, value } = e.target;
-    setPaymentInfo((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  const handlePaymentInfoChange = (event) => {
+    const { name, value } = event.target;
+    setPaymentInfo((prev) => ({ ...prev, [name]: value }));
   };
-
-  const handleOpenMap = () => setShowMapModal(true);
-  const handleConfirmAddress = () => {
-    if (paymentInfo.address) setShowMapModal(false);
-    else alert("Vui lòng chọn vị trí trên bản đồ");
-  };
-
-  const updateAddressFromMap = (address) => {
-    setPaymentInfo((prev) => ({
-      ...prev,
-      address,
-    }));
-  };
-
-  function MapClickHandler({ setAddress }) {
-    useMapEvents({
-      click(e) {
-        const { lat, lng } = e.latlng;
-        setSelectedPosition([lat, lng]);
-
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-          .then((res) => res.json())
-          .then((data) => {
-            const address = data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-            setAddress(address);
-          })
-          .catch(() => {
-            setAddress(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
-          });
-      },
-    });
-    return null;
-  }
 
   const handleNextStep = () => {
     if (!paymentInfo.name || !paymentInfo.address || !paymentInfo.phone) {
-      alert("Vui lòng điền đầy đủ thông tin");
+      setError("Vui long nhap day du thong tin giao hang.");
       return;
     }
+
     if (paymentInfo.address.length < 10) {
-      alert("Địa chỉ chưa đủ chi tiết");
+      setError("Dia chi can chi tiet hon de giao hang chinh xac.");
       return;
     }
+
+    setError("");
     setCurrentStep(2);
   };
 
-  const handlePrevStep = () => setCurrentStep(1);
+  const basePayload = {
+    user_id: userId || 1,
+    product_id: item?.product_id || item?.id,
+    name: paymentInfo.name,
+    address: paymentInfo.address,
+    phone: paymentInfo.phone,
+    payment_method: paymentInfo.paymentMethod,
+    amount: Number(item?.price || 0) * Number(item?.quantity || 0),
+    status: "completed",
+  };
 
   const handleConfirmPayment = async () => {
     setIsSubmitting(true);
-    try {
-      const body = {
-        user_id: user_id || 1,
-        product_id: item.product_id,
-        name: paymentInfo.name,
-        address: paymentInfo.address,
-        phone: paymentInfo.phone,
-        payment_method: paymentInfo.paymentMethod,
-        amount: item.price * item.quantity,
-        status: "completed", // ✅ thêm dòng này
-      };
+    setError("");
 
+    try {
       if (paymentInfo.paymentMethod === "banking") {
-        const res = await axios.post("http://localhost:5000/api/payments", {
-          ...body,
+        const response = await api.post("/api/payments", {
+          ...basePayload,
           generateQR: true,
         });
-        setQrUrl(res.data.qrUrl);
+        setQrUrl(response.data.qrUrl);
         setCurrentStep(3);
       } else {
-        const res = await axios.post("http://localhost:5000/api/payments", body);
-        alert(`Đơn hàng đã được ghi nhận. Mã đơn: #${res.data.orderId}`);
+        await api.post("/api/payments", basePayload);
         setOrderSaved(true);
         setCurrentStep(4);
       }
-    } catch (err) {
-      alert("Lỗi khi xử lý thanh toán");
+    } catch (paymentError) {
+      console.error("Khong the xu ly thanh toan:", paymentError);
+      setError("Khong the xu ly thanh toan luc nay.");
     } finally {
       setIsSubmitting(false);
     }
@@ -143,146 +115,205 @@ const PaymentPage = () => {
   const handleBankingConfirmed = async () => {
     if (!orderSaved) {
       try {
-        const res = await axios.post("http://localhost:5000/api/payments", {
-          user_id: user_id || 1,
-          product_id: item.product_id,
-          name: paymentInfo.name,
-          address: paymentInfo.address,
-          phone: paymentInfo.phone,
-          payment_method: paymentInfo.paymentMethod,
-          amount: item.price * item.quantity,
-          status: "completed",
-        });
-        alert(`Đã ghi nhận thanh toán. Mã đơn: #${res.data.orderId}`);
+        await api.post("/api/payments", basePayload);
         setOrderSaved(true);
-      } catch (e) {
-        alert("Lỗi khi ghi nhận thanh toán.");
+      } catch (confirmError) {
+        console.error("Khong the ghi nhan thanh toan:", confirmError);
+        setError("Khong the ghi nhan giao dich chuyen khoan.");
+        return;
       }
     }
+
     setCurrentStep(4);
   };
 
   const handleFinish = () => {
-    setQrUrl("");
     setPaymentInfo({
       name: "",
       address: "",
       phone: "",
       paymentMethod: "cash",
     });
-    setOrderSaved(false);
     setCurrentStep(1);
-    alert("Cảm ơn bạn đã thanh toán!");
+    setQrUrl("");
+    setOrderSaved(false);
     navigate("/products");
   };
 
-  const renderSuccess = () => (
-    <div className="card border p-4 text-center">
-      <h2 className="text-xl font-bold mb-4 text-green-600">
-        🎉 Thanh toán thành công!
-      </h2>
-      <p className="mb-4">
-        Đơn hàng của bạn đã được ghi nhận. Cảm ơn bạn đã mua hàng!
-      </p>
-      <button
-        className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded"
-        onClick={handleFinish}
-      >
-        Hoàn tất
-      </button>
-    </div>
-  );
+  function MapClickHandler() {
+    useMapEvents({
+      click(event) {
+        const { lat, lng } = event.latlng;
+        setSelectedPosition([lat, lng]);
+
+        fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+        )
+          .then((response) => response.json())
+          .then((data) => {
+            const address =
+              data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+            setPaymentInfo((prev) => ({ ...prev, address }));
+          })
+          .catch(() => {
+            setPaymentInfo((prev) => ({
+              ...prev,
+              address: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+            }));
+          });
+      },
+    });
+
+    return null;
+  }
 
   if (!item) {
-    return <div className="text-center">Không có sản phẩm nào trong giỏ hàng.</div>;
+    return null;
   }
 
   return (
-    <div className="container py-5">
-      <div className="row justify-content-center">
-        <div className="col-lg-10">
-          <div className="d-flex align-items-center mb-4">
-            <button
-              className="btn btn-light rounded-circle me-3 shadow-sm"
-              onClick={() => navigate(-1)}
-            >
-              <FaArrowLeft />
-            </button>
-            <h2 className="mb-0">Thanh toán</h2>
+    <div className="dashboard-page">
+      <div className="dashboard-shell" style={{ display: "grid", gap: 18 }}>
+        <div className="dashboard-header">
+          <div className="dashboard-title-wrap">
+            <div className="dashboard-icon">
+              <FaWallet />
+            </div>
+            <div>
+              <h1 className="dashboard-title">Thanh toan don hang</h1>
+              <p className="dashboard-subtitle">
+                Hoan tat thong tin, chon cach thanh toan va xac nhan don.
+              </p>
+            </div>
           </div>
 
-          <ProgressBar currentStep={currentStep} />
-
-          {currentStep < 3 && <ProductInfo item={item} />}
-
-          {currentStep === 1 && (
-            <DeliveryForm
-              paymentInfo={paymentInfo}
-              handleOpenMap={handleOpenMap}
-              handleNextStep={handleNextStep}
-              handlePaymentInfoChange={handlePaymentInfoChange}
-            />
-          )}
-
-          {currentStep === 2 && (
-            <PaymentMethod
-              paymentInfo={paymentInfo}
-              handleConfirmPayment={handleConfirmPayment}
-              handlePrevStep={handlePrevStep}
-              isSubmitting={isSubmitting}
-              handlePaymentInfoChange={handlePaymentInfoChange}
-              qrUrl={qrUrl}
-            />
-          )}
-
-          {currentStep === 3 && paymentInfo.paymentMethod === "banking" && qrUrl && (
-            <div className="text-center">
-              <h4 className="mb-3">Quét mã QR để thanh toán</h4>
-              <img src={qrUrl} alt="QR" style={{ maxWidth: 300 }} />
-              <p className="text-muted mt-2">
-                Sau khi chuyển khoản, nhấn nút bên dưới để hoàn tất
-              </p>
-              <button
-                onClick={handleBankingConfirmed}
-                className="btn btn-success mt-3"
-              >
-                Tôi đã thanh toán
-              </button>
-            </div>
-          )}
-
-          {currentStep === 4 && renderSuccess()}
+          <button
+            type="button"
+            className="dashboard-back-btn"
+            onClick={() => navigate(-1)}
+          >
+            <FaArrowLeft />
+            Quay lai
+          </button>
         </div>
+
+        <ProgressBar currentStep={currentStep} />
+
+        {error && <div className="commerce-alert commerce-alert-danger">{error}</div>}
+
+        {currentStep < 4 && <ProductInfo item={item} />}
+
+        {currentStep === 1 && (
+          <DeliveryForm
+            paymentInfo={paymentInfo}
+            handlePaymentInfoChange={handlePaymentInfoChange}
+            handleOpenMap={() => setShowMapModal(true)}
+            handleNextStep={handleNextStep}
+          />
+        )}
+
+        {currentStep === 2 && (
+          <PaymentMethod
+            paymentInfo={paymentInfo}
+            handlePaymentInfoChange={handlePaymentInfoChange}
+            handlePrevStep={() => setCurrentStep(1)}
+            handleConfirmPayment={handleConfirmPayment}
+            isSubmitting={isSubmitting}
+          />
+        )}
+
+        {currentStep === 3 && paymentInfo.paymentMethod === "banking" && (
+          <section className="dashboard-panel">
+            <div className="dashboard-panel-header">
+              <h2 className="dashboard-panel-title">
+                <span className="dashboard-panel-title-dot" />
+                Quet ma QR
+              </h2>
+            </div>
+            <div className="dashboard-panel-body" style={{ textAlign: "center" }}>
+              {qrUrl ? (
+                <>
+                  <img
+                    src={qrUrl}
+                    alt="QR thanh toan"
+                    style={{ maxWidth: 320, width: "100%", borderRadius: 24 }}
+                  />
+                  <p className="dashboard-subtitle" style={{ marginTop: 16 }}>
+                    Sau khi chuyen khoan xong, bam xac nhan de hoan tat.
+                  </p>
+                  <div className="dashboard-form-actions" style={{ justifyContent: "center" }}>
+                    <button
+                      type="button"
+                      className="dashboard-btn dashboard-btn-primary"
+                      onClick={handleBankingConfirmed}
+                    >
+                      <FaCheckCircle />
+                      Toi da thanh toan
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="dashboard-empty">Dang tao ma QR...</div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {currentStep === 4 && (
+          <section className="dashboard-panel">
+            <div className="dashboard-empty">
+              <div className="commerce-empty-icon">
+                <FaCheckCircle />
+              </div>
+              <h3>Thanh toan thanh cong</h3>
+              <p>Don hang cua ban da duoc ghi nhan va dang cho xu ly.</p>
+              <div className="dashboard-form-actions" style={{ justifyContent: "center" }}>
+                <button
+                  type="button"
+                  className="dashboard-btn dashboard-btn-primary"
+                  onClick={handleFinish}
+                >
+                  Ve trang san pham
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
       </div>
 
-      {/* Modal bản đồ */}
-      <Modal
-        show={showMapModal}
-        onHide={() => setShowMapModal(false)}
-        size="lg"
-        centered
-      >
+      <Modal show={showMapModal} onHide={() => setShowMapModal(false)} size="lg" centered>
         <Modal.Header closeButton>
-          <Modal.Title>Chọn địa chỉ trên bản đồ</Modal.Title>
+          <Modal.Title>
+            <FaMapMarkedAlt style={{ marginRight: 8 }} />
+            Chon dia chi tren ban do
+          </Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ height: "400px" }}>
-          <MapContainer center={position} zoom={13} style={{ height: "100%", width: "100%" }}>
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org">OpenStreetMap</a>'
-            />
-            {selectedPosition && (
-              <Marker position={selectedPosition}>
-                <Popup>Vị trí giao hàng</Popup>
-              </Marker>
-            )}
-            <MapClickHandler setAddress={updateAddressFromMap} />
-          </MapContainer>
+        <Modal.Body>
+          <div className="commerce-map" style={{ height: 420 }}>
+            <MapContainer center={DEFAULT_POSITION} zoom={13} style={{ height: "100%", width: "100%" }}>
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org">OpenStreetMap</a>'
+              />
+              {selectedPosition && (
+                <Marker position={selectedPosition}>
+                  <Popup>Vi tri giao hang</Popup>
+                </Marker>
+              )}
+              <MapClickHandler />
+            </MapContainer>
+          </div>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowMapModal(false)}>Hủy</Button>
-          <Button variant="primary" onClick={handleConfirmAddress} disabled={!paymentInfo.address}>
-            Xác nhận địa chỉ
+          <Button variant="secondary" onClick={() => setShowMapModal(false)}>
+            Dong
+          </Button>
+          <Button
+            variant="primary"
+            disabled={!paymentInfo.address}
+            onClick={() => setShowMapModal(false)}
+          >
+            Xac nhan dia chi
           </Button>
         </Modal.Footer>
       </Modal>

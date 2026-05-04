@@ -150,13 +150,13 @@ const UserManagement = () => {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
-
         .um-root {
-          font-family: 'Nunito', sans-serif;
-          padding: 72px 24px 28px;
+          font-family: var(--app-font-sans);
+          padding: 88px 24px 32px;
           min-height: 100vh;
-          background: #f0f2f8;
+          background:
+            radial-gradient(circle at top right, rgba(99, 102, 241, 0.08), transparent 18%),
+            linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
         }
 
         /* ── Page Header ── */
@@ -167,18 +167,6 @@ const UserManagement = () => {
           margin-bottom: 24px;
           flex-wrap: wrap;
           gap: 12px;
-        }
-        .um-header-left h1 {
-          font-size: 1.45rem;
-          font-weight: 800;
-          color: #1a2036;
-          margin: 0 0 3px;
-          letter-spacing: -0.3px;
-        }
-        .um-header-left p {
-          font-size: 0.8rem;
-          color: #8899bb;
-          margin: 0;
         }
 
         /* Add button */
@@ -193,7 +181,7 @@ const UserManagement = () => {
           padding: 10px 20px;
           font-size: 0.86rem;
           font-weight: 700;
-          font-family: 'Nunito', sans-serif;
+          font-family: var(--app-font-sans);
           cursor: pointer;
           transition: opacity 0.18s, transform 0.18s;
           box-shadow: 0 4px 14px rgba(109,40,217,0.35);
@@ -257,7 +245,7 @@ const UserManagement = () => {
           border: none;
           outline: none;
           font-size: 0.875rem;
-          font-family: 'Nunito', sans-serif;
+          font-family: var(--app-font-sans);
           color: #1a2036;
           background: transparent;
         }
@@ -372,7 +360,7 @@ const UserManagement = () => {
           font-weight: 700;
           cursor: pointer;
           border: none;
-          font-family: 'Nunito', sans-serif;
+          font-family: var(--app-font-sans);
           transition: opacity 0.15s;
         }
         .um-role-badge:hover { opacity: 0.85; }
@@ -400,7 +388,7 @@ const UserManagement = () => {
           border: none;
           background: none;
           width: 100%;
-          font-family: 'Nunito', sans-serif;
+          font-family: var(--app-font-sans);
         }
         .um-role-item:hover { background: #f0f2f8; color: #1a2036; }
 
@@ -431,7 +419,7 @@ const UserManagement = () => {
           cursor: pointer;
           transition: background 0.15s, transform 0.15s;
           font-size: 13px;
-          font-family: 'Nunito', sans-serif;
+          font-family: var(--app-font-sans);
         }
         .um-action-btn:hover { transform: scale(1.08); }
         .um-btn-edit   { background: #eff6ff; color: #2563eb; }
@@ -501,7 +489,7 @@ const UserManagement = () => {
           max-width: 520px;
           box-shadow: 0 20px 60px rgba(15,20,40,0.3);
           overflow: hidden;
-          font-family: 'Nunito', sans-serif;
+          font-family: var(--app-font-sans);
         }
         .um-modal-header {
           background: linear-gradient(135deg, #1e2641, #2d3a6b);
@@ -558,7 +546,7 @@ const UserManagement = () => {
           border: 1.5px solid #e8ecf4;
           border-radius: 9px;
           font-size: 0.875rem;
-          font-family: 'Nunito', sans-serif;
+          font-family: var(--app-font-sans);
           color: #1a2036;
           background: #f8f9ff;
           outline: none;
@@ -589,7 +577,7 @@ const UserManagement = () => {
           cursor: pointer;
           padding: 0;
           display: flex;
-          font-family: 'Nunito', sans-serif;
+          font-family: var(--app-font-sans);
         }
         .um-input-hint {
           font-size: 0.75rem;
@@ -607,7 +595,7 @@ const UserManagement = () => {
           color: #4a5568;
           font-size: 0.86rem;
           font-weight: 700;
-          font-family: 'Nunito', sans-serif;
+          font-family: var(--app-font-sans);
           cursor: pointer;
           transition: background 0.15s;
         }
@@ -620,7 +608,7 @@ const UserManagement = () => {
           color: #fff;
           font-size: 0.86rem;
           font-weight: 700;
-          font-family: 'Nunito', sans-serif;
+          font-family: var(--app-font-sans);
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -649,9 +637,14 @@ const UserManagement = () => {
 
         {/* Header */}
         <div className="um-header">
-          <div className="um-header-left">
-            <h1>Quản lý người dùng</h1>
-            <p>Quản lý tài khoản, phân quyền và trạng thái hoạt động</p>
+          <div className="dashboard-title-wrap" style={{ flex: 1 }}>
+            <div className="dashboard-icon" >
+                  <FaUsers />
+            </div>
+            <div>
+              <h1 className="dashboard-title">Quản lý người dùng</h1>
+              <p className="dashboard-subtitle">Quản lý tài khoản, phân quyền và trạng thái hoạt động</p>
+            </div>
           </div>
           <button className="um-add-btn" onClick={openCreateModal}>
             <FaPlus size={13} />

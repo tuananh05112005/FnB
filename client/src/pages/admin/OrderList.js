@@ -1,357 +1,366 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
-import { Badge, Spinner, Row, Col, Button, Card, Form } from "react-bootstrap";
+import { useEffect, useMemo, useState } from "react";
 import DatePicker, { registerLocale } from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
 import vi from "date-fns/locale/vi";
-import { useNavigate } from "react-router-dom"; // Thêm vào nếu chưa có
+import {
+  FaArrowLeft, FaBoxOpen, FaCalendarAlt, FaCheckCircle,
+  FaFilter, FaMoneyBillWave, FaSearch, FaTimes, FaTrash,
+  FaUniversity, FaWallet, FaClipboardList, FaCreditCard,
+  FaMoneyBill,
+} from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
-// Đăng ký ngôn ngữ tiếng Việt cho datepicker
+import { api } from "../../lib/api";
+import "../../styles/dashboard.css";
+import "react-datepicker/dist/react-datepicker.css";
+
 registerLocale("vi", vi);
 
+const fmt = (n) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(Number(n) || 0);
+
+const STATUS_TABS = [
+  { key: "all",       label: "Tất cả",      dot: "#8aa0c5" },
+  { key: "pending",   label: "Đang xử lý",  dot: "#f59e0b" },
+  { key: "completed", label: "Đang giao",   dot: "#2563eb" },
+  { key: "received",  label: "Đã giao",     dot: "#16a34a" },
+  { key: "cancelled", label: "Đã hủy",      dot: "#ef4444" },
+];
+
+const STATUS_BADGE = {
+  pending:   { label: "Đang xử lý", cls: "dashboard-badge-warning" },
+  completed: { label: "Đang giao",  cls: "dashboard-badge-info"    },
+  received:  { label: "Đã giao",    cls: "dashboard-badge-success"  },
+  cancelled: { label: "Đã hủy",     cls: "dashboard-badge-danger"   },
+};
+
+const getBadge = (s) => STATUS_BADGE[s] || STATUS_BADGE.pending;
+
 const OrderList = () => {
-  // State quản lý danh sách đơn hàng, loading, phân trang và lọc ngày
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [perPage] = useState(10);
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const navigate = useNavigate();
+
+  const [orders,         setOrders]         = useState([]);
+  const [loading,        setLoading]        = useState(true);
+  const [activeStatus,   setActiveStatus]   = useState("all");
+  const [search,         setSearch]         = useState("");
   const [startDateInput, setStartDateInput] = useState(null);
-  const [endDateInput, setEndDateInput] = useState(null);
-    const navigate = useNavigate(); // để chuyển hướng
-  // const role = localStorage.getItem("role"); // lấy vai trò
-  // const token = localStorage.getItem("token"); // lấy token
+  const [endDateInput,   setEndDateInput]   = useState(null);
+  const [startDate,      setStartDate]      = useState(null);
+  const [endDate,        setEndDate]        = useState(null);
+  const [showFilter,     setShowFilter]     = useState(false);
 
-  // // Kiểm tra quyền truy cập
-  // // Nếu không phải admin thì chuyển hướng
-  // useEffect(() => {
-  //   if (!token || role !== "admin") {
-  //     alert("Bạn không có quyền truy cập trang này!");
-  //     navigate("/login"); // hoặc navigate("/login");
-  //   }
-  // }, [role, navigate]);
-
-
-
-
-
-  // Lấy dữ liệu đơn hàng từ API
   useEffect(() => {
-    const fetchAllOrders = async () => {
+    const load = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/admin/payments");
-        setOrders(res.data);
-      } catch (err) {
-        console.error("Lỗi khi lấy đơn hàng:", err);
+        const res = await api.get("/api/admin/payments");
+        setOrders(Array.isArray(res.data) ? res.data : []);
+      } catch (e) {
+        console.error("Failed to load orders:", e);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchAllOrders();
+    load();
   }, []);
-//     if (role !== "admin") {
-//   return null; // hoặc: return <p>Bạn không có quyền truy cập</p>;
-// }
 
+  const filteredOrders = useMemo(() => {
+    return orders.filter((o) => {
+      const d = new Date(o.created_at || o.order_date);
+      const matchStatus = activeStatus === "all" || o.status === activeStatus;
+      const matchStart  = !startDate || d >= new Date(new Date(startDate).setHours(0, 0, 0, 0));
+      const matchEnd    = !endDate   || d <= new Date(new Date(endDate).setHours(23, 59, 59, 999));
+      const q = search.toLowerCase();
+      const matchSearch = !q || (o.email || "").toLowerCase().includes(q)
+        || (o.name || "").toLowerCase().includes(q)
+        || String(o.id).includes(q);
+      return matchStatus && matchStart && matchEnd && matchSearch;
+    });
+  }, [activeStatus, endDate, orders, startDate, search]);
 
-  // Xử lý xóa đơn hàng
+  const stats = useMemo(() => {
+    const cash    = filteredOrders.filter((o) => o.payment_method === "cash");
+    const banking = filteredOrders.filter((o) => o.payment_method !== "cash");
+    return {
+      total:      filteredOrders.length,
+      revenue:    filteredOrders.reduce((s, o) => s + Number(o.amount || 0), 0),
+      cash:       cash.length,
+      banking:    banking.length,
+      pending:    filteredOrders.filter((o) => o.status === "pending").length,
+      completed:  filteredOrders.filter((o) => o.status === "completed").length,
+      received:   filteredOrders.filter((o) => o.status === "received").length,
+      cancelled:  filteredOrders.filter((o) => o.status === "cancelled").length,
+    };
+  }, [filteredOrders]);
+
   const handleDelete = async (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa đơn hàng này không?")) {
-      try {
-        await axios.delete(`http://localhost:5000/api/admin/payments/${id}`);
-        setOrders((prev) => prev.filter((order) => order.id !== id));
-      } catch (err) {
-        console.error("Lỗi khi xóa:", err);
-        alert("Xóa đơn hàng thất bại!");
-      }
+    if (!window.confirm("Bạn có chắc muốn xóa đơn hàng này?")) return;
+    try {
+      await api.delete(`/api/admin/payments/${id}`);
+      setOrders((prev) => prev.filter((o) => o.id !== id));
+    } catch (e) {
+      console.error("Failed to delete order:", e);
     }
   };
 
-  // Format số tiền sang định dạng tiền tệ VND
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(amount);
+  const applyFilter = () => { setStartDate(startDateInput); setEndDate(endDateInput); };
+  const resetFilter = () => {
+    setActiveStatus("all"); setSearch("");
+    setStartDate(null); setEndDate(null);
+    setStartDateInput(null); setEndDateInput(null);
   };
+  const hasFilter = activeStatus !== "all" || search || startDate || endDate;
 
-  // Lọc đơn hàng theo khoảng thời gian được chọn
-  const filteredOrders = orders.filter((order) => {
-    const orderDate = new Date(order.created_at);
-    const fromValid =
-      !startDate || orderDate >= new Date(startDate.setHours(0, 0, 0, 0));
-    const toValid =
-      !endDate || orderDate <= new Date(endDate.setHours(23, 59, 59, 999));
-    return fromValid && toValid;
-  });
+  const statCards = [
+    { label: "Tổng đơn",      value: stats.total,    icon: <FaBoxOpen />,       accent: "#7c3aed", bg: "#f5f3ff", color: "#7c3aed" },
+    { label: "Đang xử lý",    value: stats.pending,  icon: <FaClipboardList />, accent: "#f59e0b", bg: "#fff7ed", color: "#f59e0b" },
+    { label: "Đang giao",      value: stats.completed,icon: <FaUniversity />,    accent: "#3b82f6", bg: "#eff6ff", color: "#3b82f6" },
+    { label: "Đã hủy",         value: stats.cancelled,icon: <FaTimes />,         accent: "#ef4444", bg: "#fef2f2", color: "#ef4444" },
+  ];
 
-  // Tính tổng số tiền từ các đơn đã lọc
-  const totalAmount = filteredOrders.reduce(
-    (sum, order) => sum + (parseFloat(order.amount) || 0),
-    0
-  );
-
-  // Phân trang
-  const totalPages = Math.ceil(filteredOrders.length / perPage);
-  const displayedOrders = filteredOrders.slice(
-    (currentPage - 1) * perPage,
-    currentPage * perPage
-  );
-
-  // Render component
   return (
-    <div className="container-fluid px-4 py-5" style={{ backgroundColor: "#f8f9fa", minHeight: "100vh" }}>
-      {/* Tiêu đề trang */}
-      <div className="text-center mb-5">
-        <h1 className="display-4 fw-bold text-primary mb-2">
-          <i className="fas fa-box me-3"></i>
-          Quản lý đơn hàng
-        </h1>
-        <p className="text-muted fs-5">Theo dõi và quản lý tất cả đơn hàng của bạn</p>
-      </div>
+    <div className="dashboard-page">
+      <div className="dashboard-shell" style={{ display: "grid", gap: 20 }}>
 
-      {/* Bộ lọc ngày */}
-      <Card className="shadow-lg border-0 mb-4" style={{ borderRadius: "15px" }}>
-        <Card.Header
-          className="bg-gradient text-white text-center py-3"
-          style={{
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            borderRadius: "15px 15px 0 0",
-          }}
-        >
-          <h5 className="mb-0 fw-bold"><i className="fas fa-filter me-2"></i>Bộ lọc đơn hàng</h5>
-        </Card.Header>
-        <Card.Body className="p-4">
-          <Row className="align-items-end">
-            {/* Ngày bắt đầu */}
-            <Col md={3}>
-              <Form.Label className="fw-semibold text-dark mb-2">
-                <i className="fas fa-calendar-alt me-2 text-primary"></i>Từ ngày
-              </Form.Label>
-              <DatePicker
-                selected={startDateInput}
-                onChange={(date) => setStartDateInput(date)}
-                placeholderText="Chọn ngày bắt đầu"
-                className="form-control form-control-lg"
-                locale="vi"
-                dateFormat="dd/MM/yyyy"
-              />
-            </Col>
+        {/* ── Header ── */}
+        <div className="dashboard-header">
+          <div className="dashboard-title-wrap">
+            <div className="dashboard-icon"><FaWallet size={20} /></div>
+            <div>
+              <h1 className="dashboard-title">Quản lý đơn hàng</h1>
+              <p className="dashboard-subtitle">Theo dõi, lọc và quản lý tất cả đơn hàng trong hệ thống</p>
+            </div>
+          </div>
+          <button type="button" className="dashboard-back-btn" onClick={() => navigate(-1)}>
+            <FaArrowLeft /> Quay lại
+          </button>
+        </div>
 
-            {/* Ngày kết thúc */}
-            <Col md={3}>
-              <Form.Label className="fw-semibold text-dark mb-2">
-                <i className="fas fa-calendar-alt me-2 text-primary"></i>Đến ngày
-              </Form.Label>
-              <DatePicker
-                selected={endDateInput}
-                onChange={(date) => setEndDateInput(date)}
-                placeholderText="Chọn ngày kết thúc"
-                className="form-control form-control-lg"
-                locale="vi"
-                dateFormat="dd/MM/yyyy"
-              />
-            </Col>
+        {/* ── Revenue hero ── */}
+        <section className="dashboard-panel dashboard-panel-dark">
+          <div className="dashboard-panel-body">
+            <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+              <div className="dashboard-stat-icon" style={{ background: "rgba(255,255,255,0.14)", color: "#c7d2fe", width: 56, height: 56, fontSize: "1.3rem" }}>
+                <FaMoneyBillWave />
+              </div>
+              <div>
+                <p className="dashboard-stat-label" style={{ color: "rgba(226,232,240,0.7)" }}>TỔNG DOANH THU (đang lọc)</p>
+                <h2 className="dashboard-title" style={{ color: "#fff", margin: 0 }}>{fmt(stats.revenue)}</h2>
+              </div>
+              <div style={{ marginLeft: "auto", display: "flex", gap: 24 }}>
+                {[
+                  { icon: <FaMoneyBill />,   label: "Tiền mặt",     value: stats.cash    + " đơn" },
+                  { icon: <FaCreditCard />,   label: "Chuyển khoản", value: stats.banking + " đơn" },
+                  { icon: <FaCheckCircle />,  label: "Đã giao",      value: stats.received + " đơn" },
+                ].map((m) => (
+                  <div key={m.label} style={{ textAlign: "center" }}>
+                    <div style={{ color: "#a5b4fc", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{m.label}</div>
+                    <div style={{ color: "#fff", fontWeight: 900, fontSize: "1.1rem" }}>{m.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
 
-            {/* Nút áp dụng lọc */}
-            <Col md={3}>
-              <Button
-                onClick={() => {
-                  setStartDate(startDateInput);
-                  setEndDate(endDateInput);
-                  setCurrentPage(1);
-                }}
-                variant="primary"
-                size="lg"
-                className="w-100 fw-bold"
-                style={{
-                  borderRadius: "10px",
-                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                  border: "none",
-                }}
+        {/* ── Stat cards ── */}
+        <div className="dashboard-stats-grid">
+          {statCards.map((s) => (
+            <article key={s.label} className="dashboard-stat dashboard-stat-accent" style={{ "--stat-accent": s.accent }}>
+              <div className="dashboard-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
+              <div>
+                <p className="dashboard-stat-value">{s.value}</p>
+                <p className="dashboard-stat-label">{s.label}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        {/* ── Toolbar ── */}
+        <div className="dashboard-panel">
+          <div className="dashboard-panel-body" style={{ display: "grid", gap: 14 }}>
+
+            {/* Row 1: search + filter toggle + reset */}
+            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+              {/* Search */}
+              <div style={{ position: "relative", flex: 1, minWidth: 220 }}>
+                <FaSearch style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#8aa0c5", fontSize: 13 }} />
+                <input
+                  className="dashboard-input"
+                  style={{ paddingLeft: 36, borderRadius: 12 }}
+                  placeholder="Tìm email, tên khách hàng hoặc mã đơn..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+
+              {/* Date filter toggle */}
+              <button type="button"
+                className={`dashboard-btn ${showFilter ? "dashboard-btn-primary" : "dashboard-btn-secondary"}`}
+                onClick={() => setShowFilter((v) => !v)}
               >
-                <i className="fas fa-search me-2"></i>Áp dụng lọc
-              </Button>
-            </Col>
+                <FaCalendarAlt /> Lọc ngày
+              </button>
 
-            {/* Nút xóa lọc */}
-            <Col md={3}>
-              <Button
-                onClick={() => {
-                  setStartDate(null);
-                  setEndDate(null);
-                  setStartDateInput(null);
-                  setEndDateInput(null);
-                  setCurrentPage(1);
-                }}
-                variant="outline-secondary"
-                size="lg"
-                className="w-100 fw-bold"
-                style={{ borderRadius: "10px" }}
-              >
-                <i className="fas fa-times me-2"></i>Xóa lọc
-              </Button>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
+              {/* Reset */}
+              {hasFilter && (
+                <button type="button" className="dashboard-btn dashboard-btn-danger" onClick={resetFilter}>
+                  <FaTimes /> Xóa lọc
+                </button>
+              )}
 
-      {/* Tổng quan đơn hàng và doanh thu */}
-      <Row className="mb-4">
-        <Col md={6}>
-          <Card className="shadow-sm border-0 h-100"
-            style={{ borderRadius: "15px", background: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)" }}
-          >
-            <Card.Body className="text-center text-white">
-              <i className="fas fa-shopping-cart fa-3x mb-3"></i>
-              <h3 className="fw-bold">{filteredOrders.length}</h3>
-              <p className="mb-0 fs-5">Tổng số đơn hàng</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={6}>
-          <Card className="shadow-sm border-0 h-100"
-            style={{ borderRadius: "15px", background: "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)" }}
-          >
-            <Card.Body className="text-center text-white">
-              <i className="fas fa-dollar-sign fa-3x mb-3"></i>
-              <h3 className="fw-bold">{formatCurrency(totalAmount)}</h3>
-              <p className="mb-0 fs-5">Tổng doanh thu</p>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+              <span className="dashboard-count" style={{ marginLeft: "auto" }}>{filteredOrders.length} đơn hàng</span>
+            </div>
 
-      {/* Bảng danh sách đơn hàng */}
-      {loading ? (
-        <Card className="shadow-lg border-0" style={{ borderRadius: "15px" }}>
-          <Card.Body className="text-center py-5">
-            <Spinner animation="border" variant="primary" style={{ width: "3rem", height: "3rem" }} />
-            <h5 className="mt-4 text-muted">Đang tải dữ liệu...</h5>
-          </Card.Body>
-        </Card>
-      ) : (
-        <Card className="shadow-lg border-0" style={{ borderRadius: "15px" }}>
-          <Card.Header className="bg-white border-0 py-3" style={{ borderRadius: "15px 15px 0 0" }}>
-            <h5 className="mb-0 fw-bold text-dark">
-              <i className="fas fa-list me-2 text-primary"></i>Danh sách đơn hàng
-            </h5>
-          </Card.Header>
+            {/* Row 2: status chips */}
+            <div className="dashboard-toolbar-group" style={{ flexWrap: "wrap" }}>
+              {STATUS_TABS.map((tab) => (
+                <button key={tab.key} type="button"
+                  className={`dashboard-chip ${activeStatus === tab.key ? "active" : ""}`}
+                  onClick={() => setActiveStatus(tab.key)}
+                >
+                  <span style={{ width: 7, height: 7, borderRadius: 999, background: activeStatus === tab.key ? "#fff" : tab.dot, display: "inline-block" }} />
+                  {tab.label}
+                  {tab.key !== "all" && (
+                    <span style={{
+                      background: "rgba(255,255,255,0.25)", borderRadius: 999,
+                      padding: "1px 6px", fontSize: "0.7rem", fontWeight: 800,
+                    }}>
+                      {tab.key === "pending"   ? stats.pending   :
+                       tab.key === "completed" ? stats.completed :
+                       tab.key === "received"  ? stats.received  : stats.cancelled}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
 
-          <Card.Body className="p-0">
-            <div className="table-responsive">
-              <table className="table table-hover mb-0 align-middle">
-                <thead style={{ backgroundColor: "#f8f9fa" }}>
-                  <tr className="text-center">
-                    <th>#</th>
-                    <th>Khách hàng</th>
-                    <th>Người nhận</th>
-                    <th>Địa chỉ</th>
-                    <th>Hình thức</th>
-                    <th>Số tiền</th>
-                    <th>Ngày</th>
-                    <th>Hành động</th>
+            {/* Row 3: date picker (collapsible) */}
+            {showFilter && (
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", padding: "14px 0 0", borderTop: "1px solid #eef2ff" }}>
+                <div className="dashboard-field">
+                  <label>Từ ngày</label>
+                  <DatePicker
+                    selected={startDateInput}
+                    onChange={(d) => setStartDateInput(d)}
+                    placeholderText="dd/mm/yyyy"
+                    className="dashboard-input"
+                    locale="vi"
+                    dateFormat="dd/MM/yyyy"
+                  />
+                </div>
+                <div className="dashboard-field">
+                  <label>Đến ngày</label>
+                  <DatePicker
+                    selected={endDateInput}
+                    onChange={(d) => setEndDateInput(d)}
+                    placeholderText="dd/mm/yyyy"
+                    className="dashboard-input"
+                    locale="vi"
+                    dateFormat="dd/MM/yyyy"
+                  />
+                </div>
+                <button type="button" className="dashboard-btn dashboard-btn-primary" onClick={applyFilter}>
+                  <FaFilter /> Áp dụng
+                </button>
+                <button type="button" className="dashboard-btn dashboard-btn-secondary"
+                  onClick={() => { setStartDate(null); setEndDate(null); setStartDateInput(null); setEndDateInput(null); }}
+                >
+                  <FaTimes /> Xóa ngày
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Table ── */}
+        <section className="dashboard-panel">
+          <div className="dashboard-panel-header">
+            <h2 className="dashboard-panel-title">
+              <span className="dashboard-panel-title-dot" />
+              Danh sách đơn hàng
+            </h2>
+            <span className="dashboard-count">{filteredOrders.length} kết quả</span>
+          </div>
+
+          {loading ? (
+            <div className="dashboard-empty">Đang tải dữ liệu...</div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="dashboard-empty">
+              <div className="commerce-empty-icon"><FaBoxOpen /></div>
+              <h3>Không có đơn hàng phù hợp</h3>
+              <p>Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm.</p>
+            </div>
+          ) : (
+            <div className="dashboard-table-wrap">
+              <table className="dashboard-table dashboard-table-compact">
+                <thead>
+                  <tr>
+                    <th style={{ width: 44 }}>#</th>
+                    <th style={{ width: 210 }}>Khách hàng</th>
+                    <th>Địa chỉ giao</th>
+                    <th style={{ width: 148 }}>Thanh toán</th>
+                    <th style={{ width: 105 }}>Số tiền</th>
+                    <th style={{ width: 110 }}>Ngày tạo</th>
+                    <th style={{ width: 115 }}>Trạng thái</th>
+                    <th style={{ width: 52 }}></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {displayedOrders.map((order, index) => (
-                    <tr key={order.id} className="text-center">
-                      <td>{(currentPage - 1) * perPage + index + 1}</td>
-                      <td className="text-start">
-                        <div className="d-flex align-items-center">
-                          <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3"
-                            style={{ width: "40px", height: "40px" }}>
-                            <i className="fas fa-user text-white"></i>
+                  {filteredOrders.map((order, index) => {
+                    const customerName = order.email || order.name || "Khách hàng";
+                    const initials     = customerName.slice(0, 2).toUpperCase();
+                    const badge        = getBadge(order.status);
+                    const isCash       = order.payment_method === "cash";
+                    const dateObj      = new Date(order.created_at || order.order_date);
+
+                    return (
+                      <tr key={order.id}>
+                        <td className="dashboard-index">{String(index + 1).padStart(2, "0")}</td>
+                        <td>
+                          <div className="dashboard-product">
+                            <div className="dashboard-avatar" style={{ background: `hsl(${(customerName.charCodeAt(0) * 37) % 360}, 65%, 52%)` }}>{initials}</div>
+                            <div>
+                              <div style={{ fontWeight: 800 }}>{order.name || "Khách hàng"}</div>
+                              <div className="dashboard-muted" style={{ fontSize: "0.75rem" }}>{order.email}</div>
+                            </div>
                           </div>
-                          <span className="fw-semibold">{order.email}</span>
-                        </div>
-                      </td>
-                      <td>{order.name}</td>
-                      <td className="text-start">{order.address}</td>
-                      <td>
-                        <Badge
-                          bg={
-                            order.payment_method === "cash"
-                              ? "warning"
-                              : order.payment_method === "bank"
-                              ? "success"
-                              : "secondary"
-                          }
-                          className={`px-3 py-2 fs-6 ${
-                            order.payment_method === "cash" ? "text-dark" : ""
-                          }`}
-                        >
-                          {order.payment_method === "cash"
-                            ? "Tiền mặt"
-                            : order.payment_method === "bank"
-                            ? "Chuyển khoản"
-                            : order.payment_method}
-                        </Badge>
-                      </td>
-                      <td className="text-end text-success fw-bold">
-                        {formatCurrency(order.amount)}
-                      </td>
-                      <td>
-                        {new Date(order.created_at).toLocaleString("vi-VN", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                          hour12: false,
-                        })}
-                      </td>
-                      <td>
-                        <Button
-                          variant="outline-danger"
-                          size="sm"
-                          onClick={() => handleDelete(order.id)}
-                          className="fw-bold"
-                          style={{ borderRadius: "8px" }}
-                        >
-                          <i className="fas fa-trash me-2"></i>Xóa
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td title={order.address || ""} style={{ maxWidth: 200 }}>
+                          <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.8rem", color: "#475569" }}>
+                            {order.address || "—"}
+                          </div>
+                        </td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          <span className={`dashboard-badge ${isCash ? "dashboard-badge-warning" : "dashboard-badge-neutral"}`}>
+                            {isCash ? "Tiền mặt" : "Chuyển khoản"}
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{
+                            fontWeight: 900, fontSize: "0.92rem", letterSpacing: "-0.02em",
+                            background: "linear-gradient(135deg,#7c3aed,#4338ca)",
+                            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                          }}>{fmt(order.amount)}</span>
+                        </td>
+                        <td style={{ fontSize: "0.82rem" }}>
+                          <div>{dateObj.toLocaleDateString("vi-VN")}</div>
+                          <div className="dashboard-muted">{dateObj.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' })}</div>
+                        </td>
+                        <td style={{ whiteSpace: "nowrap" }}><span className={`dashboard-badge ${badge.cls}`}>{badge.label}</span></td>
+                        <td>
+                          <button type="button" className="dashboard-btn dashboard-btn-danger" style={{ padding: "7px 10px" }} onClick={() => handleDelete(order.id)}>
+                            <FaTrash />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
-          </Card.Body>
+          )}
+        </section>
 
-          {/* Phân trang */}
-          <Card.Footer className="bg-white border-0 py-4" style={{ borderRadius: "0 0 15px 15px" }}>
-            <div className="d-flex justify-content-center align-items-center">
-              <Button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => p - 1)}
-                variant="outline-primary"
-                className="me-3 fw-bold"
-                style={{ borderRadius: "10px", minWidth: "120px" }}
-              >
-                <i className="fas fa-chevron-left me-2"></i>Trang trước
-              </Button>
-
-              <span className="badge bg-primary fs-6 px-4 py-2 mx-4" style={{ borderRadius: "10px" }}>
-                Trang {currentPage} / {totalPages}
-              </span>
-
-              <Button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((p) => p + 1)}
-                variant="outline-primary"
-                className="ms-3 fw-bold"
-                style={{ borderRadius: "10px", minWidth: "120px" }}
-              >
-                Trang sau<i className="fas fa-chevron-right ms-2"></i>
-              </Button>
-            </div>
-          </Card.Footer>
-        </Card>
-      )}
+      </div>
     </div>
   );
 };
