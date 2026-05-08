@@ -136,7 +136,7 @@ dist
 .pnp.*
 "firebase-service-account.json" 
 .env
-*.json
+# *.json
 firebase-service-account*
 server/firebase-service-account.json
 .env
