@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { useCategorySettings } from "./useCategorySettings";
 import { api } from "../lib/api";
-import { getUserId } from "../lib/session";
+import { applyCategorySettings } from "../lib/categorySettings";
+import { getRole, getUserId } from "../lib/session";
 import { addToCart, getCart } from "../services/cartService";
-import { deleteProduct, listProducts } from "../services/productService";
+import { deleteProduct, isProductAvailable, listProducts } from "../services/productService";
 
 export const DEFAULT_PRICE_RANGE = { min: 0, max: 1000000 };
 
@@ -12,6 +14,8 @@ export const useProductCatalog = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const category = searchParams.get("category");
   const userId = getUserId();
+  const role = getRole();
+  const categorySettings = useCategorySettings();
 
   const [products, setProducts] = useState([]);
   const [favorites, setFavorites] = useState([]);
@@ -40,7 +44,20 @@ export const useProductCatalog = () => {
             : Promise.resolve([]),
         ]);
 
-        setProducts(productData);
+        const visibleCategories = applyCategorySettings(
+          productData.map((product) => product.category),
+          categorySettings
+        );
+        const visibleCategorySet = new Set(visibleCategories);
+        const shouldFilterByCategorySettings = role !== "admin" && role !== "staff";
+
+        setProducts(
+          shouldFilterByCategorySettings
+            ? productData.filter(
+                (product) => !product.category || visibleCategorySet.has(product.category)
+              )
+            : productData
+        );
         setCartItems(cartData);
         setFavorites(favoriteData.map((item) => item.id));
       } catch (fetchError) {
@@ -52,7 +69,7 @@ export const useProductCatalog = () => {
     };
 
     fetchPageData();
-  }, [category, userId]);
+  }, [category, categorySettings, role, userId]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams);
@@ -118,6 +135,11 @@ export const useProductCatalog = () => {
     }
 
     try {
+      if (!isProductAvailable(product)) {
+        setError("Mon nay hien dang het, vui long chon mon khac.");
+        return;
+      }
+
       await addToCart(userId, product.id, 1, product.size || "M");
       const data = await getCart(userId);
       setCartItems(data);

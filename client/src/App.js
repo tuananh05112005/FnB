@@ -4,12 +4,14 @@ import { Bell, Menu, Search } from "lucide-react";
 
 import "./App.css";
 import Sidebar from "./components/common/Sidebar";
+import { useMenuSettings } from "./hooks/useMenuSettings";
 import { decodeTokenPayload, getSession } from "./lib/session";
 import { GlobalStyle } from "./styles/theme";
 import AddProductForm from "./pages/admin/AddProductForm";
 import AdminStatistics from "./pages/admin/AdminStatistics";
 import EditProductForm from "./pages/admin/EditProductForm";
 import OrderList from "./pages/admin/OrderList";
+import ProductAvailabilitySettings from "./pages/admin/ProductAvailabilitySettings";
 import StaffManagement from "./pages/admin/StaffManagement";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import Login from "./pages/auth/Login";
@@ -33,6 +35,7 @@ const AppContent = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 992);
   const location = useLocation();
   const isAuthPage = AUTH_ROUTES.has(location.pathname);
+  const menuSettings = useMenuSettings();
 
   const currentUser = useMemo(() => {
     const session = getSession();
@@ -73,7 +76,7 @@ const AppContent = () => {
             >
               <Menu size={18} />
             </button>
-            <span className="app-topbar-title">TeaShop</span>
+            <span className="app-topbar-title">{menuSettings.topbarName}</span>
           </div>
 
           <div className="app-topbar-right">
@@ -124,6 +127,14 @@ const AppContent = () => {
             element={
               <PrivateRoute allowedRoles={["admin", "staff"]}>
                 <OrderList />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/settings"
+            element={
+              <PrivateRoute allowedRoles={["admin", "staff"]}>
+                <ProductAvailabilitySettings />
               </PrivateRoute>
             }
           />

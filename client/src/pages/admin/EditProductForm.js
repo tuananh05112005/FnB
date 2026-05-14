@@ -38,8 +38,8 @@ const EditProductForm = () => {
         setEditingProduct(productData || defaultProduct);
         setHistory(historyData);
       } catch (fetchError) {
-        console.error("Khong the tai du lieu san pham:", fetchError);
-        setError("Khong the tai thong tin san pham.");
+        console.error("Không thể tải dữ liệu sản phẩm:", fetchError);
+        setError("Không thể tải thông tin sản phẩm.");
       } finally {
         setIsLoading(false);
       }
@@ -58,14 +58,14 @@ const EditProductForm = () => {
       setError("");
       setSuccessMessage("");
       await updateProduct(id, editingProduct);
-      setSuccessMessage("Cap nhat san pham thanh cong.");
+      setSuccessMessage("Cập nhật sản phẩm thành công.");
       setTimeout(() => navigate("/products"), 1200);
     } catch (updateError) {
-      console.error("Khong the cap nhat san pham:", updateError);
+      console.error("Không thể cập nhật sản phẩm:", updateError);
       setError(
         updateError.response?.status === 400
-          ? "Ma hoac ten san pham da ton tai."
-          : "Co loi xay ra khi cap nhat san pham."
+          ? "Mã hoặc tên sản phẩm đã tồn tại."
+          : "Có lỗi xảy ra khi cập nhật sản phẩm."
       );
     }
   };
@@ -75,7 +75,7 @@ const EditProductForm = () => {
       <div className="dashboard-page">
         <div className="dashboard-shell">
           <section className="dashboard-panel">
-            <div className="dashboard-empty">Dang tai thong tin san pham...</div>
+            <div className="dashboard-empty">Đang tải thông tin sản phẩm...</div>
           </section>
         </div>
       </div>
@@ -91,9 +91,9 @@ const EditProductForm = () => {
               <FaSave />
             </div>
             <div>
-              <h1 className="dashboard-title">Chinh sua san pham</h1>
+              <h1 className="dashboard-title">Chỉnh sửa sản phẩm</h1>
               <p className="dashboard-subtitle">
-                Cap nhat thong tin va theo doi lich su thay doi cua san pham.
+                cập nhật thông tin và theo dõi lịch sử thay đổi của sản phẩm.
               </p>
             </div>
           </div>
@@ -104,7 +104,7 @@ const EditProductForm = () => {
             onClick={() => navigate("/products")}
           >
             <FaArrowLeft />
-            Quay lai
+            Quay lại
           </button>
         </div>
 
@@ -119,7 +119,7 @@ const EditProductForm = () => {
 
             <div className="dashboard-form-grid" style={{ marginTop: error || successMessage ? 16 : 0 }}>
               <div className="dashboard-field">
-                <label htmlFor="edit-image">Hinh anh URL</label>
+                <label htmlFor="edit-image">Hình ảnh URL</label>
                 <input
                   id="edit-image"
                   name="image"
@@ -129,7 +129,7 @@ const EditProductForm = () => {
                 />
               </div>
               <div className="dashboard-field">
-                <label htmlFor="edit-code">Ma san pham</label>
+                <label htmlFor="edit-code">Mã sản phẩm</label>
                 <input
                   id="edit-code"
                   name="code"
@@ -139,7 +139,7 @@ const EditProductForm = () => {
                 />
               </div>
               <div className="dashboard-field">
-                <label htmlFor="edit-name">Ten san pham</label>
+                <label htmlFor="edit-name">Tên sản phẩm</label>
                 <input
                   id="edit-name"
                   name="name"
@@ -149,7 +149,7 @@ const EditProductForm = () => {
                 />
               </div>
               <div className="dashboard-field">
-                <label htmlFor="edit-price">Gia ban</label>
+                <label htmlFor="edit-price">Giá bán</label>
                 <input
                   id="edit-price"
                   name="price"
@@ -160,7 +160,7 @@ const EditProductForm = () => {
                 />
               </div>
               <div className="dashboard-field">
-                <label htmlFor="edit-size">Kich co</label>
+                <label htmlFor="edit-size">Kích cỡ</label>
                 <input
                   id="edit-size"
                   name="size"
@@ -172,7 +172,7 @@ const EditProductForm = () => {
             </div>
 
             <div className="dashboard-field" style={{ marginTop: 16 }}>
-              <label htmlFor="edit-description">Mo ta</label>
+              <label htmlFor="edit-description">Mô tả</label>
               <textarea
                 id="edit-description"
                 name="description"
@@ -188,7 +188,7 @@ const EditProductForm = () => {
                 className="dashboard-btn dashboard-btn-secondary"
                 onClick={() => navigate("/products")}
               >
-                Huy
+                Hủy
               </button>
               <button
                 type="button"
@@ -196,14 +196,14 @@ const EditProductForm = () => {
                 onClick={handleUpdateProduct}
               >
                 <FaSave />
-                Luu thay doi
+                Lưu thay đổi
               </button>
             </div>
 
             {editingProduct.image && (
               <div className="dashboard-preview">
                 <h3 className="commerce-product-title" style={{ marginBottom: 16 }}>
-                  Xem truoc hinh anh
+                  Xem trước hình ảnh
                 </h3>
                 <div className="commerce-image-preview">
                   <img
@@ -222,7 +222,7 @@ const EditProductForm = () => {
                     onClick={() => setShowHistory((prev) => !prev)}
                   >
                     <FaHistory />
-                    {showHistory ? "An lich su" : "Xem lich su"}
+                    {showHistory ? "Ẩn lịch sử" : "Xem lịch sử"}
                   </button>
                 </div>
               </div>
@@ -231,7 +231,7 @@ const EditProductForm = () => {
             {showHistory && (
               <div className="commerce-history-log" style={{ marginTop: 18 }}>
                 {history.length === 0 ? (
-                  <div className="dashboard-mini-card">Chua co lich su chinh sua.</div>
+                  <div className="dashboard-mini-card">Chưa có lịch sử chỉnh sửa.</div>
                 ) : (
                   history.map((log) => (
                     <div key={log.id} className="commerce-history-item">

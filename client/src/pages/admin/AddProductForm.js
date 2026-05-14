@@ -9,12 +9,12 @@ import "../../styles/dashboard.css";
 import "../../styles/commerce.css";
 
 const validationSchema = Yup.object({
-  image: Yup.string().required("Vui long nhap URL hinh anh."),
-  code: Yup.string().required("Vui long nhap ma san pham.").max(20),
-  name: Yup.string().required("Vui long nhap ten san pham.").max(100),
-  price: Yup.number().typeError("Gia phai la so.").positive().required(),
-  description: Yup.string().required("Vui long nhap mo ta."),
-  size: Yup.string().required("Vui long nhap kich co."),
+  image: Yup.string().required("Vui lòng nhập URL hình ảnh."),
+  code: Yup.string().required("Vui lòng nhập mã sản phẩm.").max(20),
+  name: Yup.string().required("Vui lòng nhập tên sản phẩm.").max(100),
+  price: Yup.number().typeError("Giá phải là số.").positive().required(),
+  description: Yup.string().required("Vui lòng nhập mô tả."),
+  size: Yup.string().required("Vui lòng nhập kích cỡ."),
 });
 
 const AddProductForm = () => {
@@ -32,9 +32,9 @@ const AddProductForm = () => {
               <FaBoxOpen />
             </div>
             <div>
-              <h1 className="dashboard-title">Them san pham moi</h1>
+              <h1 className="dashboard-title">Thêm sản phẩm mới</h1>
               <p className="dashboard-subtitle">
-                Dien thong tin san pham va luu ngay vao danh muc.
+                Điền thông tin sản phẩm và lưu ngay vào danh mục.
               </p>
             </div>
           </div>
@@ -45,7 +45,7 @@ const AddProductForm = () => {
             onClick={() => navigate("/products")}
           >
             <FaArrowLeft />
-            Quay lai
+            Quay lại
           </button>
         </div>
 
@@ -76,16 +76,16 @@ const AddProductForm = () => {
 
                 try {
                   await createProduct(values);
-                  setSuccessMessage("San pham da duoc them thanh cong.");
+                  setSuccessMessage("ản phẩm đã được thêm thành công.");
                   resetForm();
                   setPreviewImage("");
                   setTimeout(() => navigate("/products"), 1200);
                 } catch (error) {
-                  console.error("Khong the them san pham:", error);
+                  console.error("Không thể thêm sản phẩm:", error);
                   setErrorMessage(
                     error.response?.status === 400
-                      ? "Ma hoac ten san pham da ton tai."
-                      : "Co loi xay ra khi them san pham."
+                      ? "Mã hoặc tên sản phẩm đã tồn tại."
+                      : "Có lỗi xảy ra khi thêm sản phẩm."
                   );
                 } finally {
                   setSubmitting(false);
@@ -96,7 +96,7 @@ const AddProductForm = () => {
                 <Form>
                   <div className="dashboard-form-grid">
                     <div className="dashboard-field">
-                      <label htmlFor="product-image">Hinh anh URL</label>
+                      <label htmlFor="product-image">Hình ảnh URL</label>
                       <Field
                         id="product-image"
                         name="image"
@@ -111,7 +111,7 @@ const AddProductForm = () => {
                     </div>
 
                     <div className="dashboard-field">
-                      <label htmlFor="product-code">Ma san pham</label>
+                      <label htmlFor="product-code">Mã sản phẩm</label>
                       <Field
                         id="product-code"
                         name="code"
@@ -122,7 +122,7 @@ const AddProductForm = () => {
                     </div>
 
                     <div className="dashboard-field">
-                      <label htmlFor="product-name">Ten san pham</label>
+                      <label htmlFor="product-name">ên sản phẩm</label>
                       <Field
                         id="product-name"
                         name="name"
@@ -133,7 +133,7 @@ const AddProductForm = () => {
                     </div>
 
                     <div className="dashboard-field">
-                      <label htmlFor="product-price">Gia ban</label>
+                      <label htmlFor="product-price">Giá bán</label>
                       <Field
                         id="product-price"
                         name="price"
@@ -145,7 +145,7 @@ const AddProductForm = () => {
                     </div>
 
                     <div className="dashboard-field">
-                      <label htmlFor="product-size">Kich co</label>
+                      <label htmlFor="product-size">Kích cỡ</label>
                       <Field
                         id="product-size"
                         name="size"
@@ -157,13 +157,13 @@ const AddProductForm = () => {
                   </div>
 
                   <div className="dashboard-field" style={{ marginTop: 16 }}>
-                    <label htmlFor="product-description">Mo ta</label>
+                    <label htmlFor="product-description">Mô tả</label>
                     <Field
                       as="textarea"
                       id="product-description"
                       name="description"
                       className="dashboard-textarea"
-                      placeholder="Mo ta chi tiet san pham"
+                      placeholder="Mô tả chi tiết sản phẩm"
                     />
                     <ErrorMessage
                       name="description"
@@ -186,7 +186,7 @@ const AddProductForm = () => {
                       disabled={isSubmitting}
                     >
                       <FaPlus />
-                      {isSubmitting ? "Dang them..." : "Them san pham"}
+                      {isSubmitting ? "Đang thêm..." : "Thêm sản phẩm"}
                     </button>
                   </div>
                 </Form>
@@ -196,12 +196,12 @@ const AddProductForm = () => {
             {previewImage && (
               <div className="dashboard-preview">
                 <h3 className="commerce-product-title" style={{ marginBottom: 16 }}>
-                  Xem truoc hinh anh
+                  Xem trước hình ảnh
                 </h3>
                 <div className="commerce-image-preview">
                   <img
                     src={previewImage}
-                    alt="Xem truoc san pham"
+                    alt="Xem trước sản phẩm"
                     onError={(event) => {
                       event.currentTarget.src =
                         "https://via.placeholder.com/320x220?text=Khong+the+tai+anh";

@@ -9,6 +9,7 @@ import {
   LogIn,
   LogOut,
   Package,
+  Settings,
   ShoppingCart,
   User,
   UserPlus,
@@ -19,6 +20,9 @@ import { FaHeart } from "react-icons/fa";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 import "./Sidebar.css";
+import { useCategorySettings } from "../../hooks/useCategorySettings";
+import { useMenuSettings } from "../../hooks/useMenuSettings";
+import { applyCategorySettings } from "../../lib/categorySettings";
 import { api } from "../../lib/api";
 import { clearSession, decodeTokenPayload, getSession } from "../../lib/session";
 
@@ -29,6 +33,8 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
   const [isProductOpen, setIsProductOpen] = useState(false);
   const [userRole, setUserRole] = useState("");
   const [categories, setCategories] = useState([]);
+  const categorySettings = useCategorySettings();
+  const menuSettings = useMenuSettings();
 
   const sidebarRef = useRef(null);
   const navigate = useNavigate();
@@ -123,6 +129,9 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
       userRole === "user" || userRole === "admin"
         ? { to: "/wallet", label: "Ưu đãi", icon: Gift, accent: "gold" }
         : null,
+      userRole === "admin" || userRole === "staff"
+        ? { to: "/admin/settings", label: "Cài đặt", icon: Settings, accent: "slate" }
+        : null,  
     ].filter(Boolean),
     [userRole]
   );
@@ -133,6 +142,11 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
         { to: "/login", label: "Đăng nhập", icon: LogIn },
         { to: "/register", label: "Đăng ký", icon: UserPlus },
       ];
+
+  const visibleCategories = useMemo(
+    () => applyCategorySettings(categories, categorySettings),
+    [categories, categorySettings]
+  );
 
   const renderNavItem = ({ to, label, icon: Icon, accent }) => (
     <NavLink
@@ -168,7 +182,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
             <Coffee size={16} />
           </div>
           <div className="sidebar-brand">
-            <h5>Tiệm trà happy</h5>
+            <h5>{menuSettings.storeName}</h5>
             <small>Quản lý cửa hàng</small>
           </div>
 
@@ -207,7 +221,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
               <NavLink to="/products" className="sidebar-dropdown-item" onClick={closeMobileSidebar}>
                 Tất cả sản phẩm
               </NavLink>
-              {categories.map((category) => (
+              {visibleCategories.map((category) => (
                 <NavLink
                   key={category}
                   to={`/products?category=${encodeURIComponent(category)}`}

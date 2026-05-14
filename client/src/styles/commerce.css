@@ -61,6 +61,48 @@
   gap: 24px;
 }
 
+.menu-display-banner {
+  min-height: 180px;
+  margin-bottom: 20px;
+  padding: 28px;
+  border-radius: 24px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.12);
+  position: relative;
+}
+
+.menu-display-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.16));
+}
+
+.menu-display-banner > div {
+  position: relative;
+  color: #fff;
+}
+
+.menu-display-banner p,
+.menu-display-banner h2 {
+  margin: 0;
+}
+
+.menu-display-banner p {
+  font-weight: 800;
+  color: #ddd6fe;
+}
+
+.menu-display-banner h2 {
+  margin-top: 6px;
+  font-size: 2rem;
+  font-weight: 900;
+}
+
 /* Price badge shown on image on hover */
 .commerce-product-card:hover .commerce-price-badge {
   opacity: 1 !important;
@@ -85,6 +127,29 @@
   box-shadow:
     0 20px 60px rgba(124, 58, 237, 0.15),
     0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.commerce-product-unavailable {
+  border-color: #fecdd3;
+}
+
+.commerce-product-unavailable .commerce-product-media img {
+  filter: grayscale(0.25);
+  opacity: 0.72;
+}
+
+.commerce-availability-ribbon {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 3;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fff1f2;
+  color: #e11d48;
+  font-size: 0.76rem;
+  font-weight: 900;
+  box-shadow: 0 8px 16px rgba(225, 29, 72, 0.16);
 }
 
 .commerce-product-media {

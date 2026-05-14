@@ -1,5 +1,7 @@
 import { FaShoppingCart } from "react-icons/fa";
 
+import ProductImage from "../common/ProductImage";
+
 const formatCurrency = (amount) =>
   new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -17,8 +19,8 @@ const ProductInfo = ({ item }) => (
     </div>
     <div className="dashboard-panel-body">
       <div className="dashboard-product" style={{ alignItems: "stretch" }}>
-        <img
-          src={item?.image || "https://via.placeholder.com/120"}
+        <ProductImage
+          src={item?.image}
           alt={item?.name || "San pham"}
           className="dashboard-thumb"
           style={{ width: 96, height: 96 }}

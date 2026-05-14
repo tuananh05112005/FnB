@@ -24,6 +24,24 @@ export const updateProduct = async (id, productData) => {
   return response.data;
 };
 
+export const isProductAvailable = (product) => {
+  const value = product?.is_available;
+
+  if (value === undefined || value === null) {
+    return true;
+  }
+
+  return value === true || value === 1 || value === '1';
+};
+
+export const updateProductAvailability = async (product, isAvailable) => {
+  const response = await api.put(`/api/products/${product.id}`, {
+    ...product,
+    is_available: isAvailable ? 1 : 0,
+  });
+  return response.data;
+};
+
 export const deleteProduct = async (id) => {
   const response = await api.delete(`/api/products/${id}`);
   return response.data;

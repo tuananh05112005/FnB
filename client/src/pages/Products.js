@@ -13,8 +13,11 @@ import {
   FaTrash,
 } from "react-icons/fa";
 
+import ProductImage from "../components/common/ProductImage";
+import { useMenuSettings } from "../hooks/useMenuSettings";
 import { getRole } from "../lib/session";
 import { useProductCatalog } from "../hooks/useProductCatalog";
+import { isProductAvailable } from "../services/productService";
 import "../styles/dashboard.css";
 import "../styles/commerce.css";
 
@@ -27,6 +30,7 @@ const formatCurrency = (amount) =>
 const Products = () => {
   const navigate = useNavigate();
   const role = getRole();
+  const menuSettings = useMenuSettings();
   const {
     category,
     products,
@@ -69,10 +73,8 @@ const Products = () => {
               <FaBoxOpen />
             </div>
             <div>
-              <h1 className="dashboard-title">Danh sách sản phẩm</h1>
-              <p className="dashboard-subtitle">
-                Duyệt menu, tìm nhanh sản phẩm và quản lý đơn giản hơn.
-              </p>
+              <h1 className="dashboard-title">{menuSettings.menuTitle}</h1>
+              <p className="dashboard-subtitle">{menuSettings.menuSubtitle}</p>
             </div>
           </div>
 
@@ -97,6 +99,18 @@ const Products = () => {
             </button>
           </div>
         </div>
+
+        {menuSettings.bannerImage && (
+          <section
+            className="menu-display-banner"
+            style={{ backgroundImage: `url(${menuSettings.bannerImage})` }}
+          >
+            <div>
+              <p>{menuSettings.storeName}</p>
+              <h2>{menuSettings.menuTitle}</h2>
+            </div>
+          </section>
+        )}
 
         <div className="dashboard-stats-grid" style={{ marginBottom: 20 }}>
           <article
@@ -314,10 +328,19 @@ const Products = () => {
           ) : viewMode === "grid" ? (
             <div className="commerce-products-grid">
               {pagedProducts.map((product) => (
-                <article key={product.id} className="commerce-product-card">
+                <article
+                  key={product.id}
+                  className={`commerce-product-card ${
+                    !isProductAvailable(product) ? "commerce-product-unavailable" : ""
+                  }`}
+                >
                   {/* ── Image section ── */}
                   <div className="commerce-product-media" onClick={() => navigate(`/products/${product.id}`)}>
-                    <img src={product.image} alt={product.name} />
+                    <ProductImage src={product.image} alt={product.name} />
+
+                    {!isProductAvailable(product) && (
+                      <span className="commerce-availability-ribbon">Het mon</span>
+                    )}
 
                     {/* Price badge on image */}
                     <div style={{
@@ -357,6 +380,14 @@ const Products = () => {
                             fontSize: "0.72rem", fontWeight: 700, color: "#0ea5e9",
                             background: "#f0f9ff", padding: "2px 8px", borderRadius: 999,
                           }}>Size {product.size || "M"}</span>
+                          {!isProductAvailable(product) && (
+                            <span
+                              className="dashboard-badge dashboard-badge-danger"
+                              style={{ padding: "2px 8px", fontSize: "0.72rem" }}
+                            >
+                              Het mon
+                            </span>
+                          )}
                         </div>
                       </div>
                       <p className="commerce-product-description">
@@ -404,10 +435,11 @@ const Products = () => {
                             type="button"
                             className="dashboard-btn dashboard-btn-primary"
                             style={{ flex: 1, fontSize: "0.8rem", padding: "8px 10px", borderRadius: 10 }}
+                            disabled={!isProductAvailable(product)}
                             onClick={() => handleAddToCart(navigate, product)}
                           >
                             <FaCartPlus />
-                            Thêm vào giỏ
+                            {isProductAvailable(product) ? "Thêm vào giỏ" : "Het mon"}
                           </button>
                         )}
                       </div>
@@ -420,7 +452,7 @@ const Products = () => {
             <div className="commerce-list">
               {pagedProducts.map((product) => (
                 <article key={product.id} className="dashboard-panel commerce-list-item">
-                  <img src={product.image} alt={product.name} className="commerce-list-thumb" />
+                  <ProductImage src={product.image} alt={product.name} className="commerce-list-thumb" />
                   <div className="commerce-list-body">
                     <div className="commerce-inline-stats">
                       <div>
@@ -436,6 +468,9 @@ const Products = () => {
                       <span className="dashboard-badge dashboard-badge-info">
                         Size {product.size || "M"}
                       </span>
+                      {!isProductAvailable(product) && (
+                        <span className="dashboard-badge dashboard-badge-danger">Het mon</span>
+                      )}
                       {category && (
                         <span className="dashboard-badge dashboard-badge-neutral">{category}</span>
                       )}
@@ -486,10 +521,11 @@ const Products = () => {
                         <button
                           type="button"
                           className="dashboard-btn dashboard-btn-primary"
+                          disabled={!isProductAvailable(product)}
                           onClick={() => handleAddToCart(navigate, product)}
                         >
                           <FaCartPlus />
-                          Thêm vào giỏ
+                          {isProductAvailable(product) ? "Thêm vào giỏ" : "Het mon"}
                         </button>
                       )}
                     </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCartPlus, FaHeart, FaRegHeart } from "react-icons/fa";
 
+import ProductImage from "../components/common/ProductImage";
 import { api } from "../lib/api";
 import { getUserId } from "../lib/session";
 import { addToCart } from "../services/cartService";
@@ -117,7 +118,7 @@ const FavoriteProducts = () => {
                 className="dashboard-panel commerce-product-card"
               >
                 <div className="commerce-product-media">
-                  <img
+                  <ProductImage
                     src={product.image}
                     alt={product.name}
                     onClick={() => navigate(`/products/${product.id}`)}

@@ -189,6 +189,11 @@
   background: rgba(245, 158, 11, 0.16);
 }
 
+.sidebar-accent-slate {
+  color: #cbd5e1;
+  background: rgba(148, 163, 184, 0.16);
+}
+
 .sidebar-dropdown-wrap {
   margin-bottom: 8px;
 }

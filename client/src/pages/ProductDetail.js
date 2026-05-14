@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FaArrowLeft, FaCartPlus, FaHeart, FaInfoCircle } from "react-icons/fa";
 
+import ProductImage from "../components/common/ProductImage";
 import { api } from "../lib/api";
 import { getUserId } from "../lib/session";
 import { addToCart } from "../services/cartService";
-import { getProduct } from "../services/productService";
+import { getProduct, isProductAvailable } from "../services/productService";
 import "../styles/dashboard.css";
 import "../styles/commerce.css";
 
@@ -38,8 +39,8 @@ const ProductDetail = () => {
         setProduct(productData);
         setIsFavorite(favorites.some((item) => String(item.id) === String(id)));
       } catch (fetchError) {
-        console.error("Khong the tai chi tiet san pham:", fetchError);
-        setError("Khong the tai chi tiet san pham.");
+        console.error("Không thể tải chi tiết sản phẩm:", fetchError);
+        setError("Không thể tải chi tiết sản phẩm.");
       } finally {
         setLoading(false);
       }
@@ -55,11 +56,16 @@ const ProductDetail = () => {
     }
 
     try {
+      if (!isProductAvailable(product)) {
+        setError("Món này hiện đang hết, vui lòng chọn món khác.");
+        return;
+      }
+
       await addToCart(userId, product.id, 1, product.size || "M");
       navigate("/carts");
     } catch (cartError) {
-      console.error("Khong the them vao gio hang:", cartError);
-      setError("Khong the them san pham vao gio hang.");
+      console.error("Không thể thêm vào giỏ hàng:", cartError);
+      setError("Không thể thêm sản phẩm vào giỏ hàng.");
     }
   };
 
@@ -83,8 +89,8 @@ const ProductDetail = () => {
         setIsFavorite(true);
       }
     } catch (favoriteError) {
-      console.error("Khong the cap nhat yeu thich:", favoriteError);
-      setError("Khong the cap nhat trang thai yeu thich.");
+      console.error("Không thể cập nhật yêu thích:", favoriteError);
+      setError("Không thể cập nhật trạng thái yêu thích.");
     }
   };
 
@@ -93,7 +99,7 @@ const ProductDetail = () => {
       <div className="dashboard-page">
         <div className="dashboard-shell">
           <section className="dashboard-panel">
-            <div className="dashboard-empty">Dang tai chi tiet san pham...</div>
+            <div className="dashboard-empty">Đang tải chi tiết sản phẩm...</div>
           </section>
         </div>
       </div>
@@ -105,7 +111,7 @@ const ProductDetail = () => {
       <div className="dashboard-page">
         <div className="dashboard-shell">
           <section className="dashboard-panel">
-            <div className="dashboard-empty">{error || "Khong tim thay san pham."}</div>
+            <div className="dashboard-empty">{error || "Không tìm thấy sản phẩm."}</div>
           </section>
         </div>
       </div>
@@ -123,7 +129,7 @@ const ProductDetail = () => {
             <div>
               <h1 className="dashboard-title">{product.name}</h1>
               <p className="dashboard-subtitle">
-                Xem chi tiet san pham truoc khi dua vao gio hang.
+                Xem chi tiết sản phẩm trước khi đưa vào giỏ hàng.
               </p>
             </div>
           </div>
@@ -141,7 +147,7 @@ const ProductDetail = () => {
         <section className="dashboard-panel">
           <div className="dashboard-panel-body commerce-detail">
             <div>
-              <img
+              <ProductImage
                 src={product.image}
                 alt={product.name}
                 className="commerce-detail-image"
@@ -160,18 +166,28 @@ const ProductDetail = () => {
                 {formatCurrency(product.price)}
               </div>
 
+              <span
+                className={`dashboard-badge ${
+                  isProductAvailable(product) ? "dashboard-badge-success" : "dashboard-badge-danger"
+                }`}
+                style={{ alignSelf: "flex-start" }}
+              >
+                {isProductAvailable(product) ? "Đang bán" : "Hết món"}
+              </span>
+
               <p className="commerce-note">
-                {product.description || "Chua co mo ta chi tiet cho san pham nay."}
+                {product.description || "Chưa có mô tả chi tiết cho sản phẩm này."}
               </p>
 
               <div className="commerce-actions">
                 <button
                   type="button"
                   className="dashboard-btn dashboard-btn-primary"
+                  disabled={!isProductAvailable(product)}
                   onClick={handleAddToCart}
                 >
                   <FaCartPlus />
-                  Them vao gio hang
+                  {isProductAvailable(product) ? "Thêm vào giỏ hàng" : "Hết món"}
                 </button>
                 <button
                   type="button"
@@ -181,7 +197,7 @@ const ProductDetail = () => {
                   onClick={toggleFavorite}
                 >
                   <FaHeart />
-                  {isFavorite ? "Da yeu thich" : "Luu yeu thich"}
+                  {isFavorite ? "Đã yêu thích" : "Lưu yêu thích"}
                 </button>
               </div>
             </div>

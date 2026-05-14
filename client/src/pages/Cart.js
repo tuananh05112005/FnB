@@ -11,6 +11,7 @@ import {
   FaTruck,
 } from "react-icons/fa";
 
+import ProductImage from "../components/common/ProductImage";
 import { api } from "../lib/api";
 import { getRole, getToken, getUserId } from "../lib/session";
 import {
@@ -399,7 +400,7 @@ const Cart = () => {
                       </td>
                       <td>
                         <div className="dashboard-product">
-                          <img
+                          <ProductImage
                             src={item.image}
                             alt={item.name}
                             className="dashboard-thumb"
