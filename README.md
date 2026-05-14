@@ -1,44 +1,114 @@
-# 🧋 Website Đặt Đồ Uống - Báo Cáo Thực Tập
 
 ## 📌 Giới thiệu
+Website đặt đồ uống online được xây dựng nhằm hỗ trợ khách hàng dễ dàng đặt trà sữa, cà phê và các loại thức uống trực tuyến. Hệ thống đồng thời cung cấp dashboard quản trị giúp quản lý sản phẩm, đơn hàng, doanh thu và giao diện menu.
 
-Dự án "Website đặt đồ uống" là một hệ thống web giúp người dùng có thể đặt các loại đồ uống trực tuyến, tích hợp thanh toán VietQR, đăng nhập bằng Google, phân quyền Admin/Staff/User và hỗ trợ quản lý đơn hàng, sản phẩm.
-
-> 🎓 Dự án được thực hiện trong khuôn khổ thực tập tốt nghiệp tại Công ty TNHH Tổng Hợp Quốc Tế Golden NQ.
-
----
-
-## 🔧 Công nghệ sử dụng
-
-* **Frontend:** ReactJS, Bootstrap 5
-* **Backend:** Node.js, ExpressJS
-* **Database:** MySQL
-* **Authentication:** Firebase (Google Login), JWT
-* **API tích hợp:** VietQR, OpenStreetMap
+Dự án được phát triển theo mô hình Fullstack với frontend và backend tách riêng, hỗ trợ realtime và tích hợp nhiều tính năng quản lý hiện đại.
 
 ---
 
-## 📂 Cấu trúc thư mục
+# 🚀 Công nghệ sử dụng
 
-```
+## Frontend
+
+* ReactJS
+* React Router DOM
+* Axios
+* Socket.IO Client
+* React Icons
+* Bootstrap / CSS
+
+## Backend
+
+* Node.js
+* ExpressJS
+* MySQL
+* Firebase Admin SDK
+* JWT Authentication
+* Socket.IO
+
+## Dịch vụ tích hợp
+
+* Firebase Authentication
+* Google Login
+* VietQR
+* Stripe Payment
+
+---
+
+# 📂 Cấu trúc thư mục
+
+```bash
 FnB/
-├── client/         # ReactJS frontend
-├── server/         # Node.js backend
-├── README.md       # File hướng dẫn (bạn đang xem)
+│
+├── client/                  # Frontend ReactJS
+│
+├── server/                  # Backend ExpressJS
+│   ├── controllers/
+│   ├── routes/
+│   ├── middleware/
+│   ├── config/
+│   ├── services/
+│   └── server.js
+│
+└── README.md
 ```
 
 ---
 
-## 🚀 Hướng dẫn cài đặt
+# ✨ Chức năng chính
 
-### 1. Clone mã nguồn
+## 👤 Người dùng
+
+* Đăng ký / đăng nhập
+* Đăng nhập Google
+* Xem danh sách sản phẩm
+* Tìm kiếm và lọc sản phẩm
+* Thêm vào giỏ hàng
+* Thanh toán online
+* Theo dõi lịch sử đơn hàng
+* Đánh giá sản phẩm
+* Yêu thích sản phẩm
+* Nhận voucher và điểm thưởng
+
+---
+
+## 🧑‍💼 Staff
+
+* Quản lý đơn hàng
+* Cập nhật trạng thái đơn
+* Quản lý sản phẩm
+* Bật / tắt món tạm hết hàng
+* Hỗ trợ xử lý đơn cho khách
+* Quản lý danh mục hiển thị
+
+---
+
+## 👑 Admin
+
+* Quản lý toàn bộ hệ thống
+* Quản lý người dùng
+* Quản lý nhân viên
+* Quản lý doanh thu
+* Quản lý voucher
+* Quản lý sản phẩm & danh mục
+* Tùy chỉnh giao diện menu
+* Theo dõi lịch sử chỉnh sửa sản phẩm
+* Đồng bộ realtime bằng Socket.IO
+
+---
+
+# ⚙️ Hướng dẫn cài đặt
+
+## 1. Clone project
 
 ```bash
 git clone https://github.com/tuananh05112005/FnB.git
-cd prdrink
+cd FnB
 ```
 
-### 2. Cài đặt và chạy FRONTEND
+---
+
+## 2. Cài đặt Frontend
 
 ```bash
 cd client
@@ -46,9 +116,15 @@ npm install
 npm start
 ```
 
-➡️ Mặc định chạy tại: `http://localhost:3000`
+Frontend mặc định chạy tại:
 
-### 3. Cài đặt và chạy BACKEND
+```bash
+http://localhost:3000
+```
+
+---
+
+## 3. Cài đặt Backend
 
 ```bash
 cd ../server
@@ -56,75 +132,117 @@ npm install
 npm run dev
 ```
 
-➡️ Backend chạy tại: `http://localhost:5000`
+Backend mặc định chạy tại:
 
----
-
-## 🛠 Thiết lập MySQL Database
-
-1. Tạo database: `pr`
-2. Import các bảng: `users`, `products`, `cart_`, `payments_`, `product_edit_logs`, `password_resets`
-3. Cấu hình kết nối DB trong `server.js`:
-
-```js
-const db = mysql.createConnection({
-  host: "localhost", // Địa chỉ MySQL server
-  user: "root", // Tài khoản MySQL
-  password: "05112005", // Mật khẩu MySQL
-  database: "pr" // Tên database
-});
+```bash
+http://localhost:5000
 ```
 
 ---
 
-## 🔑 Thiết lập Firebase (Google Login)
+# 🗄️ Cấu hình Database
 
-1. Tạo project tại [firebase.google.com](https://firebase.google.com)
-2. Bật **Authentication → Google Sign-in**
-3. Tải file `firebase-service-account.json`
-4. Đặt trong thư mục `server/`
-5. Import trong `server.js`:
+Tạo database MySQL:
 
-```js
-const serviceAccount = require("./firebase-service-account.json");
-/* ==================== CẤU HÌNH FIREBASE ==================== */
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-}
+```sql
+CREATE DATABASE fnb;
+```
+
+Sau đó import file SQL của dự án vào MySQL.
+
+---
+
+# 🔑 Cấu hình môi trường
+
+## Backend `.env`
+
+```env
+PORT=5000
+
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=fnb
+
+JWT_SECRET=your_secret_key
+STRIPE_SECRET_KEY=your_key
 ```
 
 ---
 
-## ⚙️ Các chức năng chính
+## Frontend `.env`
 
-* Đăng ký / Đăng nhập (Google, Email)
-* Xem & tìm kiếm sản phẩm
-* Thêm giỏ hàng, thanh toán VietQR
-* Lịch sử mua hàng (User)
-* Admin: Quản lý nhân viên, doanh thu, đơn hàng
-* Staff: Quản lý sản phẩm và đơn
+```env
+REACT_APP_API_BASE_URL=http://localhost:5000
+```
 
 ---
 
-## 🔍 Kiểm thử API bằng Postman (tuỳ chọn)
+# 🔥 Firebase Authentication
 
-* Base URL: `http://localhost:5000/api`
-* Sử dụng token JWT trong headers: `Authorization: Bearer <token>`
+1. Tạo project trên Firebase
+2. Bật Google Authentication
+3. Tải file service account JSON
+4. Đặt vào thư mục:
 
----
-
-## 📎 Tài liệu tham khảo
-
-* ReactJS: [https://reactjs.org/docs](https://reactjs.org/docs)
-* Node.js: [https://nodejs.org/en/docs](https://nodejs.org/en/docs)
-* ExpressJS: [https://expressjs.com](https://expressjs.com)
-* MySQL Docs: [https://dev.mysql.com/doc](https://dev.mysql.com/doc)
-* Bootstrap: [https://getbootstrap.com](https://getbootstrap.com)
-* VietQR API: [https://vietqr.net](https://vietqr.net)
-* Firebase Auth: [https://firebase.google.com/docs/auth](https://firebase.google.com/docs/auth)
+```bash
+server/firebase-service-account.json
+```
 
 ---
 
+# 🌐 Deploy
 
+## Frontend
+
+Có thể deploy bằng:
+
+* Firebase Hosting (đang trong quá trình phát triển)
+
+## Backend
+
+Có thể deploy bằng:
+
+* Render (đang trong quá trình phát triển)
+* Railway (đang trong quá trình phát triển)
+
+---
+
+# 📈 Hướng phát triển thêm 
+
+* Chat realtime hỗ trợ khách hàng
+* Dashboard thống kê nâng cao
+* Gợi ý món bằng AI
+* Tối ưu responsive mobile
+* Notification realtime
+* Hệ thống phân quyền nâng cao
+
+---
+
+# Một số hình ảnh demo trong dự án
+ - Ảnh trang chủ
+<img width="1860" height="973" alt="image" src="https://github.com/user-attachments/assets/456e160b-47c7-434b-bf1c-0697d2ba2630" />
+ - Ảnh trang sản phẩm
+<img width="1883" height="952" alt="image" src="https://github.com/user-attachments/assets/be5810e5-13bb-44c8-82b7-96ecfaef4282" />
+ - Ảnh trang giỏ hàng
+<img width="1871" height="969" alt="image" src="https://github.com/user-attachments/assets/c3e91317-931a-4027-9e3a-1ece5ded9ec8" />
+ - Ảnh phân quyền người dùng
+<img width="1886" height="962" alt="image" src="https://github.com/user-attachments/assets/f98d8696-7c7f-4a79-852c-71a5455bfbb5" />
+
+
+
+
+
+
+
+# 👨‍💻 Thông tin dự án
+
+Dự án được thực hiện nhằm mục thực tập và nâng cao phát triển kỹ năng Fullstack Web Development.
+
+GitHub:
+
+```bash
+https://github.com/tuananh05112005
+```
+
+---
