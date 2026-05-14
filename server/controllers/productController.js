@@ -36,12 +36,12 @@ exports.detail = (req, res) => {
 
 exports.create = (req, res) => {
   const db = getDB();
-  const { image, code, name, price, description, size, category } = req.body;
+  const { image, code, name, price, description, size, category, is_available = 1 } = req.body;
   const q = `
-    INSERT INTO products (image, code, name, price, description, size, category)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO products (image, code, name, price, description, size, category, is_available)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `;
-  db.query(q, [image, code, name, price, description, size, category], (err, results) => {
+  db.query(q, [image, code, name, price, description, size, category, is_available], (err, results) => {
     if (err) {
       console.error("Lỗi khi thêm sản phẩm:", err);
       return res.status(500).send("Lỗi server");
@@ -70,7 +70,7 @@ exports.update = async (req, res) => {
     await query("UPDATE products SET ? WHERE id = ?", [updatedProduct, productId]);
 
     const changes = {};
-    ["name", "price", "description", "size", "code", "image"].forEach((f) => {
+    ["name", "price", "description", "size", "code", "image", "is_available"].forEach((f) => {
       if (oldProduct[f] !== updatedProduct[f]) {
         changes[f] = { from: oldProduct[f], to: updatedProduct[f] };
       }

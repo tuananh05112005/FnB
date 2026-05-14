@@ -10,6 +10,7 @@ const orderRoutes = require("./orderRoutes");
 const paymentRoutes = require("./paymentRoutes");
 const statsRoutes = require("./statsRoutes");
 const passwordRoutes = require("./passwordRoutes");
+const categorySettingsRoutes = require("./categorySettings");
 const productController = require("../controllers/productController");
 const loyaltyController = require("../controllers/loyaltyController");
 
@@ -32,6 +33,8 @@ function registerRoutes(app) {
   app.use("/api/payments", paymentRoutes);
   app.use("/api", statsRoutes);
   app.use("/api", passwordRoutes);
+
+  app.use("/api/category-settings", categorySettingsRoutes);
 }
 
 module.exports = registerRoutes;
