@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BrowserRouter as Router, Route, Routes, useLocation } from "react-router-dom";
-import { Bell, Menu, Search } from "lucide-react";
+import { Bell, Menu, Moon, Search, Sun } from "lucide-react";
 
 import "./App.css";
 import Sidebar from "./components/common/Sidebar";
@@ -31,8 +31,34 @@ import PrivateRoute from "./routes/PrivateRoute";
 
 const AUTH_ROUTES = new Set(["/login", "/register", "/forgot-password", "/logout"]);
 
+/* ── Dark mode hook ─────────────────────────────────────────────── */
+function useDarkMode() {
+  const [isDark, setIsDark] = useState(() => {
+    try {
+      return localStorage.getItem("fnb-theme") === "dark";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDark) {
+      root.setAttribute("data-theme", "dark");
+      localStorage.setItem("fnb-theme", "dark");
+    } else {
+      root.removeAttribute("data-theme");
+      localStorage.setItem("fnb-theme", "light");
+    }
+  }, [isDark]);
+
+  return [isDark, () => setIsDark((prev) => !prev)];
+}
+
+/* ── App Content ────────────────────────────────────────────────── */
 const AppContent = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 992);
+  const [isDark, toggleDark] = useDarkMode();
   const location = useLocation();
   const isAuthPage = AUTH_ROUTES.has(location.pathname);
   const menuSettings = useMenuSettings();
@@ -41,7 +67,6 @@ const AppContent = () => {
     const session = getSession();
     const payload = decodeTokenPayload(session.token);
     const name = payload?.name || session.name || payload?.email || "User";
-
     return {
       name,
       initial: name.charAt(0).toUpperCase(),
@@ -63,130 +88,101 @@ const AppContent = () => {
     <div className="app-shell">
       <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
 
-      <div
-        className={`app-main ${isSidebarOpen ? "sidebar-open" : ""}`}
-      >
+      <div className={`app-main ${isSidebarOpen ? "sidebar-open" : ""}`}>
+        {/* ── Topbar ── */}
         <header className="app-topbar">
           <div className="app-topbar-left">
             <button
               type="button"
               className="app-menu-btn"
-              onClick={() => setIsSidebarOpen((previous) => !previous)}
-              aria-label="Mo hoac dong menu"
+              onClick={() => setIsSidebarOpen((prev) => !prev)}
+              aria-label="Mở hoặc đóng menu"
             >
-              <Menu size={18} />
+              <Menu size={20} />
             </button>
             <span className="app-topbar-title">{menuSettings.topbarName}</span>
           </div>
 
+          {/* Search bar */}
+          <div className="app-search-wrap">
+            <Search className="app-search-icon" size={16} />
+            <input
+              type="search"
+              className="app-search-input"
+              placeholder="Tìm kiếm sản phẩm..."
+              aria-label="Tìm kiếm"
+            />
+          </div>
+
           <div className="app-topbar-right">
-            <button type="button" className="app-icon-btn" aria-label="Tim kiem">
-              <Search size={18} />
+            {/* Dark mode toggle */}
+            <button
+              type="button"
+              className="app-theme-btn"
+              onClick={toggleDark}
+              aria-label={isDark ? "Chuyển sáng" : "Chuyển tối"}
+              title={isDark ? "Chuyển sang Light Mode" : "Chuyển sang Dark Mode"}
+            >
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <button type="button" className="app-icon-btn app-icon-btn-notify" aria-label="Thong bao">
+
+            {/* Notification */}
+            <button type="button" className="app-icon-btn app-icon-btn-notify" aria-label="Thông báo">
               <Bell size={18} />
               <span className="app-notify-dot" />
             </button>
-            <div className="app-user-pill">{currentUser.initial}</div>
+
+            {/* Avatar */}
+            <div className="app-user-pill" title={currentUser.name}>
+              {currentUser.initial}
+            </div>
           </div>
         </header>
 
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/products/:id" element={<ProductDetail />} />
-          <Route path="/carts" element={<Cart />} />
-          <Route path="/payment" element={<PaymentPage />} />
+        {/* ── Routes ── */}
+        <div className="app-content">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/products/:id" element={<ProductDetail />} />
+            <Route path="/carts" element={<Cart />} />
+            <Route path="/payment" element={<PaymentPage />} />
 
-          <Route
-            path="/admin/statistics"
-            element={
-              <PrivateRoute allowedRoles={["admin"]}>
-                <AdminStatistics />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/add-product"
-            element={
-              <PrivateRoute allowedRoles={["admin", "staff"]}>
-                <AddProductForm />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/edit-product/:id"
-            element={
-              <PrivateRoute allowedRoles={["admin", "staff"]}>
-                <EditProductForm />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/orders"
-            element={
-              <PrivateRoute allowedRoles={["admin", "staff"]}>
-                <OrderList />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/admin/settings"
-            element={
-              <PrivateRoute allowedRoles={["admin", "staff"]}>
-                <ProductAvailabilitySettings />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/admin/create-staff"
-            element={
-              <PrivateRoute allowedRoles={["admin"]}>
-                <CreateStaff />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/admin/staffs"
-            element={
-              <PrivateRoute allowedRoles={["admin"]}>
-                <StaffManagement />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/history"
-            element={
-              <PrivateRoute allowedRoles={["user", "admin", "staff"]}>
-                <History />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/order-detail"
-            element={
-              <PrivateRoute allowedRoles={["user", "staff", "admin"]}>
-                <OrderDetail />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/favorite-products"
-            element={
-              <PrivateRoute allowedRoles={["user"]}>
-                <FavoriteProducts />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/wallet"
-            element={
-              <PrivateRoute allowedRoles={["user", "admin"]}>
-                <LoyaltyWallet />
-              </PrivateRoute>
-            }
-          />
-        </Routes>
+            <Route path="/admin/statistics" element={
+              <PrivateRoute allowedRoles={["admin"]}><AdminStatistics /></PrivateRoute>
+            } />
+            <Route path="/add-product" element={
+              <PrivateRoute allowedRoles={["admin", "staff"]}><AddProductForm /></PrivateRoute>
+            } />
+            <Route path="/edit-product/:id" element={
+              <PrivateRoute allowedRoles={["admin", "staff"]}><EditProductForm /></PrivateRoute>
+            } />
+            <Route path="/orders" element={
+              <PrivateRoute allowedRoles={["admin", "staff"]}><OrderList /></PrivateRoute>
+            } />
+            <Route path="/admin/settings" element={
+              <PrivateRoute allowedRoles={["admin", "staff"]}><ProductAvailabilitySettings /></PrivateRoute>
+            } />
+            <Route path="/admin/create-staff" element={
+              <PrivateRoute allowedRoles={["admin"]}><CreateStaff /></PrivateRoute>
+            } />
+            <Route path="/admin/staffs" element={
+              <PrivateRoute allowedRoles={["admin"]}><StaffManagement /></PrivateRoute>
+            } />
+            <Route path="/history" element={
+              <PrivateRoute allowedRoles={["user", "admin", "staff"]}><History /></PrivateRoute>
+            } />
+            <Route path="/order-detail" element={
+              <PrivateRoute allowedRoles={["user", "staff", "admin"]}><OrderDetail /></PrivateRoute>
+            } />
+            <Route path="/favorite-products" element={
+              <PrivateRoute allowedRoles={["user"]}><FavoriteProducts /></PrivateRoute>
+            } />
+            <Route path="/wallet" element={
+              <PrivateRoute allowedRoles={["user", "admin"]}><LoyaltyWallet /></PrivateRoute>
+            } />
+          </Routes>
+        </div>
       </div>
     </div>
   );

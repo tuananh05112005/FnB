@@ -8,11 +8,22 @@ import {
 
 import { api } from "../lib/api";
 import { getUserId } from "../lib/session";
+import Pagination from "../components/common/Pagination";
 import "../styles/dashboard.css";
 import "../styles/commerce.css";
 
+const PAGE_SIZE = 10;
+
 const fmt = (n) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(Number(n) || 0);
+
+/** Trả về Date object hợp lệ từ nhiều field có thể có, hoặc null */
+const parseDate = (item) => {
+  const raw = item?.order_date || item?.created_at || item?.payment_date;
+  if (!raw) return null;
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d;
+};
 
 const STATUS_CFG = {
   pending:   { label: "Đang xử lý", cls: "dashboard-badge-warning", dot: "#f59e0b" },
@@ -37,8 +48,9 @@ const History = () => {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState("");
   const [search,   setSearch]   = useState("");
-  const [filter,   setFilter]   = useState("all"); // payment method
-  const [viewMode, setViewMode] = useState("card"); // "card" | "table"
+  const [filter,   setFilter]   = useState("all");
+  const [viewMode, setViewMode] = useState("card");
+  const [page,     setPage]     = useState(1);
 
   useEffect(() => {
     if (!userId) return;
@@ -82,16 +94,31 @@ const History = () => {
     return list;
   }, [history, filter, search]);
 
-  // Group by date for card view
+  // Group by date for card view — paginate at item level
+  const pagedDisplayed = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return displayed.slice(start, start + PAGE_SIZE);
+  }, [displayed, page]);
+
   const grouped = useMemo(() => {
     const map = {};
-    displayed.forEach((item) => {
-      const date = new Date(item.order_date).toLocaleDateString("vi-VN", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-      if (!map[date]) map[date] = [];
-      map[date].push(item);
+    pagedDisplayed.forEach((item) => {
+      const d = parseDate(item);
+      const label = d
+        ? d.toLocaleDateString("vi-VN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
+        : "Không rõ ngày";
+      if (!map[label]) map[label] = [];
+      map[label].push(item);
     });
-    return Object.entries(map).sort(([a], [b]) => new Date(b) - new Date(a));
-  }, [displayed]);
+    return Object.entries(map).sort(([a], [b]) => {
+      const da = parseDate(map[a][0]);
+      const db = parseDate(map[b][0]);
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+      return db - da;
+    });
+  }, [pagedDisplayed]);
 
   const statCards = [
     { label: "Tổng giao dịch", value: history.length,          icon: <FaShoppingBag />, accent: "#7c3aed", bg: "#f5f3ff", color: "#7c3aed" },
@@ -132,25 +159,42 @@ const History = () => {
         </div>
 
         {/* ── Total banner ── */}
-        <section className="dashboard-panel dashboard-panel-dark">
+        <section className="dashboard-panel">
           <div className="dashboard-panel-body">
-            <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-              <div className="dashboard-stat-icon" style={{ background: "rgba(255,255,255,0.14)", color: "#c7d2fe", width: 56, height: 56, fontSize: "1.3rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+              {/* Icon */}
+              <div className="dashboard-stat-icon" style={{
+                background: "var(--color-brand-pale)",
+                color: "var(--color-brand-dark)",
+                width: 52, height: 52, fontSize: "1.2rem",
+                borderRadius: "var(--radius-md)",
+              }}>
                 <FaReceipt />
               </div>
+
+              {/* Amount */}
               <div>
-                <p className="dashboard-stat-label" style={{ color: "rgba(226,232,240,0.7)" }}>TỔNG CHI TIÊU</p>
-                <p className="dashboard-title" style={{ color: "#fff", margin: 0, letterSpacing: "-0.04em" }}>{fmt(totalAmount)}</p>
+                <p className="dashboard-stat-label" style={{ margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: "0.7rem" }}>
+                  Tổng chi tiêu
+                </p>
+                <p className="dashboard-money-primary" style={{ margin: 0, fontSize: "1.8rem" }}>
+                  {fmt(totalAmount)}
+                </p>
               </div>
+
+              {/* Right meta */}
               <div style={{ marginLeft: "auto", textAlign: "right" }}>
-                <p style={{ color: "rgba(226,232,240,0.6)", fontSize: "0.8rem", margin: 0 }}>Từ {history.length} giao dịch</p>
-                <p style={{ color: "#a5f3fc", fontWeight: 800, fontSize: "0.9rem", margin: "4px 0 0" }}>
+                <p style={{ color: "var(--color-text-faint)", fontSize: "0.8rem", margin: 0, fontWeight: 500 }}>
+                  Từ {history.length} giao dịch
+                </p>
+                <p style={{ color: "var(--color-brand-dark)", fontWeight: 700, fontSize: "0.875rem", margin: "4px 0 0" }}>
                   TB {history.length ? fmt(Math.round(totalAmount / history.length)) : "—"} / đơn
                 </p>
               </div>
             </div>
           </div>
         </section>
+
 
         {/* ── Toolbar: search + filter + view toggle ── */}
         <div className="dashboard-toolbar">
@@ -182,7 +226,7 @@ const History = () => {
             ].map((f) => (
               <button key={f.key} type="button"
                 className={`dashboard-chip ${filter === f.key ? "active" : ""}`}
-                onClick={() => setFilter(f.key)}
+                onClick={() => { setFilter(f.key); setPage(1); }}
               >
                 {f.label}
               </button>
@@ -222,8 +266,9 @@ const History = () => {
             </div>
           </section>
         ) : viewMode === "card" ? (
+          <>
+          {/* ── Card / Timeline view ── */}
 
-          /* ── Card / Timeline view ── */
           <div style={{ display: "grid", gap: 24 }}>
             {grouped.map(([date, items]) => (
               <div key={date}>
@@ -284,7 +329,9 @@ const History = () => {
                             </span>
                           </div>
                           <div style={{ fontSize: "0.75rem", color: "#8aa0c5" }}>
-                            {new Date(item.order_date).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                            {parseDate(item)
+                              ? parseDate(item).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+                              : "—"}
                           </div>
                         </div>
 
@@ -322,6 +369,15 @@ const History = () => {
             ))}
           </div>
 
+          {/* Card view pagination */}
+          <Pagination
+            currentPage={page}
+            totalItems={displayed.length}
+            pageSize={PAGE_SIZE}
+            onChange={(p) => setPage(p)}
+          />
+        </>
+
         ) : (
 
           /* ── Table view ── */
@@ -347,12 +403,12 @@ const History = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {displayed.map((item, i) => {
+                  {displayed.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((item, i) => {
                     const method = getMethod(item.payment_method);
                     const status = getStatus(item.status);
                     return (
                       <tr key={item.payment_id}>
-                        <td className="dashboard-index">{String(i + 1).padStart(2, "0")}</td>
+                        <td className="dashboard-index">{String((page - 1) * PAGE_SIZE + i + 1).padStart(2, "0")}</td>
                         <td>
                           <div className="dashboard-product">
                             <img
@@ -373,7 +429,9 @@ const History = () => {
                         <td>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#334155" }}>
                             <FaCalendarAlt style={{ color: "#94a3b8", fontSize: 12 }} />
-                            {new Date(item.order_date).toLocaleString("vi-VN")}
+                            {parseDate(item)
+                              ? parseDate(item).toLocaleString("vi-VN")
+                              : <span style={{ color: "#94a3b8" }}>—</span>}
                           </div>
                         </td>
                         <td>
@@ -394,8 +452,15 @@ const History = () => {
                 </tbody>
               </table>
             </div>
+            {/* Table view pagination */}
+            <Pagination
+              currentPage={page}
+              totalItems={displayed.length}
+              pageSize={PAGE_SIZE}
+              onChange={(p) => setPage(p)}
+            />
           </section>
-        )}
+        )} 
       </div>
     </div>
   );

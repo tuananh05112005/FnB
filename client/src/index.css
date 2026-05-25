@@ -1,22 +1,400 @@
-@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&display=swap");
+/* ═══════════════════════════════════════════════════════════════
+   FnB Premium – Global Design System
+   Modern Cafe & Bakery · Light / Dark Mode
+   ═══════════════════════════════════════════════════════════════ */
 
+@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&family=Poppins:wght@600;700;800&display=swap");
+
+/* ── CSS Variables – Light Mode ────────────────────────────────── */
 :root {
-  --app-font-sans: "Be Vietnam Pro", "Segoe UI", sans-serif;
+  /* Font */
+  --app-font-sans: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --app-font-display: "Poppins", "Be Vietnam Pro", sans-serif;
+
+  /* Brand Colors */
+  --color-brand:         #C8860A;
+  --color-brand-dark:    #9D6208;
+  --color-brand-deeper:  #7A4C04;
+  --color-brand-light:   #F5C842;
+  --color-brand-pale:    #FFF3CC;
+
+  /* Background */
+  --color-bg:            #FFFBF5;
+  --color-bg-alt:        #FFF8F0;
+  --color-bg-warm:       #FFF3E0;
+  --color-surface:       #FFFFFF;
+  --color-surface-2:     #FDF6EC;
+
+  /* Text */
+  --color-text:          #1A1207;
+  --color-text-muted:    #6B5B4E;
+  --color-text-faint:    #A89080;
+  --color-text-inverse:  #FFFFFF;
+
+  /* Accent Colors */
+  --color-matcha:        #5A8A5A;
+  --color-matcha-light:  #EBF5EB;
+  --color-rose:          #E8778A;
+  --color-rose-light:    #FEF0F3;
+  --color-cream:         #F5E6C8;
+  --color-caramel:       #D4A44C;
+
+  /* Semantic */
+  --color-success:       #3DAA72;
+  --color-success-light: #E8F8F0;
+  --color-warning:       #F59E0B;
+  --color-warning-light: #FFFBEB;
+  --color-danger:        #EF4444;
+  --color-danger-light:  #FEF2F2;
+  --color-info:          #3B82F6;
+  --color-info-light:    #EFF6FF;
+
+  /* Border */
+  --color-border:        #EDE0CC;
+  --color-border-light:  #F5ECE0;
+  --color-border-focus:  var(--color-brand);
+
+  /* Sidebar */
+  --sidebar-bg:          #1C1008;
+  --sidebar-text:        #E8D5B0;
+  --sidebar-text-muted:  #8A6E50;
+  --sidebar-active-bg:   rgba(200, 134, 10, 0.18);
+  --sidebar-active-text: #F5C842;
+  --sidebar-hover-bg:    rgba(255, 255, 255, 0.06);
+  --sidebar-width:       260px;
+  --sidebar-width-collapsed: 68px;
+
+  /* Topbar */
+  --topbar-height:       64px;
+  --topbar-bg:           rgba(255, 251, 245, 0.88);
+  --topbar-border:       rgba(237, 224, 204, 0.7);
+
+  /* Shadows */
+  --shadow-xs:  0 1px 3px rgba(62, 39, 35, 0.06);
+  --shadow-sm:  0 2px 8px rgba(62, 39, 35, 0.08);
+  --shadow-md:  0 4px 20px rgba(62, 39, 35, 0.10);
+  --shadow-lg:  0 8px 32px rgba(62, 39, 35, 0.13);
+  --shadow-xl:  0 16px 48px rgba(62, 39, 35, 0.16);
+  --shadow-brand: 0 4px 20px rgba(200, 134, 10, 0.30);
+  --shadow-brand-lg: 0 8px 32px rgba(200, 134, 10, 0.35);
+
+  /* Radii */
+  --radius-xs:  6px;
+  --radius-sm:  10px;
+  --radius-md:  16px;
+  --radius-lg:  20px;
+  --radius-xl:  28px;
+  --radius-2xl: 36px;
+  --radius-pill: 9999px;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Transitions */
+  --transition-fast:   0.15s ease;
+  --transition-base:   0.25s ease;
+  --transition-slow:   0.4s ease;
+  --transition-spring: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Glass */
+  --glass-bg:     rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-blur:   blur(20px);
+
+  /* Z-index */
+  --z-base:    1;
+  --z-dropdown: 100;
+  --z-sticky:  200;
+  --z-sidebar: 300;
+  --z-overlay: 400;
+  --z-modal:   500;
+  --z-toast:   600;
 }
 
-html, body {
+/* ── Dark Mode ──────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --color-bg:           #1C1008;
+  --color-bg-alt:       #241508;
+  --color-bg-warm:      #2D1F0E;
+  --color-surface:      #2D1F0E;
+  --color-surface-2:    #3D2B14;
+
+  --color-text:         #F0E6D3;
+  --color-text-muted:   #B89878;
+  --color-text-faint:   #7A6050;
+
+  --color-border:       rgba(200, 134, 10, 0.2);
+  --color-border-light: rgba(200, 134, 10, 0.1);
+
+  --topbar-bg:          rgba(28, 16, 8, 0.92);
+  --topbar-border:      rgba(200, 134, 10, 0.18);
+
+  --glass-bg:           rgba(45, 31, 14, 0.80);
+  --glass-border:       rgba(200, 134, 10, 0.2);
+
+  --shadow-xs:  0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-sm:  0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-md:  0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-lg:  0 8px 32px rgba(0, 0, 0, 0.45);
+  --shadow-xl:  0 16px 48px rgba(0, 0, 0, 0.5);
+
+  --color-success-light: rgba(61, 170, 114, 0.12);
+  --color-danger-light:  rgba(239, 68, 68, 0.12);
+  --color-warning-light: rgba(245, 158, 11, 0.12);
+  --color-info-light:    rgba(59, 130, 246, 0.12);
+  --color-brand-pale:    rgba(200, 134, 10, 0.12);
+  --color-matcha-light:  rgba(90, 138, 90, 0.12);
+  --color-rose-light:    rgba(232, 119, 138, 0.12);
+}
+
+/* ── Reset & Base ───────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
   margin: 0;
-  font-family: "Be Vietnam Pro", "Segoe UI", sans-serif;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--app-font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+  transition: background-color var(--transition-slow), color var(--transition-slow);
 }
 
-/* Force Be Vietnam Pro on ALL elements including buttons, inputs, selects */
-*, *::before, *::after {
-  font-family: "Be Vietnam Pro", "Segoe UI", sans-serif;
+*, input, button, select, textarea, option, optgroup {
+  font-family: var(--app-font-sans);
 }
 
-code {
-  font-family: "Be Vietnam Pro", "Segoe UI", sans-serif;
+input::placeholder, textarea::placeholder {
+  font-family: var(--app-font-sans);
+  color: var(--color-text-faint);
 }
 
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+code, pre {
+  font-family: "Fira Code", "Cascadia Code", monospace;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand);
+}
+
+/* ── Animation Keyframes ────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+
+@keyframes ripple {
+  to { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(200, 134, 10, 0.3); }
+  50%       { box-shadow: 0 0 24px rgba(200, 134, 10, 0.6); }
+}
+
+/* ── Utility Classes ────────────────────────────────────────────── */
+.animate-fadeIn    { animation: fadeIn 0.4s ease both; }
+.animate-fadeInUp  { animation: fadeInUp 0.5s ease both; }
+.animate-scaleIn   { animation: scaleIn 0.35s ease both; }
+
+.animate-delay-1 { animation-delay: 0.1s; }
+.animate-delay-2 { animation-delay: 0.2s; }
+.animate-delay-3 { animation-delay: 0.3s; }
+.animate-delay-4 { animation-delay: 0.4s; }
+.animate-delay-5 { animation-delay: 0.5s; }
+
+/* Skeleton loader */
+.skeleton {
+  background: linear-gradient(90deg,
+    var(--color-border-light) 25%,
+    var(--color-border)       50%,
+    var(--color-border-light) 75%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: var(--radius-sm);
+}
+
+/* Glass card */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+/* Premium card */
+.card-premium {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-base), transform var(--transition-base);
+}
+.card-premium:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-3px);
+}
+
+/* Brand button */
+.btn-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  background: linear-gradient(135deg, var(--color-brand), var(--color-brand-dark));
+  color: var(--color-text-inverse);
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: var(--shadow-brand);
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+.btn-brand:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-brand-lg);
+  background: linear-gradient(135deg, var(--color-brand-dark), var(--color-brand-deeper));
+}
+.btn-brand:active { transform: translateY(0); }
+
+/* Ripple effect */
+.btn-brand::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.btn-brand:active::after { opacity: 1; }
+
+/* Badge */
+.badge-brand {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  background: var(--color-brand-pale);
+  color: var(--color-brand-dark);
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: var(--radius-pill);
+}
+
+/* Status badges */
+.badge-success { background: var(--color-success-light); color: var(--color-success); }
+.badge-danger  { background: var(--color-danger-light);  color: var(--color-danger); }
+.badge-warning { background: var(--color-warning-light); color: var(--color-warning); }
+.badge-info    { background: var(--color-info-light);    color: var(--color-info); }
+
+/* ── Responsive containers ──────────────────────────────────────── */
+.container-fluid {
+  width: 100%;
+  padding-inline: var(--space-6);
+}
+@media (min-width: 1200px) {
+  .container-fluid { padding-inline: var(--space-8); }
+}

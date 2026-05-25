@@ -1,94 +1,76 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
-  FaBoxOpen, FaChartLine, FaChartPie, FaCheck,
+  FaBoxOpen, FaChartLine, FaChartPie,
   FaMoneyBillWave, FaShoppingBag, FaTimes, FaUsers,
-  FaEye, FaClipboardList,
+  FaEye, FaClipboardList, FaHeart, FaCoffee, FaCheck,
 } from "react-icons/fa";
 
 import { api } from "../lib/api";
 import { getRole } from "../lib/session";
 import "../styles/dashboard.css";
 import "../styles/commerce.css";
+import "./Home.css";
 
-// ── helpers ─────────────────────────────────────────────────────────────────
+/* ── Helpers ────────────────────────────────────────────────────── */
 const fmt = (n) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(Number(n) || 0);
 
 const STATUS_MAP = {
-  pending:   { label: "Đang xử lý", bg: "#fff7ed", color: "#f59e0b", cls: "dashboard-badge-warning" },
-  completed: { label: "Đang giao",  bg: "#eff6ff", color: "#2563eb", cls: "dashboard-badge-info"    },
-  received:  { label: "Đã giao",    bg: "#ecfdf3", color: "#16a34a", cls: "dashboard-badge-success"  },
-  cancelled: { label: "Đã hủy",     bg: "#fef2f2", color: "#ef4444", cls: "dashboard-badge-danger"   },
+  pending:   { label: "Đang xử lý", cls: "dashboard-badge-warning" },
+  completed: { label: "Đang giao",  cls: "dashboard-badge-info"    },
+  received:  { label: "Đã giao",    cls: "dashboard-badge-success"  },
+  cancelled: { label: "Đã hủy",     cls: "dashboard-badge-danger"   },
 };
 
-const CHART_COLORS = ["#7c3aed", "#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
+const CHART_COLORS = ["#C8860A", "#5A8A5A", "#3B82F6", "#EF4444", "#E8778A"];
 
-// ── Order Detail Modal ───────────────────────────────────────────────────────
+const CATEGORIES = [
+  { label: "Tất cả",   emoji: "✨", path: "/products" },
+  { label: "Trà sữa",  emoji: "🧋", path: "/products?category=Trà sữa" },
+  { label: "Cafe",     emoji: "☕", path: "/products?category=Cafe" },
+  { label: "Matcha",   emoji: "🍵", path: "/products?category=Matcha" },
+  { label: "Nước ép",  emoji: "🍹", path: "/products?category=Nước ép" },
+  { label: "Bánh ngọt",emoji: "🧁", path: "/products?category=Bánh ngọt" },
+  { label: "Bánh kem", emoji: "🎂", path: "/products?category=Bánh kem" },
+];
+
+/* ── Order Modal ────────────────────────────────────────────────── */
 function OrderModal({ order, onClose }) {
   const st = STATUS_MAP[order.status] || STATUS_MAP.pending;
   return (
-    <div
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-      style={{
-        position: "fixed", inset: 0, background: "rgba(15,20,40,0.55)",
-        backdropFilter: "blur(4px)", display: "flex", alignItems: "center",
-        justifyContent: "center", zIndex: 9999, padding: "1rem",
-      }}
-    >
-      <div style={{
-        background: "#fff", borderRadius: 20, width: "100%", maxWidth: 480,
-        boxShadow: "0 24px 64px rgba(15,23,42,0.22)", overflow: "hidden",
-        animation: "um-spin 0s",
-      }}>
-        {/* Header */}
-        <div style={{
-          background: "linear-gradient(135deg,#1e2641,#2d3a6b)",
-          padding: "20px 24px", display: "flex", alignItems: "center",
-          justifyContent: "space-between",
-        }}>
+    <div className="home-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="home-modal animate-scaleIn">
+        <div className="home-modal-header">
           <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "#f0f4ff" }}>
-              Chi tiết đơn hàng
-            </div>
-            <div style={{ fontSize: 12, color: "#8899cc", marginTop: 2 }}>
-              #{order.id}
-            </div>
+            <p className="home-modal-title">Chi tiết đơn hàng</p>
+            <p className="home-modal-id">#{order.id}</p>
           </div>
-          <button onClick={onClose} style={{
-            background: "rgba(255,255,255,0.1)", border: "none", color: "#c8d4f0",
-            borderRadius: 8, width: 32, height: 32, cursor: "pointer",
-            fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center",
-          }}>×</button>
+          <button className="home-modal-close" onClick={onClose}>×</button>
         </div>
 
-        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16, maxHeight: "70vh", overflowY: "auto" }}>
-          {/* Info grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="home-modal-body">
+          <div className="home-modal-grid">
             {[
-              ["Tên sản phẩm", order.product_name || order.name || "—"],
-              ["Số lượng",     order.quantity ?? "—"],
-              ["Trạng thái",  <span key="s" className={`dashboard-badge ${st.cls}`} style={{ fontSize: "0.78rem" }}>{st.label}</span>],
-              ["Tổng tiền",   fmt(order.total_price ?? order.price ?? 0)],
+              ["Sản phẩm",   order.product_name || order.name || "—"],
+              ["Số lượng",   order.quantity ?? "—"],
+              ["Trạng thái", <span key="s" className={`dashboard-badge ${st.cls}`}>{st.label}</span>],
+              ["Tổng tiền",  fmt(order.total_price ?? order.price ?? 0)],
             ].map(([label, val]) => (
-              <div key={label} style={{ background: "#f8f9ff", borderRadius: 10, padding: "10px 14px" }}>
-                <div style={{ fontSize: 11, color: "#8aa0c5", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 700 }}>{label}</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{val}</div>
+              <div key={label} className="home-modal-field">
+                <div className="home-modal-field-label">{label}</div>
+                <div className="home-modal-field-value">{val}</div>
               </div>
             ))}
           </div>
-
-          {/* Note */}
           {order.note && (
-            <div>
-              <div style={{ fontSize: 11, color: "#8aa0c5", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 700 }}>Ghi chú</div>
-              <div style={{ fontSize: 13, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 14px", color: "#92400e" }}>
-                {order.note}
-              </div>
+            <div className="home-modal-field" style={{ background: "var(--color-warning-light)", border: "1px solid rgba(245,158,11,0.2)" }}>
+              <div className="home-modal-field-label">Ghi chú</div>
+              <div className="home-modal-field-value" style={{ color: "var(--color-warning)" }}>{order.note}</div>
             </div>
           )}
         </div>
@@ -97,32 +79,31 @@ function OrderModal({ order, onClose }) {
   );
 }
 
-// ── Loading skeleton ─────────────────────────────────────────────────────────
-function SkeletonCard() {
+/* ── Skeleton ───────────────────────────────────────────────────── */
+function SkeletonStat() {
   return (
-    <div className="dashboard-stat" style={{ gap: 16 }}>
-      <div style={{ width: 48, height: 48, borderRadius: 14, background: "#eef2ff" }} />
-      <div style={{ flex: 1 }}>
-        <div style={{ height: 12, width: "55%", background: "#eef2ff", borderRadius: 6, marginBottom: 10 }} />
-        <div style={{ height: 22, width: "35%", background: "#e0e7ff", borderRadius: 6 }} />
+    <div className="home-skeleton-stat">
+      <div className="skeleton" style={{ width: 48, height: 48, borderRadius: "var(--radius-md)", flexShrink: 0 }} />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="skeleton" style={{ height: 10, width: "55%" }} />
+        <div className="skeleton" style={{ height: 22, width: "40%" }} />
       </div>
     </div>
   );
 }
 
-// ── Main ─────────────────────────────────────────────────────────────────────
+/* ── Main Component ─────────────────────────────────────────────── */
 const Home = () => {
   const navigate = useNavigate();
   const role = getRole();
-  const isAdmin = role === "admin";
+  const isAdmin   = role === "admin";
   const isManager = role === "admin" || role === "staff";
 
-  const [stats, setStats]       = useState(null);
-  const [orders, setOrders]     = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [stats,    setStats]    = useState(null);
+  const [orders,   setOrders]   = useState([]);
+  const [loading,  setLoading]  = useState(true);
   const [selOrder, setSelOrder] = useState(null);
 
-  // Fetch data
   useEffect(() => {
     const load = async () => {
       try {
@@ -130,8 +111,7 @@ const Home = () => {
           isManager ? api.get("/api/admin/statistics") : Promise.resolve({ data: null }),
           isManager ? api.get("/api/admin/orders")     : Promise.resolve({ data: [] }),
         ]);
-
-        if (statsRes.status === "fulfilled") setStats(statsRes.value.data);
+        if (statsRes.status  === "fulfilled") setStats(statsRes.value.data);
         if (ordersRes.status === "fulfilled") {
           const raw = ordersRes.value.data;
           setOrders(Array.isArray(raw) ? raw : []);
@@ -145,33 +125,29 @@ const Home = () => {
     load();
   }, [isManager]);
 
-  // Stat cards
   const statCards = useMemo(() => {
     if (!stats) return [];
     return [
-      { label: "Tổng doanh thu",    value: fmt(stats.totalRevenue),          icon: <FaMoneyBillWave />, accent: "#7c3aed", bg: "#f5f3ff", color: "#7c3aed" },
-      { label: "Người dùng",        value: stats.totalUsers,                 icon: <FaUsers />,         accent: "#3b82f6", bg: "#eff6ff", color: "#3b82f6" },
-      { label: "Sản phẩm đã bán",   value: stats.totalProductsSold,          icon: <FaShoppingBag />,   accent: "#10b981", bg: "#ecfdf3", color: "#10b981" },
-      { label: "Đơn hàng hủy",      value: stats.totalCancelledOrders,       icon: <FaTimes />,         accent: "#ef4444", bg: "#fef2f2", color: "#ef4444" },
+      { label: "Tổng doanh thu",  value: fmt(stats.totalRevenue),       icon: <FaMoneyBillWave />, accent: "var(--color-brand)",    bg: "var(--color-brand-pale)",    color: "var(--color-brand-dark)" },
+      { label: "Người dùng",      value: stats.totalUsers,              icon: <FaUsers />,         accent: "#3b82f6", bg: "var(--color-info-light)",    color: "#3b82f6" },
+      { label: "Sản phẩm đã bán", value: stats.totalProductsSold,       icon: <FaShoppingBag />,   accent: "#10b981", bg: "var(--color-success-light)", color: "#10b981" },
+      { label: "Đơn đã hủy",      value: stats.totalCancelledOrders,    icon: <FaTimes />,         accent: "#ef4444", bg: "var(--color-danger-light)",  color: "#ef4444" },
     ];
   }, [stats]);
 
-  // Chart data — group orders by status
   const orderStatusData = useMemo(() => {
     if (!orders.length) return [];
     const counts = { pending: 0, completed: 0, received: 0, cancelled: 0 };
     orders.forEach((o) => { if (counts[o.status] !== undefined) counts[o.status]++; });
-    return Object.entries(counts).map(([status, count]) => ({
+    return Object.entries(counts).map(([status, count], i) => ({
       name: STATUS_MAP[status]?.label || status,
       value: count,
-      color: STATUS_MAP[status]?.color || "#8aa0c5",
+      color: CHART_COLORS[i],
     }));
   }, [orders]);
 
-  // Recent 6 orders
   const recentOrders = useMemo(() => orders.slice(0, 6), [orders]);
 
-  // Revenue bar chart — group by date
   const revenueData = useMemo(() => {
     if (!orders.length) return [];
     const map = {};
@@ -186,50 +162,72 @@ const Home = () => {
   }, [orders]);
 
   const QUICK_LINKS = [
-    { to: "/products",         label: "Xem sản phẩm",     icon: <FaBoxOpen />,      primary: false },
-    { to: "/carts",            label: "Giỏ hàng",          icon: <FaShoppingBag />,  primary: false },
-    { to: "/wallet",           label: "Ví tích điểm",      icon: <FaMoneyBillWave />,primary: true  },
+    { to: "/products",         label: "Sản phẩm",  icon: <FaBoxOpen />,       iconBg: "#f5f3ff", iconColor: "#7c3aed" },
+    { to: "/carts",            label: "Giỏ hàng",  icon: <FaShoppingBag />,   iconBg: "#ecfdf3", iconColor: "#16a34a" },
+    { to: "/wallet",           label: "Ví điểm",   icon: <FaMoneyBillWave />, iconBg: "var(--color-brand-pale)", iconColor: "var(--color-brand-dark)", primary: true },
+    { to: "/favorite-products",label: "Yêu thích", icon: <FaHeart />,         iconBg: "var(--color-rose-light)", iconColor: "var(--color-rose)" },
+    ...(isManager ? [
+      { to: "/admin/statistics", label: "Thống kê", icon: <FaChartPie />,      iconBg: "#eff6ff", iconColor: "#3b82f6" },
+      { to: "/orders",           label: "Đơn hàng", icon: <FaClipboardList />, iconBg: "#fff7ed", iconColor: "#f59e0b" },
+    ] : []),
     ...(isAdmin ? [
-      { to: "/admin/statistics", label: "Thống kê",        icon: <FaChartPie />,     primary: false },
-      { to: "/orders",           label: "Quản lý đơn",     icon: <FaClipboardList />,primary: false },
-      { to: "/admin/staffs",     label: "Nhân viên",       icon: <FaUsers />,        primary: false },
+      { to: "/admin/staffs",   label: "Nhân viên", icon: <FaUsers />,         iconBg: "#fce7f3", iconColor: "#db2777" },
     ] : []),
   ];
 
+  const greeting = isAdmin ? "Admin Dashboard" : isManager ? "Staff Dashboard" : "Chào mừng trở lại! 👋";
+
   return (
     <div className="dashboard-page">
-      <div className="dashboard-shell" style={{ display: "grid", gap: 20 }}>
+      <div className="dashboard-shell">
 
-        {/* ── Header ── */}
-        <div className="dashboard-header">
-          <div className="dashboard-title-wrap">
-            <div className="dashboard-icon"><FaChartLine /></div>
-            <div>
-              <h1 className="dashboard-title">Tổng quan hệ thống</h1>
-              <p className="dashboard-subtitle">
-                {isManager ? "Xem hiệu suất kinh doanh và quản lý nhanh" : "Chào mừng đến với Tiệm trà happy"}
-              </p>
+        {/* ── Hero ── */}
+        <div className="home-hero animate-fadeInUp">
+          <div className="home-hero-content">
+            <p className="home-hero-greeting">☕ {greeting}</p>
+            <h1 className="home-hero-title">
+              {isManager ? (
+                <>Quản lý <span>thông minh</span><br />tăng doanh thu</>
+              ) : (
+                <>Chọn thức uống<br /><span>yêu thích</span> của bạn</>
+              )}
+            </h1>
+            <p className="home-hero-sub">
+              {isManager
+                ? "Theo dõi đơn hàng, doanh thu và quản lý sản phẩm ngay trên dashboard."
+                : "Khám phá hàng trăm loại trà sữa, cafe và bánh ngọt cao cấp nhất thành phố."}
+            </p>
+            <div className="home-hero-actions">
+              <button className="home-hero-btn-primary" onClick={() => navigate("/products")}>
+                <FaCoffee /> Xem thực đơn
+              </button>
+              {isManager && (
+                <button className="home-hero-btn-ghost" onClick={() => navigate("/orders")}>
+                  <FaClipboardList /> Quản lý đơn
+                </button>
+              )}
             </div>
           </div>
-          <div className="dashboard-toolbar-group">
-            {QUICK_LINKS.slice(0, 2).map((lnk) => (
-              <button
-                key={lnk.to}
-                type="button"
-                className={`dashboard-btn ${lnk.primary ? "dashboard-btn-primary" : "dashboard-btn-secondary"}`}
-                onClick={() => navigate(lnk.to)}
-              >
-                {lnk.icon}{lnk.label}
-              </button>
-            ))}
-          </div>
+          <div className="home-hero-emoji">☕</div>
         </div>
 
-        {/* ── Stat cards (admin/staff only) ── */}
+        {/* ── Category pills ── */}
+        {!isManager && (
+          <div className="home-categories animate-fadeIn animate-delay-1">
+            {CATEGORIES.map((cat) => (
+              <Link key={cat.label} to={cat.path} className="home-cat-pill">
+                <span className="home-cat-emoji">{cat.emoji}</span>
+                {cat.label}
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {/* ── Stat cards (manager only) ── */}
         {isManager && (
-          <div className="dashboard-stats-grid">
+          <div className="dashboard-stats-grid animate-fadeInUp animate-delay-1">
             {loading
-              ? Array(4).fill(0).map((_, i) => <SkeletonCard key={i} />)
+              ? Array(4).fill(0).map((_, i) => <SkeletonStat key={i} />)
               : statCards.map((s) => (
                   <article
                     key={s.label}
@@ -241,35 +239,35 @@ const Home = () => {
                     </div>
                     <div>
                       <p className="dashboard-stat-label">{s.label}</p>
-                      <p className="dashboard-stat-value" style={{ fontSize: "1.6rem" }}>{s.value}</p>
+                      <p className="dashboard-stat-value">{s.value}</p>
                     </div>
                   </article>
                 ))}
           </div>
         )}
 
-        {/* ── Charts row (admin/staff only) ── */}
+        {/* ── Charts row (manager only) ── */}
         {isManager && !loading && (
-          <div className="commerce-chart-grid">
-            {/* Revenue bar chart */}
+          <div className="commerce-chart-grid animate-fadeInUp animate-delay-2">
             <section className="dashboard-panel">
               <div className="dashboard-panel-header">
-                <h2 className="dashboard-panel-title">
-                  <span className="dashboard-panel-title-dot" />
-                  Doanh thu 7 ngày gần nhất
-                </h2>
+                <h2 className="dashboard-panel-title">📈 Doanh thu 7 ngày</h2>
               </div>
               <div className="dashboard-panel-body" style={{ height: 280 }}>
                 {revenueData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={revenueData} barSize={32}>
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#8aa0c5" }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#8aa0c5" }}
+                    <BarChart data={revenueData} barSize={28}>
+                      <XAxis dataKey="date" axisLine={false} tickLine={false}
+                        tick={{ fontSize: 11, fill: "var(--color-text-faint)" }} />
+                      <YAxis axisLine={false} tickLine={false}
+                        tick={{ fontSize: 10, fill: "var(--color-text-faint)" }}
                         tickFormatter={(v) => (v / 1000000).toFixed(1) + "tr"} />
-                      <Tooltip formatter={(v) => [fmt(v), "Doanh thu"]} contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 8px 24px rgba(0,0,0,0.1)" }} />
+                      <Tooltip
+                        formatter={(v) => [fmt(v), "Doanh thu"]}
+                        contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)", background: "var(--color-surface)", fontSize: 12 }} />
                       <Bar dataKey="amount" radius={[8, 8, 0, 0]}>
                         {revenueData.map((_, i) => (
-                          <Cell key={i} fill={i === revenueData.length - 1 ? "#7c3aed" : "#c4b5fd"} />
+                          <Cell key={i} fill={i === revenueData.length - 1 ? "var(--color-brand)" : "var(--color-brand-pale)"} />
                         ))}
                       </Bar>
                     </BarChart>
@@ -280,31 +278,29 @@ const Home = () => {
               </div>
             </section>
 
-            {/* Order status donut */}
             <section className="dashboard-panel">
               <div className="dashboard-panel-header">
-                <h2 className="dashboard-panel-title">
-                  <span className="dashboard-panel-title-dot" style={{ background: "#f59e0b", boxShadow: "0 0 0 6px rgba(245,158,11,0.12)" }} />
-                  Tỷ lệ trạng thái đơn
-                </h2>
+                <h2 className="dashboard-panel-title">🍩 Tỷ lệ đơn hàng</h2>
               </div>
               <div className="dashboard-panel-body" style={{ height: 280 }}>
                 {orderStatusData.some((d) => d.value > 0) ? (
                   <>
                     <ResponsiveContainer width="100%" height={200}>
                       <PieChart>
-                        <Pie data={orderStatusData} innerRadius={58} outerRadius={88} paddingAngle={4} dataKey="value">
+                        <Pie data={orderStatusData} innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value">
                           {orderStatusData.map((entry, i) => (
                             <Cell key={i} fill={entry.color} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(v, name) => [v + " đơn", name]} contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 8px 24px rgba(0,0,0,0.1)" }} />
+                        <Tooltip
+                          formatter={(v, name) => [v + " đơn", name]}
+                          contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)", background: "var(--color-surface)", fontSize: 12 }} />
                       </PieChart>
                     </ResponsiveContainer>
-                    <div className="dashboard-toolbar-group" style={{ justifyContent: "center", flexWrap: "wrap", gap: 10 }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
                       {orderStatusData.map((d) => (
-                        <span key={d.name} className="dashboard-count" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem" }}>
-                          <span style={{ width: 9, height: 9, borderRadius: 999, background: d.color, display: "inline-block" }} />
+                        <span key={d.name} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", color: "var(--color-text-muted)" }}>
+                          <span style={{ width: 8, height: 8, borderRadius: 999, background: d.color, display: "inline-block" }} />
                           {d.name} ({d.value})
                         </span>
                       ))}
@@ -319,17 +315,16 @@ const Home = () => {
         )}
 
         {/* ── Bottom row ── */}
-        <div style={{ display: "grid", gridTemplateColumns: isManager ? "1fr 1fr" : "1fr", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isManager ? "1fr 1fr" : "1fr", gap: "var(--space-5)" }}
+             className="animate-fadeInUp animate-delay-3">
 
-          {/* Recent orders table */}
+          {/* Recent orders */}
           {isManager && (
             <section className="dashboard-panel">
               <div className="dashboard-panel-header">
-                <h2 className="dashboard-panel-title">
-                  <span className="dashboard-panel-title-dot" style={{ background: "#10b981", boxShadow: "0 0 0 6px rgba(16,185,129,0.12)" }} />
-                  Đơn hàng gần đây
-                </h2>
-                <button type="button" className="dashboard-btn dashboard-btn-secondary" style={{ fontSize: "0.8rem", padding: "6px 14px" }} onClick={() => navigate("/orders")}>
+                <h2 className="dashboard-panel-title">🛒 Đơn gần đây</h2>
+                <button className="dashboard-btn dashboard-btn-secondary" onClick={() => navigate("/orders")}
+                  style={{ fontSize: "0.8rem", padding: "6px 14px" }}>
                   <FaEye /> Xem tất cả
                 </button>
               </div>
@@ -339,7 +334,7 @@ const Home = () => {
                 ) : recentOrders.length === 0 ? (
                   <div className="dashboard-empty">Chưa có đơn hàng nào</div>
                 ) : (
-                  <table className="dashboard-table">
+                  <table className="dashboard-table dashboard-table-compact">
                     <thead>
                       <tr>
                         <th>#</th>
@@ -356,24 +351,17 @@ const Home = () => {
                           <tr key={order.id}>
                             <td className="dashboard-index">{String(i + 1).padStart(2, "0")}</td>
                             <td>
-                              <div style={{ fontWeight: 700, fontSize: "0.87rem", color: "#0f172a" }}>
+                              <div style={{ fontWeight: 700, fontSize: "0.875rem" }}>
                                 {order.product_name || order.name || "—"}
                               </div>
-                              <div style={{ fontSize: "0.74rem", color: "#8aa0c5" }}>SL: {order.quantity ?? 1}</div>
+                              <div className="dashboard-code">SL: {order.quantity ?? 1}</div>
                             </td>
-                            <td className="dashboard-money-primary">{fmt(order.total_price ?? order.price ?? 0)}</td>
+                            <td className="dashboard-money">{fmt(order.total_price ?? order.price ?? 0)}</td>
+                            <td><span className={`dashboard-badge ${st.cls}`}>{st.label}</span></td>
                             <td>
-                              <span className={`dashboard-badge ${st.cls}`} style={{ fontSize: "0.75rem" }}>
-                                {st.label}
-                              </span>
-                            </td>
-                            <td>
-                              <button
-                                type="button"
-                                className="dashboard-btn dashboard-btn-ghost"
-                                style={{ padding: "4px 8px", fontSize: "0.78rem" }}
-                                onClick={() => setSelOrder(order)}
-                              >
+                              <button className="dashboard-btn dashboard-btn-secondary"
+                                style={{ padding: "4px 10px", fontSize: "0.78rem" }}
+                                onClick={() => setSelOrder(order)}>
                                 <FaEye />
                               </button>
                             </td>
@@ -390,39 +378,22 @@ const Home = () => {
           {/* Quick links */}
           <section className="dashboard-panel">
             <div className="dashboard-panel-header">
-              <h2 className="dashboard-panel-title">
-                <span className="dashboard-panel-title-dot" style={{ background: "#7c3aed" }} />
-                Truy cập nhanh
-              </h2>
+              <h2 className="dashboard-panel-title">⚡ Truy cập nhanh</h2>
             </div>
             <div className="dashboard-panel-body">
-              <div className="dashboard-card-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
+              <div className="home-quicklinks">
                 {QUICK_LINKS.map((lnk) => (
                   <button
                     key={lnk.to}
                     type="button"
+                    className={`home-quicklink-card ${lnk.primary ? "primary" : ""}`}
                     onClick={() => navigate(lnk.to)}
-                    className="dashboard-mini-card"
-                    style={{
-                      display: "flex", flexDirection: "column", alignItems: "center",
-                      gap: 10, cursor: "pointer", border: "none", textAlign: "center",
-                      transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                      background: lnk.primary ? "linear-gradient(135deg,#7c3aed,#4338ca)" : undefined,
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 16px 36px rgba(15,23,42,0.12)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
                   >
-                    <div style={{
-                      width: 44, height: 44, borderRadius: 14, display: "flex",
-                      alignItems: "center", justifyContent: "center", fontSize: "1.2rem",
-                      background: lnk.primary ? "rgba(255,255,255,0.18)" : "#f5f3ff",
-                      color: lnk.primary ? "#fff" : "#7c3aed",
-                    }}>
+                    <div className="home-quicklink-icon"
+                      style={!lnk.primary ? { background: lnk.iconBg, color: lnk.iconColor } : {}}>
                       {lnk.icon}
                     </div>
-                    <span style={{ fontSize: "0.82rem", fontWeight: 700, color: lnk.primary ? "#fff" : "#334155" }}>
-                      {lnk.label}
-                    </span>
+                    <span className="home-quicklink-label">{lnk.label}</span>
                   </button>
                 ))}
               </div>
@@ -431,7 +402,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* ── Order Modal ── */}
+      {/* ── Modal ── */}
       {selOrder && <OrderModal order={selOrder} onClose={() => setSelOrder(null)} />}
     </div>
   );

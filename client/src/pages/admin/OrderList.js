@@ -10,10 +10,13 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { api } from "../../lib/api";
+import Pagination from "../../components/common/Pagination";
 import "../../styles/dashboard.css";
 import "react-datepicker/dist/react-datepicker.css";
 
 registerLocale("vi", vi);
+
+const PAGE_SIZE = 10;
 
 const fmt = (n) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(Number(n) || 0);
@@ -47,6 +50,7 @@ const OrderList = () => {
   const [startDate,      setStartDate]      = useState(null);
   const [endDate,        setEndDate]        = useState(null);
   const [showFilter,     setShowFilter]     = useState(false);
+  const [page,           setPage]           = useState(1);
 
   useEffect(() => {
     const load = async () => {
@@ -101,13 +105,20 @@ const OrderList = () => {
     }
   };
 
-  const applyFilter = () => { setStartDate(startDateInput); setEndDate(endDateInput); };
+  const applyFilter = () => { setStartDate(startDateInput); setEndDate(endDateInput); setPage(1); };
   const resetFilter = () => {
     setActiveStatus("all"); setSearch("");
     setStartDate(null); setEndDate(null);
     setStartDateInput(null); setEndDateInput(null);
+    setPage(1);
   };
   const hasFilter = activeStatus !== "all" || search || startDate || endDate;
+
+  /* Paginated slice */
+  const pagedOrders = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredOrders.slice(start, start + PAGE_SIZE);
+  }, [filteredOrders, page]);
 
   const statCards = [
     { label: "Tổng đơn",      value: stats.total,    icon: <FaBoxOpen />,       accent: "#7c3aed", bg: "#f5f3ff", color: "#7c3aed" },
@@ -135,25 +146,25 @@ const OrderList = () => {
         </div>
 
         {/* ── Revenue hero ── */}
-        <section className="dashboard-panel dashboard-panel-dark">
+        <section className="dashboard-panel" style={{ borderLeft: "4px solid var(--color-brand)" }}>
           <div className="dashboard-panel-body">
             <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-              <div className="dashboard-stat-icon" style={{ background: "rgba(255,255,255,0.14)", color: "#c7d2fe", width: 56, height: 56, fontSize: "1.3rem" }}>
+              <div className="dashboard-stat-icon" style={{ background: "var(--color-brand-pale)", color: "var(--color-brand-dark)", width: 52, height: 52, fontSize: "1.2rem", borderRadius: "var(--radius-md)" }}>
                 <FaMoneyBillWave />
               </div>
               <div>
-                <p className="dashboard-stat-label" style={{ color: "rgba(226,232,240,0.7)" }}>TỔNG DOANH THU (đang lọc)</p>
-                <h2 className="dashboard-title" style={{ color: "#fff", margin: 0 }}>{fmt(stats.revenue)}</h2>
+                <p className="dashboard-stat-label" style={{ margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: "0.7rem" }}>Tổng doanh thu (đang lọc)</p>
+                <p className="dashboard-money-primary" style={{ margin: 0, fontSize: "1.8rem" }}>{fmt(stats.revenue)}</p>
               </div>
-              <div style={{ marginLeft: "auto", display: "flex", gap: 24 }}>
+              <div style={{ marginLeft: "auto", display: "flex", gap: 24, flexWrap: "wrap" }}>
                 {[
-                  { icon: <FaMoneyBill />,   label: "Tiền mặt",     value: stats.cash    + " đơn" },
-                  { icon: <FaCreditCard />,   label: "Chuyển khoản", value: stats.banking + " đơn" },
-                  { icon: <FaCheckCircle />,  label: "Đã giao",      value: stats.received + " đơn" },
+                  { icon: <FaMoneyBill />,   label: "Tiền mặt",     value: stats.cash    + " đơn", color: "var(--color-warning)" },
+                  { icon: <FaCreditCard />,  label: "Chuyển khoản", value: stats.banking + " đơn", color: "var(--color-info)"    },
+                  { icon: <FaCheckCircle />, label: "Đã giao",      value: stats.received + " đơn",color: "var(--color-success)"},
                 ].map((m) => (
                   <div key={m.label} style={{ textAlign: "center" }}>
-                    <div style={{ color: "#a5b4fc", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{m.label}</div>
-                    <div style={{ color: "#fff", fontWeight: 900, fontSize: "1.1rem" }}>{m.value}</div>
+                    <div style={{ color: "var(--color-text-faint)", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{m.label}</div>
+                    <div style={{ color: m.color, fontWeight: 900, fontSize: "1.05rem" }}>{m.value}</div>
                   </div>
                 ))}
               </div>
@@ -290,6 +301,7 @@ const OrderList = () => {
               <p>Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm.</p>
             </div>
           ) : (
+            <>
             <div className="dashboard-table-wrap">
               <table className="dashboard-table dashboard-table-compact">
                 <thead>
@@ -305,7 +317,8 @@ const OrderList = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredOrders.map((order, index) => {
+                  {pagedOrders.map((order, index) => {
+                    const absIndex = (page - 1) * PAGE_SIZE + index;
                     const customerName = order.email || order.name || "Khách hàng";
                     const initials     = customerName.slice(0, 2).toUpperCase();
                     const badge        = getBadge(order.status);
@@ -314,7 +327,7 @@ const OrderList = () => {
 
                     return (
                       <tr key={order.id}>
-                        <td className="dashboard-index">{String(index + 1).padStart(2, "0")}</td>
+                        <td className="dashboard-index">{String(absIndex + 1).padStart(2, "0")}</td>
                         <td>
                           <div className="dashboard-product">
                             <div className="dashboard-avatar" style={{ background: `hsl(${(customerName.charCodeAt(0) * 37) % 360}, 65%, 52%)` }}>{initials}</div>
@@ -335,11 +348,7 @@ const OrderList = () => {
                           </span>
                         </td>
                         <td>
-                          <span style={{
-                            fontWeight: 900, fontSize: "0.92rem", letterSpacing: "-0.02em",
-                            background: "linear-gradient(135deg,#7c3aed,#4338ca)",
-                            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-                          }}>{fmt(order.amount)}</span>
+                          <span className="dashboard-money-primary" style={{ fontSize: "0.92rem" }}>{fmt(order.amount)}</span>
                         </td>
                         <td style={{ fontSize: "0.82rem" }}>
                           <div>{dateObj.toLocaleDateString("vi-VN")}</div>
@@ -357,6 +366,14 @@ const OrderList = () => {
                 </tbody>
               </table>
             </div>
+            {/* Pagination */}
+            <Pagination
+              currentPage={page}
+              totalItems={filteredOrders.length}
+              pageSize={PAGE_SIZE}
+              onChange={(p) => setPage(p)}
+            />
+            </>
           )}
         </section>
 

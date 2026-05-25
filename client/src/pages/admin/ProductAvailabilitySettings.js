@@ -17,6 +17,7 @@ import {
 } from "react-icons/fa";
 
 import ProductImage from "../../components/common/ProductImage";
+import Pagination from "../../components/common/Pagination";
 import {
   DEFAULT_CATEGORY_SETTINGS,
   fetchCategorySettings,
@@ -49,6 +50,9 @@ const ProductAvailabilitySettings = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [prodPage, setProdPage] = useState(1);
+
+  const PROD_PAGE_SIZE = 10;
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -617,14 +621,15 @@ const ProductAvailabilitySettings = () => {
                     <label htmlFor="availability-search" className="commerce-filter-label">
                       Tìm món
                     </label>
-                    <div className="commerce-search-input-wrap">
+                    <div className="commerce-search-wrap">
                       <FaSearch className="commerce-search-icon" />
                       <input
                         id="availability-search"
-                        className="dashboard-input commerce-search-input"
+                        className="commerce-search-input"
                         value={searchTerm}
-                        onChange={(event) => setSearchTerm(event.target.value)}
+                        onChange={(event) => { setSearchTerm(event.target.value); setProdPage(1); }}
                         placeholder="Tên, mã hoặc danh mục"
+                        style={{ width: "100%" }}
                       />
                     </div>
                   </div>
@@ -643,7 +648,7 @@ const ProductAvailabilitySettings = () => {
                           className={`dashboard-chip ${
                             availabilityFilter === value ? "active" : ""
                           }`}
-                          onClick={() => setAvailabilityFilter(value)}
+                          onClick={() => { setAvailabilityFilter(value); setProdPage(1); }}
                         >
                           {label}
                         </button>
@@ -660,6 +665,7 @@ const ProductAvailabilitySettings = () => {
               ) : filteredProducts.length === 0 ? (
                 <div className="dashboard-empty">Không có món nào phù hợp.</div>
               ) : (
+                <>
                 <div className="dashboard-table-wrap">
                   <table className="dashboard-table dashboard-table-compact">
                     <thead>
@@ -672,7 +678,7 @@ const ProductAvailabilitySettings = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredProducts.map((product) => {
+                      {filteredProducts.slice((prodPage - 1) * PROD_PAGE_SIZE, prodPage * PROD_PAGE_SIZE).map((product) => {
                         const available = isProductAvailable(product);
 
                         return (
@@ -732,6 +738,13 @@ const ProductAvailabilitySettings = () => {
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  currentPage={prodPage}
+                  totalItems={filteredProducts.length}
+                  pageSize={PROD_PAGE_SIZE}
+                  onChange={(p) => setProdPage(p)}
+                />
+                </>
               )}
             </section>
           </>
