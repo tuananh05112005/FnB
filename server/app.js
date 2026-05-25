@@ -14,7 +14,11 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+app.use(express.json({
+  verify: (req, _res, buf) => {
+    req.rawBody = buf.toString("utf8");
+  },
+}));
 app.use(bodyParser.json());
 
 registerRoutes(app);

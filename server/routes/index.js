@@ -8,6 +8,7 @@ const voucherRoutes = require("./voucherRoutes");
 const cartRoutes = require("./cartRoutes");
 const orderRoutes = require("./orderRoutes");
 const paymentRoutes = require("./paymentRoutes");
+const sepayWebhookRoutes = require("./sepayWebhookRoutes");
 const statsRoutes = require("./statsRoutes");
 const passwordRoutes = require("./passwordRoutes");
 const categorySettingsRoutes = require("./categorySettings");
@@ -30,7 +31,9 @@ function registerRoutes(app) {
   app.use("/api/vouchers", voucherRoutes);
   app.use("/api/cart", cartRoutes);
   app.use("/api/admin", orderRoutes);
+  app.use("/", sepayWebhookRoutes);
   app.use("/api/payments", paymentRoutes);
+  app.use("/api", sepayWebhookRoutes);
   app.use("/api", statsRoutes);
   app.use("/api", passwordRoutes);
 

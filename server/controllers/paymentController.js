@@ -1,47 +1,68 @@
 const { getDB, getQuery } = require("../config/db");
-const {
-  createPendingPayment,
-  getPendingPayment,
-  updatePendingPayment,
-  listPendingPayments,
-} = require("../stores/pendingBankPayments");
 
-async function persistPayment(query, paymentData) {
-  const {
-    user_id,
-    product_id,
-    name,
-    address,
-    phone,
-    payment_method,
-    amount,
-    voucher_id,
-    use_points,
-  } = paymentData;
-
-  if (use_points) {
-    await query("UPDATE users SET points = 0 WHERE id = ?", [user_id]);
-  }
-
-  if (voucher_id) {
-    await query("UPDATE vouchers SET used_count = used_count + 1 WHERE id = ?", [voucher_id]);
+async function markPaymentPaid(payment, query) {
+  if (payment.payment_status === "paid") {
+    return { alreadyPaid: true, pointsEarned: 0 };
   }
 
   const result = await query(
-    "INSERT INTO payments (user_id, product_id, name, address, phone, payment_method, amount) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    [user_id, product_id, name, address, phone, payment_method, amount]
+    `
+    UPDATE payments
+    SET
+      payment_status = 'paid',
+      confirmed_at = NOW()
+    WHERE id = ?
+    AND payment_status <> 'paid'
+    `,
+    [payment.id],
   );
 
-  await query("UPDATE cart SET status = 'completed' WHERE user_id = ? AND product_id = ?", [
-    user_id,
-    product_id,
-  ]);
+  if (!result.affectedRows) {
+    return { alreadyPaid: true, pointsEarned: 0 };
+  }
 
-  const pointsEarned = Math.floor(amount / 10000);
-  await query("UPDATE users SET points = points + ? WHERE id = ?", [pointsEarned, user_id]);
+  await query(
+    `
+    UPDATE cart
+    SET status = 'completed'
+    WHERE user_id = ?
+    AND product_id = ?
+    `,
+    [payment.user_id, payment.product_id],
+  );
 
-  return result;
+  const pointsEarned = Math.floor(payment.amount / 10000);
+
+  if (pointsEarned > 0) {
+    await query(
+      `
+      UPDATE users
+      SET points = points + ?
+      WHERE id = ?
+      `,
+      [pointsEarned, payment.user_id],
+    );
+  }
+
+  return { alreadyPaid: false, pointsEarned };
 }
+
+/*
+====================================================
+PAYMENT CONTROLLER FULL VERSION
+- Banking QR
+- Pending payment
+- Admin confirm
+- Auto status
+- MySQL only
+====================================================
+*/
+
+/*
+====================================================
+CREATE PAYMENT
+====================================================
+*/
 
 exports.create = async (req, res) => {
   const {
@@ -60,240 +81,443 @@ exports.create = async (req, res) => {
   try {
     const query = getQuery();
 
-    if (payment_method === "banking" && generateQR) {
-      const users = await query("SELECT email FROM users WHERE id = ?", [user_id]);
-      const pendingPayment = createPendingPayment({
-        user_id,
-        product_id,
-        name,
-        address,
-        phone,
-        payment_method,
-        amount,
-        voucher_id,
-        use_points,
-        email: users[0]?.email || "",
-      });
+    /*
+    ============================================
+    USE USER POINTS
+    ============================================
+    */
 
-      const qrUrl = `https://img.vietqr.io/image/NAB-410129237100001-compact.png?amount=${amount}&addInfo=${encodeURIComponent(
-        `Thanh toan don hang ${pendingPayment.id}`
-      )}&accountName=HUYNH%20NGUYEN%20TUAN%20ANH`;
+    if (use_points) {
+      await query("UPDATE users SET points = 0 WHERE id = ?", [user_id]);
+    }
 
-      return res.status(200).json({
-        message: "Tao ma QR thanh cong",
-        qrUrl,
-        pendingPaymentId: pendingPayment.id,
-        expiresAt: pendingPayment.expiresAt,
-        status: pendingPayment.status,
+    /*
+    ============================================
+    UPDATE VOUCHER
+    ============================================
+    */
+
+    if (voucher_id) {
+      await query(
+        `
+        UPDATE vouchers
+        SET used_count = used_count + 1
+        WHERE id = ?
+        `,
+        [voucher_id],
+      );
+    }
+
+    /*
+    ============================================
+    CASH PAYMENT
+    ============================================
+    */
+
+    if (payment_method === "cash") {
+      const result = await query(
+        `
+        INSERT INTO payments (
+          user_id,
+          product_id,
+          name,
+          address,
+          phone,
+          payment_method,
+          amount,
+          payment_status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          user_id,
+          product_id,
+          name,
+          address,
+          phone,
+          payment_method,
+          amount,
+          "paid",
+        ],
+      );
+
+      /*
+      ============================================
+      UPDATE CART
+      ============================================
+      */
+
+      await query(
+        `
+        UPDATE cart
+        SET status = 'completed'
+        WHERE user_id = ?
+        AND product_id = ?
+        `,
+        [user_id, product_id],
+      );
+
+      /*
+      ============================================
+      ADD USER POINTS
+      ============================================
+      */
+
+      const pointsEarned = Math.floor(amount / 10000);
+
+      await query(
+        `
+        UPDATE users
+        SET points = points + ?
+        WHERE id = ?
+        `,
+        [pointsEarned, user_id],
+      );
+
+      return res.status(201).json({
+        success: true,
+        message: "Thanh toan tien mat thanh cong",
+        orderId: result.insertId,
       });
     }
 
-    const result = await persistPayment(query, {
-      user_id,
-      product_id,
-      name,
-      address,
-      phone,
-      payment_method,
-      amount,
-      voucher_id,
-      use_points,
-    });
+    /*
+    ============================================
+    BANKING PAYMENT
+    ============================================
+    */
 
-    res.status(201).json({
-      message: "Tao thanh toan thanh cong",
-      orderId: result.insertId,
+    if (payment_method === "banking" && generateQR) {
+      const transactionCode = `DH${Date.now()}`;
+
+      const result = await query(
+        `
+        INSERT INTO payments (
+          user_id,
+          product_id,
+          name,
+          address,
+          phone,
+          payment_method,
+          amount,
+          payment_status,
+          transaction_code
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          user_id,
+          product_id,
+          name,
+          address,
+          phone,
+          payment_method,
+          amount,
+          "pending",
+          transactionCode,
+        ],
+      );
+
+      /*
+      ============================================
+      VIETQR
+      ============================================
+      */
+
+      const bankCode = process.env.SEPAY_BANK_CODE || "ICB";
+      const bankAccount = process.env.SEPAY_BANK_ACCOUNT || "101879499413";
+      const qrTemplate = process.env.SEPAY_QR_TEMPLATE || "compact";
+      // const transferContent = `SEVQR ${transactionCode}`;
+      const transferContent = transactionCode;
+
+
+      const qrUrl =
+        `https://qr.sepay.vn/img?bank=${encodeURIComponent(bankCode)}` +
+        `&acc=${encodeURIComponent(bankAccount)}` +
+        `&template=${encodeURIComponent(qrTemplate)}` +
+        `&amount=${amount}` +
+        `&content=${encodeURIComponent(transferContent)}`;
+
+
+      return res.status(200).json({
+        success: true,
+        message: "Tao QR thanh cong",
+        paymentId: result.insertId,
+        transactionCode,
+        transferContent,
+        bankCode,
+        bankAccount,
+        qrUrl,
+        payment_status: "pending",
+      });
+    }
+
+    res.status(400).json({
+      success: false,
+      message: "Phuong thuc thanh toan khong hop le",
     });
   } catch (err) {
-    console.error("Loi khi tao thanh toan:", err);
-    res.status(500).send("Loi server");
-  }
-};
+    console.error("Loi create payment:", err);
 
-exports.getBankingStatus = (req, res) => {
-  const { pending_payment_id } = req.params;
-  const pendingPayment = getPendingPayment(pending_payment_id);
-
-  if (!pendingPayment) {
-    return res.status(404).json({ message: "Khong tim thay yeu cau thanh toan" });
-  }
-
-  res.json({
-    id: pendingPayment.id,
-    status: pendingPayment.status,
-    expiresAt: pendingPayment.expiresAt,
-    confirmedAt: pendingPayment.confirmedAt,
-    finalizedAt: pendingPayment.finalizedAt,
-  });
-};
-
-exports.finalizeBankingPayment = async (req, res) => {
-  const { pending_payment_id } = req.body;
-  const pendingPayment = getPendingPayment(pending_payment_id);
-
-  if (!pendingPayment) {
-    return res.status(404).json({ message: "Khong tim thay yeu cau thanh toan" });
-  }
-
-  if (pendingPayment.status === "expired") {
-    return res.status(400).json({ message: "Phien thanh toan da het han" });
-  }
-
-  if (pendingPayment.status === "pending") {
-    return res.status(400).json({ message: "Ban chua thanh toan" });
-  }
-
-  if (pendingPayment.status === "finalized") {
-    return res.status(200).json({
-      message: "Thanh toan da duoc ghi nhan truoc do",
-      orderId: pendingPayment.orderId,
+    res.status(500).json({
+      success: false,
+      message: "Loi server",
     });
   }
+};
+
+/*
+====================================================
+GET PAYMENT STATUS
+====================================================
+*/
+
+exports.getPaymentStatus = async (req, res) => {
+  const { id } = req.params;
 
   try {
     const query = getQuery();
-    const result = await persistPayment(query, pendingPayment);
 
-    updatePendingPayment(pending_payment_id, (record) => ({
-      ...record,
-      status: "finalized",
-      finalizedAt: Date.now(),
-      orderId: result.insertId,
-    }));
+    const payments = await query(
+      `
+      SELECT
+        id,
+        payment_status,
+        confirmed_at,
+        transaction_code,
+        created_at
+      FROM payments
+      WHERE id = ?
+      `,
+      [id],
+    );
 
-    res.status(201).json({
-      message: "Da ghi nhan thanh toan",
-      orderId: result.insertId,
+    if (!payments.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Khong tim thay thanh toan",
+      });
+    }
+
+    res.json(payments[0]);
+  } catch (err) {
+    console.error("Loi getPaymentStatus:", err);
+
+    res.status(500).json({
+      success: false,
+      message: "Loi server",
+    });
+  }
+};
+
+/*
+====================================================
+ADMIN LIST ALL PAYMENTS
+====================================================
+*/
+
+exports.adminList = async (_req, res) => {
+  try {
+    const query = getQuery();
+
+    const payments = await query(
+      `
+      SELECT
+        p.*,
+        u.email,
+        pr.name AS product_name,
+        pr.image
+      FROM payments p
+      JOIN users u ON p.user_id = u.id
+      JOIN products pr ON p.product_id = pr.id
+      ORDER BY p.id DESC
+      `,
+    );
+
+    res.json(payments);
+  } catch (err) {
+    console.error("Loi adminList:", err);
+
+    res.status(500).json({
+      success: false,
+      message: "Loi server",
+    });
+  }
+};
+
+/*
+====================================================
+ADMIN LIST PENDING
+====================================================
+*/
+
+exports.adminListPending = async (_req, res) => {
+  try {
+    const query = getQuery();
+
+    const payments = await query(
+      `
+      SELECT
+        p.*,
+        u.email,
+        pr.name AS product_name,
+        pr.image
+      FROM payments p
+      JOIN users u ON p.user_id = u.id
+      JOIN products pr ON p.product_id = pr.id
+      WHERE p.payment_status = 'pending'
+      ORDER BY p.created_at DESC
+      `,
+    );
+
+    res.json(payments);
+  } catch (err) {
+    console.error("Loi adminListPending:", err);
+
+    res.status(500).json({
+      success: false,
+      message: "Loi server",
+    });
+  }
+};
+
+/*
+====================================================
+ADMIN CONFIRM PAYMENT
+====================================================
+*/
+
+exports.adminConfirmPending = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const query = getQuery();
+
+    const payments = await query(
+      `
+      SELECT *
+      FROM payments
+      WHERE id = ?
+      `,
+      [id],
+    );
+
+    if (!payments.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Khong tim thay thanh toan",
+      });
+    }
+
+    const payment = payments[0];
+
+    if (payment.payment_status === "paid") {
+      return res.status(400).json({
+        success: false,
+        message: "Thanh toan da duoc xac nhan",
+      });
+    }
+
+    await markPaymentPaid(payment, query);
+
+    res.json({
+      success: true,
+      message: "Da xac nhan da nhan tien",
     });
   } catch (err) {
-    console.error("Loi khi ghi nhan thanh toan banking:", err);
-    res.status(500).json({ message: "Loi server" });
+    console.error("Loi adminConfirmPending:", err);
+
+    res.status(500).json({
+      success: false,
+      message: "Loi server",
+    });
   }
 };
 
-exports.adminList = (_req, res) => {
-  const db = getDB();
-  const q = `
-    SELECT payments.*, users.email
-    FROM payments
-    JOIN users ON payments.user_id = users.id
-    ORDER BY payments.id DESC
-  `;
-
-  db.query(q, (err, results) => {
-    if (err) return res.status(500).send("Loi server");
-    res.json(results);
-  });
-};
-
-exports.adminListPending = (_req, res) => {
-  const pendingPayments = listPendingPayments()
-    .filter((payment) => ["pending", "confirmed"].includes(payment.status))
-    .map((payment) => ({
-      id: payment.id,
-      email: payment.email || "",
-      name: payment.name,
-      address: payment.address,
-      amount: payment.amount,
-      payment_method: payment.payment_method,
-      status: payment.status,
-      created_at: payment.createdAt,
-      expires_at: payment.expiresAt,
-      confirmed_at: payment.confirmedAt,
-      user_id: payment.user_id,
-      product_id: payment.product_id,
-    }));
-
-  res.json(pendingPayments);
-};
-
-exports.adminConfirmPending = (req, res) => {
-  const { id } = req.params;
-  const pendingPayment = getPendingPayment(id);
-
-  if (!pendingPayment) {
-    return res.status(404).json({ message: "Khong tim thay thanh toan cho xac nhan" });
-  }
-
-  if (pendingPayment.status === "expired") {
-    return res.status(400).json({ message: "Phien thanh toan da het han" });
-  }
-
-  if (pendingPayment.status === "finalized") {
-    return res.status(400).json({ message: "Thanh toan da duoc hoan tat" });
-  }
-
-  const updated = updatePendingPayment(id, (record) => ({
-    ...record,
-    status: "confirmed",
-    confirmedAt: Date.now(),
-  }));
-
-  res.json({
-    message: "Da xac nhan da nhan tien",
-    payment: {
-      id: updated.id,
-      status: updated.status,
-      confirmedAt: updated.confirmedAt,
-    },
-  });
-};
+/*
+====================================================
+PAYMENT HISTORY BY USER
+====================================================
+*/
 
 exports.historyByUser = async (req, res) => {
   const { user_id } = req.params;
 
   try {
     const query = getQuery();
+
     const payments = await query(
       `
       SELECT
         p.id AS payment_id,
+        p.amount,
+        p.payment_method,
+        p.payment_status,
+        p.created_at,
+        p.transaction_code,
         pr.name AS product_name,
         pr.image,
         pr.price,
-        p.amount,
-        p.payment_method,
-        p.order_date,
         pr.size
       FROM payments p
-      JOIN products pr ON p.product_id = pr.id
+      JOIN products pr
+      ON p.product_id = pr.id
       WHERE p.user_id = ?
-      ORDER BY p.order_date DESC
+      ORDER BY p.created_at DESC
       `,
-      [user_id]
+      [user_id],
     );
 
     res.json(payments);
   } catch (err) {
-    console.error("Loi khi lay lich su thanh toan:", err);
-    res.status(500).json({ message: "Loi server" });
+    console.error("Loi historyByUser:", err);
+
+    res.status(500).json({
+      success: false,
+      message: "Loi server",
+    });
   }
 };
 
-exports.adminDelete = (req, res) => {
-  const db = getDB();
-  const id = req.params.id;
-
-  db.query("DELETE FROM payments WHERE id = ?", [id], (err) => {
-    if (err) return res.status(500).send("Loi server");
-    res.status(200).json({ message: "Xoa thanh toan thanh cong" });
-  });
-};
+/*
+====================================================
+DELETE PAYMENT
+====================================================
+*/
 
 exports.remove = async (req, res) => {
   const { payment_id } = req.params;
 
   try {
     const query = getQuery();
-    const result = await query("DELETE FROM payments WHERE id = ?", [payment_id]);
+
+    const result = await query(
+      `
+      DELETE FROM payments
+      WHERE id = ?
+      `,
+      [payment_id],
+    );
 
     if (!result.affectedRows) {
-      return res.status(404).json({ message: "Khong tim thay thanh toan can xoa" });
+      return res.status(404).json({
+        success: false,
+        message: "Khong tim thay thanh toan",
+      });
     }
 
-    res.json({ message: "Xoa thanh toan thanh cong" });
+    res.json({
+      success: true,
+      message: "Xoa thanh toan thanh cong",
+    });
   } catch (err) {
-    console.error("Loi khi xoa thanh toan:", err);
-    res.status(500).json({ message: "Loi server" });
+    console.error("Loi remove payment:", err);
+
+    res.status(500).json({
+      success: false,
+      message: "Loi server",
+    });
   }
 };
+
+exports.markPaymentPaid = markPaymentPaid;

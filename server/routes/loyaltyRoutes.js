@@ -7,3 +7,4 @@ router.put("/notifications/read/:user_id", ctrl.markNotificationsRead);
 router.get("/:user_id", ctrl.wallet);
 
 module.exports = router;
+    
