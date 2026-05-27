@@ -1,6 +1,99 @@
 // controllers/productController.js
 const { getDB, getQuery } = require("../config/db");
 
+const FOOD_IMAGE_QUERY_MAP = [
+  ["tra sua", "milk tea"],
+  ["trà sữa", "milk tea"],
+  ["ca phe", "iced coffee"],
+  ["cà phê", "iced coffee"],
+  ["cafe", "iced coffee"],
+  ["sinh to", "smoothie drink"],
+  ["sinh tố", "smoothie drink"],
+  ["nuoc ep", "fruit juice"],
+  ["nước ép", "fruit juice"],
+  ["cacao", "cocoa drink"],
+  ["matcha", "matcha latte"],
+  ["kem", "ice cream dessert"],
+  ["banh", "cake dessert"],
+  ["bánh", "cake dessert"],
+  ["pancake", "pancake dessert"],
+  ["waffle", "waffle dessert"],
+];
+
+function normalizeQuery(value = "") {
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d");
+}
+
+function buildPexelsQuery(query) {
+  const normalized = normalizeQuery(query);
+  const matched = FOOD_IMAGE_QUERY_MAP.find(([keyword]) => normalized.includes(normalizeQuery(keyword)));
+  return matched ? matched[1] : `${query} food drink`;
+}
+
+exports.searchImages = async (req, res) => {
+  const apiKey = process.env.PEXELS_API_KEY;
+  const rawQuery = String(req.query.query || "").trim();
+
+  if (!apiKey) {
+    return res.status(500).json({ message: "Chua cau hinh PEXELS_API_KEY trong server .env" });
+  }
+
+  if (!rawQuery) {
+    return res.status(400).json({ message: "Vui long nhap tu khoa tim anh" });
+  }
+
+  try {
+    const searchQuery = buildPexelsQuery(rawQuery);
+    const perPage = Math.min(Math.max(Number(req.query.per_page) || 8, 1), 12);
+    const url = new URL("https://api.pexels.com/v1/search");
+    url.searchParams.set("query", searchQuery);
+    url.searchParams.set("per_page", String(perPage));
+    url.searchParams.set("orientation", "square");
+
+    const response = await fetch(url, {
+      headers: {
+        Authorization: apiKey,
+      },
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      console.error("[Pexels] Loi tim anh", {
+        status: response.status,
+        query: searchQuery,
+        error: data,
+      });
+      return res.status(response.status).json({
+        message: data?.error || "Khong the tim anh tu Pexels",
+      });
+    }
+
+    const photos = Array.isArray(data.photos) ? data.photos : [];
+    res.json({
+      query: rawQuery,
+      searchQuery,
+      images: photos.map((photo) => ({
+        id: photo.id,
+        url: photo.src?.large || photo.src?.medium || photo.src?.original,
+        thumbnail: photo.src?.medium || photo.src?.small || photo.src?.tiny,
+        alt: photo.alt || rawQuery,
+        photographer: photo.photographer,
+        photographerUrl: photo.photographer_url,
+        sourceUrl: photo.url,
+      })).filter((photo) => photo.url && photo.thumbnail),
+    });
+  } catch (error) {
+    console.error("[Pexels] Loi server khi tim anh:", error);
+    res.status(500).json({ message: "Loi server khi tim anh san pham" });
+  }
+};
+
 exports.list = (req, res) => {
   const db = getDB();
   const { category } = req.query;

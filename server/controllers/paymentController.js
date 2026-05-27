@@ -225,18 +225,19 @@ exports.create = async (req, res) => {
       */
 
       const bankCode = process.env.SEPAY_BANK_CODE || "ICB";
+      const bankName = process.env.SEPAY_BANK_NAME || "VietinBank";
       const bankAccount = process.env.SEPAY_BANK_ACCOUNT || "101879499413";
       const qrTemplate = process.env.SEPAY_QR_TEMPLATE || "compact";
-      // const transferContent = `SEVQR ${transactionCode}`;
-      const transferContent = transactionCode;
-
+      const transferContent = `SEVQR ${transactionCode}`;
 
       const qrUrl =
         `https://qr.sepay.vn/img?bank=${encodeURIComponent(bankCode)}` +
         `&acc=${encodeURIComponent(bankAccount)}` +
         `&template=${encodeURIComponent(qrTemplate)}` +
         `&amount=${amount}` +
-        `&content=${encodeURIComponent(transferContent)}`;
+        `&des=${encodeURIComponent(transferContent)}` +
+        `&content=${encodeURIComponent(transferContent)}` +
+        `&addInfo=${encodeURIComponent(transferContent)}`;
 
 
       return res.status(200).json({
@@ -246,6 +247,7 @@ exports.create = async (req, res) => {
         transactionCode,
         transferContent,
         bankCode,
+        bankName,
         bankAccount,
         qrUrl,
         payment_status: "pending",

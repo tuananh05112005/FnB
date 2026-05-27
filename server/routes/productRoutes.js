@@ -4,6 +4,7 @@ const ctrl = require("../controllers/productController");
 
 router.get("/", ctrl.list);
 router.get("/product-categories", ctrl.categories);
+router.get("/image-search", ctrl.searchImages);
 router.get("/product/:id/history", ctrl.history);
 router.get("/:id", ctrl.detail);
 router.post("/", ctrl.create);
