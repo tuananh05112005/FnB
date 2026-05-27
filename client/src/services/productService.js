@@ -24,6 +24,13 @@ export const updateProduct = async (id, productData) => {
   return response.data;
 };
 
+export const searchProductImages = async (query) => {
+  const response = await api.get('/api/products/image-search', {
+    params: { query },
+  });
+  return response.data;
+};
+
 export const isProductAvailable = (product) => {
   const value = product?.is_available;
 

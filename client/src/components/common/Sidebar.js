@@ -129,7 +129,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
       userRole === "user" || userRole === "admin"
         ? { to: "/wallet", label: "Ưu đãi", icon: Gift, accent: "gold" }
         : null,
-      userRole === "admin" || userRole === "staff"
+      userRole === "admin" || userRole === "staff" || userRole === "user"
         ? { to: "/admin/settings", label: "Cài đặt", icon: Settings, accent: "slate" }
         : null,  
     ].filter(Boolean),

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FaArrowLeft, FaHistory, FaSave } from "react-icons/fa";
+import { FaArrowLeft, FaHistory, FaMagic, FaSave } from "react-icons/fa";
 
+import ProductImagePicker from "../../components/admin/ProductImagePicker";
 import { api } from "../../lib/api";
 import { getProduct, updateProduct } from "../../services/productService";
+import { buildProductDescription, getImageNameSuggestion } from "../../utils/productContent";
 import "../../styles/dashboard.css";
 import "../../styles/commerce.css";
 
@@ -127,6 +129,23 @@ const EditProductForm = () => {
                   value={editingProduct.image || ""}
                   onChange={handleInputChange}
                 />
+                <ProductImagePicker
+                  query={editingProduct.name}
+                  onSelect={(image) => {
+                    const suggestedName = getImageNameSuggestion(image);
+
+                    setEditingProduct((prev) => {
+                      const nextName = prev.name || suggestedName;
+
+                      return {
+                        ...prev,
+                        image: image.url,
+                        name: nextName,
+                        description: prev.description || buildProductDescription(nextName),
+                      };
+                    });
+                  }}
+                />
               </div>
               <div className="dashboard-field">
                 <label htmlFor="edit-code">Mã sản phẩm</label>
@@ -180,6 +199,20 @@ const EditProductForm = () => {
                 value={editingProduct.description || ""}
                 onChange={handleInputChange}
               />
+              <button
+                type="button"
+                className="dashboard-btn dashboard-btn-secondary product-description-button"
+                onClick={() => {
+                  setEditingProduct((prev) => ({
+                    ...prev,
+                    description: buildProductDescription(prev.name),
+                  }));
+                }}
+                disabled={!editingProduct.name}
+              >
+                <FaMagic />
+                Goi y mo ta
+              </button>
             </div>
 
             <div className="dashboard-form-actions">

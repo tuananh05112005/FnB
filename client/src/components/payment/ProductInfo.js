@@ -9,42 +9,28 @@ const formatCurrency = (amount) =>
   }).format(Number(amount) || 0);
 
 const ProductInfo = ({ item }) => (
-  <section className="dashboard-panel">
-    <div className="dashboard-panel-header">
-      <h2 className="dashboard-panel-title">
-        <span className="dashboard-panel-title-dot" />
+  <div className="payment-product-summary">
+    <ProductImage
+      src={item?.image}
+      alt={item?.name || "San pham"}
+      className="payment-product-image"
+    />
+    <div className="payment-product-copy">
+      <div className="payment-section-kicker">
         <FaShoppingCart />
         Thong tin san pham
-      </h2>
-    </div>
-    <div className="dashboard-panel-body">
-      <div className="dashboard-product" style={{ alignItems: "stretch" }}>
-        <ProductImage
-          src={item?.image}
-          alt={item?.name || "San pham"}
-          className="dashboard-thumb"
-          style={{ width: 96, height: 96 }}
-        />
-        <div style={{ flex: 1 }}>
-          <h3 className="commerce-product-title">{item?.name}</h3>
-          <p className="dashboard-subtitle" style={{ marginTop: 8 }}>
-            Ma san pham: {item?.product_id || item?.id}
-          </p>
-          <div className="commerce-meta" style={{ marginTop: 12 }}>
-            <span className="dashboard-badge dashboard-badge-neutral">
-              So luong: {item?.quantity}
-            </span>
-            <span className="dashboard-badge dashboard-badge-info">
-              Don gia: {formatCurrency(item?.price)}
-            </span>
-            <span className="dashboard-badge dashboard-badge-success">
-              Tong: {formatCurrency(Number(item?.price) * Number(item?.quantity))}
-            </span>
-          </div>
-        </div>
+      </div>
+      <h3 className="payment-product-title">{item?.name}</h3>
+      <p className="payment-product-code">
+        Ma san pham: {item?.product_id || item?.id}
+      </p>
+      <div className="payment-product-meta">
+        <span>So luong: {item?.quantity}</span>
+        <span>Don gia: {formatCurrency(item?.price)}</span>
+        <strong>Tong: {formatCurrency(Number(item?.price) * Number(item?.quantity))}</strong>
       </div>
     </div>
-  </section>
+  </div>
 );
 
 export default ProductInfo;

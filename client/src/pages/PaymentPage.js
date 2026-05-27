@@ -18,7 +18,6 @@ import { getUserId } from "../lib/session";
 import DeliveryForm from "../components/payment/DeliveryForm";
 import PaymentMethod from "../components/payment/PaymentMethod";
 import ProductInfo from "../components/payment/ProductInfo";
-import ProgressBar from "../components/payment/ProgressBar";
 
 import "../styles/dashboard.css";
 import "../styles/commerce.css";
@@ -32,9 +31,27 @@ L.Icon.Default.mergeOptions({
 });
 
 const DEFAULT_POSITION = [10.762622, 106.660172];
+const PAYMENT_SESSION_PREFIX = "fnb_payment_session";
 
-const fmt = (n) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number(n) || 0);
+const getPaymentSessionKey = (userId) =>
+  `${PAYMENT_SESSION_PREFIX}_${userId || "guest"}`;
+
+const loadPaymentSession = (userId) => {
+  try {
+    const raw = localStorage.getItem(getPaymentSessionKey(userId));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const savePaymentSession = (userId, payload) => {
+  localStorage.setItem(getPaymentSessionKey(userId), JSON.stringify(payload));
+};
+
+const clearPaymentSession = (userId) => {
+  localStorage.removeItem(getPaymentSessionKey(userId));
+};
 
 /* ── Map click handler ──────────────────────────────────────────── */
 function MapClickHandler({ onSelect }) {
@@ -135,24 +152,61 @@ const STEPS = [
 const PaymentPage = () => {
   const location = useLocation();
   const navigate  = useNavigate();
-  const { item }  = location.state || {};
   const userId    = getUserId();
+  const [savedSession] = useState(() => loadPaymentSession(userId));
+  const [checkoutItem, setCheckoutItem] = useState(() => location.state?.item || savedSession?.item || null);
+  const item = checkoutItem;
 
-  const [paymentInfo, setPaymentInfo] = useState({ name: "", address: "", phone: "", paymentMethod: "cash" });
-  const [currentStep,      setCurrentStep]      = useState(1);
+  const [paymentInfo, setPaymentInfo] = useState(() => savedSession?.paymentInfo || { name: "", address: "", phone: "", paymentMethod: "cash" });
+  const [currentStep,      setCurrentStep]      = useState(() => savedSession?.currentStep || 1);
   const [isSubmitting,     setIsSubmitting]      = useState(false);
   const [showMapModal,     setShowMapModal]      = useState(false);
   const [selectedPosition, setSelectedPosition]  = useState(null);
-  const [qrUrl,            setQrUrl]             = useState("");
-  const [paymentId,        setPaymentId]         = useState(null);
-  const [paymentStatus,    setPaymentStatus]     = useState("");
-  const [transactionCode,  setTransactionCode]   = useState("");
-  const [transferContent,  setTransferContent]   = useState("");
-  const [bankInfo,         setBankInfo]          = useState(null);
+  const [qrUrl,            setQrUrl]             = useState(() => savedSession?.qrUrl || "");
+  const [paymentId,        setPaymentId]         = useState(() => savedSession?.paymentId || null);
+  const [paymentStatus,    setPaymentStatus]     = useState(() => savedSession?.paymentStatus || "");
+  const [transactionCode,  setTransactionCode]   = useState(() => savedSession?.transactionCode || "");
+  const [transferContent,  setTransferContent]   = useState(() => savedSession?.transferContent || "");
+  const [bankInfo,         setBankInfo]          = useState(() => savedSession?.bankInfo || null);
   const [error,            setError]             = useState("");
+  const [sessionClosed,    setSessionClosed]     = useState(false);
+
+  useEffect(() => {
+    if (location.state?.item) {
+      setCheckoutItem(location.state.item);
+    }
+  }, [location.state]);
 
   /* Redirect if no product */
-  useEffect(() => { if (!item) navigate("/carts"); }, [item, navigate]);
+  useEffect(() => { if (!item && !sessionClosed) navigate("/carts"); }, [item, navigate, sessionClosed]);
+
+  useEffect(() => {
+    if (!item || sessionClosed) return;
+
+    savePaymentSession(userId, {
+      item,
+      paymentInfo,
+      currentStep,
+      qrUrl,
+      paymentId,
+      paymentStatus,
+      transactionCode,
+      transferContent,
+      bankInfo,
+    });
+  }, [
+    userId,
+    item,
+    paymentInfo,
+    currentStep,
+    qrUrl,
+    paymentId,
+    paymentStatus,
+    transactionCode,
+    transferContent,
+    bankInfo,
+    sessionClosed,
+  ]);
 
   /* Polling QR payment status */
   useEffect(() => {
@@ -203,7 +257,11 @@ const PaymentPage = () => {
         setPaymentStatus(res.data.payment_status);
         setTransactionCode(res.data.transactionCode || "");
         setTransferContent(res.data.transferContent || res.data.transactionCode || "");
-        setBankInfo({ bankCode: res.data.bankCode, bankAccount: res.data.bankAccount });
+        setBankInfo({
+          bankCode: res.data.bankCode,
+          bankName: res.data.bankName || "VietinBank",
+          bankAccount: res.data.bankAccount,
+        });
         setCurrentStep(3);
       } else {
         await api.post("/api/payments/create", basePayload);
@@ -215,6 +273,9 @@ const PaymentPage = () => {
   };
 
   const handleFinish = () => {
+    setSessionClosed(true);
+    clearPaymentSession(userId);
+    setCheckoutItem(null);
     setPaymentInfo({ name: "", address: "", phone: "", paymentMethod: "cash" });
     setCurrentStep(1); setQrUrl(""); setPaymentId(null);
     setPaymentStatus(""); setTransactionCode(""); setTransferContent(""); setBankInfo(null);
@@ -334,46 +395,42 @@ const PaymentPage = () => {
                 {paymentStatus === "paid" ? "Đã thanh toán" : "Đang chờ..."}
               </span>
             </div>
-            <div className="dashboard-panel-body" style={{ textAlign: "center", padding: "var(--space-8)" }}>
+            <div className="dashboard-panel-body">
               {qrUrl ? (
-                <>
+                <div className="payment-qr-layout">
                   {/* QR card */}
-                  <div style={{
-                    display: "inline-block", background: "white", borderRadius: "var(--radius-xl)",
-                    padding: "var(--space-5)", boxShadow: "var(--shadow-xl)",
-                    border: "3px solid var(--color-brand-pale)",
-                  }}>
+                  <div className="payment-qr-card">
                     <img src={qrUrl} alt="QR thanh toán" style={{ maxWidth: 280, width: "100%", borderRadius: "var(--radius-md)", display: "block" }} />
                   </div>
 
                   {/* Bank info */}
                   {bankInfo?.bankAccount && (
-                    <div style={{ marginTop: "var(--space-5)", display: "inline-grid", gap: "var(--space-3)", background: "var(--color-bg-alt)", borderRadius: "var(--radius-md)", padding: "var(--space-5) var(--space-6)", textAlign: "left", minWidth: 280 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-4)" }}>
+                    <div className="payment-transfer-card">
+                      <div className="payment-transfer-row">
                         <span style={{ fontSize: "0.78rem", color: "var(--color-text-faint)", fontWeight: 600 }}>Ngân hàng</span>
-                        <span style={{ fontSize: "0.875rem", fontWeight: 800, color: "var(--color-text)" }}>{bankInfo.bankCode || "—"}</span>
+                        <span style={{ fontSize: "0.875rem", fontWeight: 800, color: "var(--color-text)" }}>{bankInfo.bankName || "VietinBank"}</span>
                       </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-4)" }}>
+                      <div className="payment-transfer-row">
                         <span style={{ fontSize: "0.78rem", color: "var(--color-text-faint)", fontWeight: 600 }}>Số TK</span>
                         <span style={{ fontSize: "0.875rem", fontWeight: 800, color: "var(--color-text)", fontFamily: "monospace" }}>{bankInfo.bankAccount}</span>
                       </div>
                       {transactionCode && (
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-4)" }}>
+                        <div className="payment-transfer-content">
                           <span style={{ fontSize: "0.78rem", color: "var(--color-text-faint)", fontWeight: 600 }}>Nội dung</span>
-                          <span style={{ fontSize: "0.875rem", fontWeight: 800, color: "var(--color-brand-dark)", fontFamily: "monospace" }}>{transferContent || transactionCode}</span>
+                          <strong>{transferContent || transactionCode}</strong>
                         </div>
                       )}
                     </div>
                   )}
 
                   {/* Polling indicator */}
-                  <p style={{ marginTop: "var(--space-4)", fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--color-warning)", display: "inline-block", animation: "pulse 1.5s infinite" }} />
+                  <p className="payment-waiting-note">
+                    <span>
+                      <span className="payment-waiting-dot" />
                       Hệ thống đang chờ xác nhận giao dịch...
                     </span>
                   </p>
-                </>
+                </div>
               ) : (
                 <div className="dashboard-empty">
                   <div style={{ fontSize: "2rem", marginBottom: 12, animation: "pulse 1s infinite" }}>⏳</div>

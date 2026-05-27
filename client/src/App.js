@@ -161,7 +161,7 @@ const AppContent = () => {
               <PrivateRoute allowedRoles={["admin", "staff"]}><OrderList /></PrivateRoute>
             } />
             <Route path="/admin/settings" element={
-              <PrivateRoute allowedRoles={["admin", "staff"]}><ProductAvailabilitySettings /></PrivateRoute>
+              <PrivateRoute allowedRoles={["admin", "staff", "user"]}><ProductAvailabilitySettings /></PrivateRoute>
             } />
             <Route path="/admin/create-staff" element={
               <PrivateRoute allowedRoles={["admin"]}><CreateStaff /></PrivateRoute>

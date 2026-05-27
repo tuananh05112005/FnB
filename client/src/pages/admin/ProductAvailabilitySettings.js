@@ -311,7 +311,6 @@ const ProductAvailabilitySettings = () => {
                     <p>Đổi tên quán, tiêu đề menu và banner.</p>
                   </div>
                 </button>
-
                 <button
                   type="button"
                   className="dashboard-mini-card settings-option-card"

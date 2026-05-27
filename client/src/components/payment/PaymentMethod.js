@@ -13,65 +13,67 @@ const PaymentMethod = ({
   handleConfirmPayment,
   isSubmitting,
 }) => (
-  <section className="dashboard-panel">
-    <div className="dashboard-panel-header">
-      <h2 className="dashboard-panel-title">
-        <span className="dashboard-panel-title-dot" />
-        <FaLock />
-        Phuong thuc thanh toan
-      </h2>
+  <div className="payment-method-panel">
+    <div className="payment-section-kicker">
+      <FaLock />
+      Phuong thuc thanh toan
     </div>
-    <div className="dashboard-panel-body">
-      <div className="dashboard-card-grid">
-        <label className="dashboard-mini-card" style={{ cursor: "pointer" }}>
-          <input
-            type="radio"
-            name="paymentMethod"
-            value="cash"
-            checked={paymentInfo.paymentMethod === "cash"}
-            onChange={handlePaymentInfoChange}
-            style={{ marginRight: 10 }}
-          />
-          <FaMoneyBillWave style={{ color: "#16a34a" }} />
-          <h4>Thanh toan tien mat</h4>
-          <p>Thanh toan khi nhan hang.</p>
-        </label>
 
-        <label className="dashboard-mini-card" style={{ cursor: "pointer" }}>
-          <input
-            type="radio"
-            name="paymentMethod"
-            value="banking"
-            checked={paymentInfo.paymentMethod === "banking"}
-            onChange={handlePaymentInfoChange}
-            style={{ marginRight: 10 }}
-          />
-          <FaCreditCard style={{ color: "#2563eb" }} />
-          <h4>Chuyen khoan ngan hang</h4>
-          <p>Quet QR va xac nhan thanh toan.</p>
-        </label>
-      </div>
+    <div className="payment-method-grid">
+      <label className={`payment-method-option ${paymentInfo.paymentMethod === "cash" ? "active" : ""}`}>
+        <input
+          type="radio"
+          name="paymentMethod"
+          value="cash"
+          checked={paymentInfo.paymentMethod === "cash"}
+          onChange={handlePaymentInfoChange}
+        />
+        <span className="payment-method-icon payment-method-icon-cash">
+          <FaMoneyBillWave />
+        </span>
+        <span>
+          <strong>Thanh toan tien mat</strong>
+          <small>Thanh toan khi nhan hang.</small>
+        </span>
+      </label>
 
-      <div className="dashboard-form-actions">
-        <button
-          type="button"
-          className="dashboard-btn dashboard-btn-secondary"
-          onClick={handlePrevStep}
-        >
-          <FaArrowLeft />
-          Quay lai
-        </button>
-        <button
-          type="button"
-          className="dashboard-btn dashboard-btn-primary"
-          onClick={handleConfirmPayment}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? "Dang xu ly..." : <><FaCheckCircle /> Xac nhan thanh toan</>}
-        </button>
-      </div>
+      <label className={`payment-method-option ${paymentInfo.paymentMethod === "banking" ? "active" : ""}`}>
+        <input
+          type="radio"
+          name="paymentMethod"
+          value="banking"
+          checked={paymentInfo.paymentMethod === "banking"}
+          onChange={handlePaymentInfoChange}
+        />
+        <span className="payment-method-icon payment-method-icon-bank">
+          <FaCreditCard />
+        </span>
+        <span>
+          <strong>Chuyen khoan ngan hang</strong>
+          <small>Quet QR, noi dung duoc dien san.</small>
+        </span>
+      </label>
     </div>
-  </section>
+
+    <div className="payment-actions">
+      <button
+        type="button"
+        className="dashboard-btn dashboard-btn-secondary"
+        onClick={handlePrevStep}
+      >
+        <FaArrowLeft />
+        Quay lai
+      </button>
+      <button
+        type="button"
+        className="dashboard-btn dashboard-btn-primary"
+        onClick={handleConfirmPayment}
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? "Dang xu ly..." : <><FaCheckCircle /> Xac nhan thanh toan</>}
+      </button>
+    </div>
+  </div>
 );
 
 export default PaymentMethod;

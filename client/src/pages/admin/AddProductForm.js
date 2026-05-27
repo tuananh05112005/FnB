@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ErrorMessage, Field, Form, Formik } from "formik";
 import * as Yup from "yup";
-import { FaArrowLeft, FaBoxOpen, FaPlus } from "react-icons/fa";
+import { FaArrowLeft, FaBoxOpen, FaMagic, FaPlus } from "react-icons/fa";
 
+import ProductImagePicker from "../../components/admin/ProductImagePicker";
 import { createProduct } from "../../services/productService";
+import { buildProductDescription, getImageNameSuggestion } from "../../utils/productContent";
 import "../../styles/dashboard.css";
 import "../../styles/commerce.css";
 
@@ -92,7 +94,7 @@ const AddProductForm = () => {
                 }
               }}
             >
-              {({ isSubmitting, setFieldValue }) => (
+              {({ isSubmitting, setFieldValue, values }) => (
                 <Form>
                   <div className="dashboard-form-grid">
                     <div className="dashboard-field">
@@ -108,6 +110,25 @@ const AddProductForm = () => {
                         placeholder="https://..."
                       />
                       <ErrorMessage name="image" component="div" className="text-danger" />
+                      <ProductImagePicker
+                        query={values.name}
+                        onSelect={(image) => {
+                          const imageUrl = image.url;
+                          const suggestedName = getImageNameSuggestion(image);
+                          const nextName = values.name || suggestedName;
+
+                          setFieldValue("image", imageUrl);
+                          setPreviewImage(imageUrl);
+
+                          if (!values.name && suggestedName) {
+                            setFieldValue("name", suggestedName);
+                          }
+
+                          if (!values.description && nextName) {
+                            setFieldValue("description", buildProductDescription(nextName));
+                          }
+                        }}
+                      />
                     </div>
 
                     <div className="dashboard-field">
@@ -170,6 +191,17 @@ const AddProductForm = () => {
                       component="div"
                       className="text-danger"
                     />
+                    <button
+                      type="button"
+                      className="dashboard-btn dashboard-btn-secondary product-description-button"
+                      onClick={() => {
+                        setFieldValue("description", buildProductDescription(values.name));
+                      }}
+                      disabled={!values.name}
+                    >
+                      <FaMagic />
+                      Goi y mo ta
+                    </button>
                   </div>
 
                   <div className="dashboard-form-actions">
