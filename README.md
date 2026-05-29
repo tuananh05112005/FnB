@@ -31,7 +31,7 @@ Dự án được phát triển theo mô hình Fullstack với frontend và back
 * Firebase Authentication
 * Google Login
 * VietQR
-* Stripe Payment
+* Sepay
 
 ---
 
@@ -64,7 +64,7 @@ FnB/
 * Xem danh sách sản phẩm
 * Tìm kiếm và lọc sản phẩm
 * Thêm vào giỏ hàng
-* Thanh toán online
+* Thanh toán online / offline
 * Theo dõi lịch sử đơn hàng
 * Đánh giá sản phẩm
 * Yêu thích sản phẩm
@@ -91,9 +91,12 @@ FnB/
 * Quản lý doanh thu
 * Quản lý voucher
 * Quản lý sản phẩm & danh mục
+* Quản lý danh mục hiển thị
+* Bật / tắt món tạm hết hàng
 * Tùy chỉnh giao diện menu
 * Theo dõi lịch sử chỉnh sửa sản phẩm
 * Đồng bộ realtime bằng Socket.IO
+* Tích hợp API Pexels để tự động tìm ảnh
 
 ---
 
@@ -178,7 +181,7 @@ REACT_APP_API_BASE_URL=http://localhost:5000
 
 ---
 
-# 🔥 Firebase Authentication
+# 🔥 Firebase Authentication (đang trong quá trình phát triển)
 
 1. Tạo project trên Firebase
 2. Bật Google Authentication
@@ -191,7 +194,7 @@ server/firebase-service-account.json
 
 ---
 
-# 🌐 Deploy
+# 🌐 Deploy (đang trong quá trình phát triển)
 
 ## Frontend
 
@@ -220,6 +223,8 @@ Có thể deploy bằng:
 ---
 
 # Một số hình ảnh demo trong dự án
+ - Ảnh form đăng nhập chính
+ <img width="1881" height="972" alt="image" src="https://github.com/user-attachments/assets/79f46726-e371-452d-87c6-5aefa742bde7" />
  - Ảnh trang chủ
 <img width="1860" height="973" alt="image" src="https://github.com/user-attachments/assets/456e160b-47c7-434b-bf1c-0697d2ba2630" />
  - Ảnh trang sản phẩm
@@ -228,6 +233,13 @@ Có thể deploy bằng:
 <img width="1871" height="969" alt="image" src="https://github.com/user-attachments/assets/c3e91317-931a-4027-9e3a-1ece5ded9ec8" />
  - Ảnh phân quyền người dùng
 <img width="1886" height="962" alt="image" src="https://github.com/user-attachments/assets/f98d8696-7c7f-4a79-852c-71a5455bfbb5" />
+ - Ảnh tạo và gửi voucher
+<img width="1861" height="956" alt="image" src="https://github.com/user-attachments/assets/2978fae5-c719-413e-b481-ad858b248c06" />
+ - Ảnh form thanh toán cho user
+ <img width="1874" height="968" alt="image" src="https://github.com/user-attachments/assets/9f6b3455-15a5-4baa-abcc-372db8afc79c" />
+ - Ảnh thanh toán online thông qua Sepay
+<img width="1884" height="971" alt="image" src="https://github.com/user-attachments/assets/899e6a7e-7331-4d7f-8579-4b5f54b5ea2d" />
+
 
 
 
