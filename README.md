@@ -1,12 +1,12 @@
 
-## 📌 Giới thiệu
+##  Giới thiệu
 Website đặt đồ uống online được xây dựng nhằm hỗ trợ khách hàng dễ dàng đặt trà sữa, cà phê và các loại thức uống trực tuyến. Hệ thống đồng thời cung cấp dashboard quản trị giúp quản lý sản phẩm, đơn hàng, doanh thu và giao diện menu.
 
 Dự án được phát triển theo mô hình Fullstack với frontend và backend tách riêng, hỗ trợ realtime và tích hợp nhiều tính năng quản lý hiện đại.
 
 ---
 
-# 🚀 Công nghệ sử dụng
+#  Công nghệ sử dụng
 
 ## Frontend
 
@@ -35,7 +35,7 @@ Dự án được phát triển theo mô hình Fullstack với frontend và back
 
 ---
 
-# 📂 Cấu trúc thư mục
+#  Cấu trúc thư mục
 
 ```bash
 FnB/
@@ -55,9 +55,9 @@ FnB/
 
 ---
 
-# ✨ Chức năng chính
+#  Chức năng chính
 
-## 👤 Người dùng
+##  Người dùng
 
 * Đăng ký / đăng nhập
 * Đăng nhập Google
@@ -72,7 +72,7 @@ FnB/
 
 ---
 
-## 🧑‍💼 Staff
+##  Staff
 
 * Quản lý đơn hàng
 * Cập nhật trạng thái đơn
@@ -83,7 +83,7 @@ FnB/
 
 ---
 
-## 👑 Admin
+##  Admin
 
 * Quản lý toàn bộ hệ thống
 * Quản lý người dùng
@@ -143,7 +143,7 @@ http://localhost:5000
 
 ---
 
-# 🗄️ Cấu hình Database
+#  Cấu hình Database
 
 Tạo database MySQL:
 
@@ -155,7 +155,7 @@ Sau đó import file SQL của dự án vào MySQL.
 
 ---
 
-# 🔑 Cấu hình môi trường
+#  Cấu hình môi trường
 
 ## Backend `.env`
 
@@ -181,7 +181,7 @@ REACT_APP_API_BASE_URL=http://localhost:5000
 
 ---
 
-# 🔥 Firebase Authentication (đang trong quá trình phát triển)
+#  Firebase Authentication (đang trong quá trình phát triển)
 
 1. Tạo project trên Firebase
 2. Bật Google Authentication
@@ -194,7 +194,7 @@ server/firebase-service-account.json
 
 ---
 
-# 🌐 Deploy (đang trong quá trình phát triển)
+#  Deploy (đang trong quá trình phát triển)
 
 ## Frontend
 
@@ -211,7 +211,7 @@ Có thể deploy bằng:
 
 ---
 
-# 📈 Hướng phát triển thêm 
+#  Hướng phát triển thêm 
 
 * Chat realtime hỗ trợ khách hàng
 * Dashboard thống kê nâng cao
@@ -247,7 +247,7 @@ Có thể deploy bằng:
 
 
 
-# 👨‍💻 Thông tin dự án
+#  Thông tin dự án
 
 Dự án được thực hiện nhằm mục thực tập và nâng cao phát triển kỹ năng Fullstack Web Development.
 
