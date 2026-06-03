@@ -59,7 +59,7 @@ FnB/
 
 ##  Người dùng
 
-* Đăng ký / đăng nhập
+* Đăng ký / đăng nhập / quên mật khẩu (sẽ gửi về tài khoản gmail mà mình gắn vào + sử dụng nodemailer để tự động gửi reset mật khẩu)
 * Đăng nhập Google
 * Xem danh sách sản phẩm
 * Tìm kiếm và lọc sản phẩm
