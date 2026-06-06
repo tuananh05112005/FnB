@@ -8,7 +8,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { BrowserRouter as Router, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { Bell, Menu, Moon, Search, Sun } from "lucide-react";
+import { Bell, Menu, Moon, Search, Sun, X } from "lucide-react";
 
 import "./App.css";
 import Sidebar from "./components/common/Sidebar";
@@ -102,6 +102,7 @@ const AppContent = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [activeOrderCode, setActiveOrderCode] = useState(() => localStorage.getItem("activeOrderCode"));
+  const [isMobileSearchActive, setIsMobileSearchActive] = useState(false);
 
   useEffect(() => {
     setActiveOrderCode(localStorage.getItem("activeOrderCode"));
@@ -158,21 +159,33 @@ const AppContent = () => {
 
       <div className={`app-main ${isSidebarOpen ? "sidebar-open" : ""}`}>
         {/* ── Topbar ── */}
-        <header className="app-topbar">
-          <div className="app-topbar-left">
-            <button
-              type="button"
-              className="app-menu-btn"
-              onClick={() => setIsSidebarOpen((prev) => !prev)}
-              aria-label="Mở hoặc đóng menu"
-            >
-              <Menu size={20} />
-            </button>
-            <span className="app-topbar-title">{menuSettings.topbarName}</span>
-          </div>
+        <header className={`app-topbar ${isMobileSearchActive ? "search-active" : ""}`}>
+          {!isMobileSearchActive && (
+            <div className="app-topbar-left">
+              <button
+                type="button"
+                className="app-menu-btn"
+                onClick={() => setIsSidebarOpen((prev) => !prev)}
+                aria-label="Mở hoặc đóng menu"
+              >
+                <Menu size={20} />
+              </button>
+              <span className="app-topbar-title">{menuSettings.topbarName}</span>
+            </div>
+          )}
 
           {/* Search bar */}
-          <div className="app-search-wrap">
+          <div className={`app-search-wrap ${isMobileSearchActive ? "mobile-active" : ""}`}>
+            {isMobileSearchActive && (
+              <button
+                type="button"
+                className="app-search-back-btn"
+                onClick={() => setIsMobileSearchActive(false)}
+                aria-label="Quay lại"
+              >
+                <X size={20} />
+              </button>
+            )}
             <Search className="app-search-icon" size={16} />
             <input
               type="search"
@@ -189,97 +202,111 @@ const AppContent = () => {
                   } else {
                     navigate('/products');
                   }
+                  setIsMobileSearchActive(false);
                 }
               }}
             />
           </div>
 
-          <div className="app-topbar-right">
-            {/* Dark mode toggle */}
-            <button
-              type="button"
-              className="app-theme-btn"
-              onClick={toggleDark}
-              aria-label={isDark ? "Chuyển sáng" : "Chuyển tối"}
-              title={isDark ? "Chuyển sang Light Mode" : "Chuyển sang Dark Mode"}
-            >
-              {isDark ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-
-            {/* Notification */}
-            <div className="app-notify-container">
+          {!isMobileSearchActive && (
+            <div className="app-topbar-right">
+              {/* Mobile/Tablet Search Button */}
               <button
                 type="button"
-                className={`app-icon-btn app-icon-btn-notify ${isNotifyOpen ? "active" : ""}`}
-                onClick={() => setIsNotifyOpen((prev) => !prev)}
-                aria-label="Thông báo"
-                title="Thông báo"
+                className="app-icon-btn app-mobile-search-trigger"
+                onClick={() => setIsMobileSearchActive(true)}
+                aria-label="Tìm kiếm nhanh"
+                title="Tìm kiếm nhanh"
               >
-                <Bell size={18} />
-                {unreadCount > 0 && <span className="app-notify-badge">{unreadCount}</span>}
+                <Search size={18} />
               </button>
 
-              {isNotifyOpen && (
-                <div className="app-notify-dropdown">
-                  <div className="app-notify-dropdown-header">
-                    <h3>Thông báo</h3>
-                    <div className="app-notify-dropdown-actions">
-                      <button
-                        type="button"
-                        className="app-notify-action-btn"
-                        onClick={markAllAsRead}
-                        disabled={unreadCount === 0}
-                      >
-                        Đọc tất cả
-                      </button>
-                      <button
-                        type="button"
-                        className="app-notify-action-btn clear"
-                        onClick={clearHistory}
-                        disabled={history.length === 0}
-                      >
-                        Xóa hết
-                      </button>
+              {/* Dark mode toggle */}
+              <button
+                type="button"
+                className="app-theme-btn"
+                onClick={toggleDark}
+                aria-label={isDark ? "Chuyển sáng" : "Chuyển tối"}
+                title={isDark ? "Chuyển sang Light Mode" : "Chuyển sang Dark Mode"}
+              >
+                {isDark ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+
+              {/* Notification */}
+              <div className="app-notify-container">
+                <button
+                  type="button"
+                  className={`app-icon-btn app-icon-btn-notify ${isNotifyOpen ? "active" : ""}`}
+                  onClick={() => setIsNotifyOpen((prev) => !prev)}
+                  aria-label="Thông báo"
+                  title="Thông báo"
+                >
+                  <Bell size={18} />
+                  {unreadCount > 0 && <span className="app-notify-badge">{unreadCount}</span>}
+                </button>
+
+                {isNotifyOpen && (
+                  <div className="app-notify-dropdown">
+                    <div className="app-notify-dropdown-header">
+                      <h3>Thông báo</h3>
+                      <div className="app-notify-dropdown-actions">
+                        <button
+                          type="button"
+                          className="app-notify-action-btn"
+                          onClick={markAllAsRead}
+                          disabled={unreadCount === 0}
+                        >
+                          Đọc tất cả
+                        </button>
+                        <button
+                          type="button"
+                          className="app-notify-action-btn clear"
+                          onClick={clearHistory}
+                          disabled={history.length === 0}
+                        >
+                          Xóa hết
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="app-notify-dropdown-list">
+                      {history.length === 0 ? (
+                        <div className="app-notify-dropdown-empty">
+                          <Bell size={32} className="empty-icon" />
+                          <p>Không có thông báo nào</p>
+                        </div>
+                      ) : (
+                        history.map((n) => (
+                          <div
+                            key={n.id}
+                            className={`app-notify-item ${n.isRead ? "read" : "unread"}`}
+                            onClick={() => {
+                              markAsRead(n.id);
+                            }}
+                          >
+                            <div className="app-notify-item-icon-wrap">
+                              {getIcon(n.type)}
+                            </div>
+                            <div className="app-notify-item-content">
+                              <h4 className="app-notify-item-title">{n.title}</h4>
+                              <p className="app-notify-item-msg">{n.message}</p>
+                              <span className="app-notify-item-time">{formatRelativeTime(n.createdAt)}</span>
+                            </div>
+                            {!n.isRead && <span className="app-notify-item-dot" />}
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
+                )}
+              </div>
 
-                  <div className="app-notify-dropdown-list">
-                    {history.length === 0 ? (
-                      <div className="app-notify-dropdown-empty">
-                        <Bell size={32} className="empty-icon" />
-                        <p>Không có thông báo nào</p>
-                      </div>
-                    ) : (
-                      history.map((n) => (
-                        <div
-                          key={n.id}
-                          className={`app-notify-item ${n.isRead ? "read" : "unread"}`}
-                          onClick={() => {
-                            markAsRead(n.id);
-                          }}
-                        >
-                          <div className="app-notify-item-icon-wrap">
-                            {getIcon(n.type)}
-                          </div>
-                          <div className="app-notify-item-content">
-                            <h4 className="app-notify-item-title">{n.title}</h4>
-                            <p className="app-notify-item-msg">{n.message}</p>
-                            <span className="app-notify-item-time">{formatRelativeTime(n.createdAt)}</span>
-                          </div>
-                          {!n.isRead && <span className="app-notify-item-dot" />}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
+              {/* Avatar */}
+              <div className="app-user-pill" title={currentUser.name}>
+                {currentUser.initial}
+              </div>
             </div>
-
-            {/* Avatar */}
-            <div className="app-user-pill" title={currentUser.name}>
-              {currentUser.initial}
-            </div>
-          </div>
+          )}
         </header>
 
         {/* ── Routes ── */}

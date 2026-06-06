@@ -200,22 +200,73 @@
   overflow-x: hidden;
 }
 
+/* Search trigger for mobile/tablet */
+.app-mobile-search-trigger {
+  display: none;
+}
+
+.app-search-back-btn {
+  display: none;
+}
+
 /* ── Responsive ─────────────────────────────────────────────────── */
 @media (max-width: 991px) {
   .app-main.sidebar-open {
     margin-left: 0;
   }
+  
+  /* Hide search bar on tablet/mobile by default */
   .app-search-wrap {
-    max-width: 240px;
+    display: none;
+  }
+  
+  /* Show search bar on tablet/mobile only when active */
+  .app-search-wrap.mobile-active {
+    display: flex;
+    flex: 1;
+    max-width: 100%;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  
+  /* Hide search icon inside the input when search is expanded on mobile/tablet to avoid X clash */
+  .app-search-wrap.mobile-active .app-search-icon {
+    display: none;
+  }
+  
+  /* Reset padding left of search input since search icon is hidden */
+  .app-search-wrap.mobile-active .app-search-input {
+    padding-left: var(--space-4);
+  }
+  
+  .app-search-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background var(--transition-fast);
+  }
+  .app-search-back-btn:hover {
+    background: var(--color-surface-2);
+    color: var(--color-brand);
+  }
+  
+  /* Show search icon trigger on mobile/tablet */
+  .app-mobile-search-trigger {
+    display: flex;
   }
 }
 
 @media (max-width: 640px) {
   .app-topbar {
     padding-inline: var(--space-3) var(--space-4);
-  }
-  .app-search-wrap {
-    display: none;
   }
   .app-topbar-title {
     font-size: 0.95rem;
