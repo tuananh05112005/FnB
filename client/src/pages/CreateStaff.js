@@ -1,3 +1,14 @@
+// ==============================================================
+// TÊN FILE: CreateStaff.js
+// MÔ TẢ: Trang Tạo Nhân viên (CreateStaff).
+//        Cung cấp biểu mẫu cho Admin nhập thông tin tên, email, mật khẩu
+//        để đăng ký tài khoản nhân viên mới vào hệ thống thông qua staffService.
+// ==============================================================
+
+/**
+ * Trang Tạo Nhân viên (CreateStaff): giao diện tạo tài khoản nhân viên mới.
+ * Bao gồm form nhập thông tin, gửi yêu cầu tới backend và điều hướng.
+ */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaArrowLeft, FaEnvelope, FaLock, FaUser, FaUserTie } from "react-icons/fa";
@@ -8,16 +19,24 @@ import "../styles/commerce.css";
 
 const CreateStaff = () => {
   const navigate = useNavigate();
+  
+  // --- Các Hook State quản lý biểu mẫu tạo tài khoản ---
+  // formData: Lưu dữ liệu đầu vào của nhân viên mới (name, email, password)
   const [formData, setFormData] = useState({ name: "", email: "", password: "" });
+  // message: Thông báo đăng ký thành công
   const [message, setMessage] = useState("");
+  // error: Thông báo lỗi từ phía API hoặc mạng
   const [error, setError] = useState("");
+  // isSubmitting: Trạng thái đang gửi yêu cầu lên API (để hiển thị spinner/disable nút bấm)
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Cập nhật state formData tương ứng với mỗi thay đổi của input trong form
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Xử lý gửi biểu mẫu tạo tài khoản lên API Backend
   const handleCreate = async (event) => {
     event.preventDefault();
     setMessage("");

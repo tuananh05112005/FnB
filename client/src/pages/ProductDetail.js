@@ -1,17 +1,44 @@
+// ==============================================================
+// TÊN FILE: ProductDetail.js
+// MÔ TẢ: Trang Chi tiết sản phẩm (ProductDetail) của hệ thống FnB.
+//        Hiển thị đầy đủ thông tin về đồ uống/bánh ngọt (tên, mô tả, ảnh,
+//        giá bán, kích thước, đánh giá trung bình).
+//        Cho phép khách hàng tăng/giảm số lượng ly đặt hàng, thêm vào giỏ,
+//        bấm yêu thích/bỏ yêu thích, và tích hợp ChatOverlay AI tư vấn trực tiếp về món ăn này.
+// ==============================================================
+
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   FaArrowLeft, FaCartPlus, FaHeart, FaRegHeart,
-  FaStar, FaShieldAlt, FaTruck, FaLeaf,
+  FaStar, FaShieldAlt, FaTruck, FaLeaf, FaComments,
+  FaFire, FaCheck,
 } from "react-icons/fa";
 
 import ProductImage from "../components/common/ProductImage";
+import ChatOverlay from "../components/chatbot/ChatOverlay";
 import { api } from "../lib/api";
 import { getUserId } from "../lib/session";
 import { addToCart } from "../services/cartService";
 import { getProduct, isProductAvailable } from "../services/productService";
+import { useNotifications } from "../components/common/NotificationContext";
 import "../styles/dashboard.css";
 import "../styles/commerce.css";
+import "../styles/productDetail.css";
+
+/* --------------------------------------------------------------
+   PRODUCT DETAIL PAGE
+   --------------------------------------------------------------
+   Đây là trang chi tiết sản phẩm, bao gồm:
+   - Fetch dữ liệu sản phẩm và danh sách yêu thích của người dùng.
+   - Hiển thị hình ảnh sản phẩm, thông tin mô tả, giá và các
+     tính năng (perks) của món.
+   - Cho phép người dùng thay đổi số lượng, thêm vào giỏ, đánh dấu
+     yêu thích.
+   - Nút "Tư vấn ngay" mở ChatOverlay để AI tư vấn về sản phẩm.
+   - Các thẻ thông tin phụ (nhiệt độ, thành phần, thời gian, đóng gói)
+   được hiển thị dưới dạng grid.
+   -------------------------------------------------------------- */
 
 const fmt = (n) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number(n) || 0);
@@ -19,38 +46,65 @@ const fmt = (n) =>
 /* ── Skeleton ─────────────────────────────────────────────────── */
 function DetailSkeleton() {
   return (
-    <div className="dashboard-page">
-      <div className="dashboard-shell">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-8)", padding: "var(--space-6)" }}>
-          <div className="skeleton" style={{ borderRadius: "var(--radius-xl)", aspectRatio: "1/1" }} />
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", paddingTop: "var(--space-4)" }}>
-            <div className="skeleton" style={{ height: 12, width: "40%" }} />
-            <div className="skeleton" style={{ height: 28, width: "75%" }} />
-            <div className="skeleton" style={{ height: 12, width: "55%" }} />
-            <div className="skeleton" style={{ height: 40, width: "35%", marginTop: 8 }} />
-            <div className="skeleton" style={{ height: 12, width: "90%" }} />
-            <div className="skeleton" style={{ height: 12, width: "80%" }} />
-            <div className="skeleton" style={{ height: 12, width: "70%" }} />
-            <div className="skeleton" style={{ height: 50, width: "100%", marginTop: 16 }} />
-          </div>
-        </div>
+    <div className="pd-page">
+      <div className="pd-hero-skeleton">
+        <div className="skeleton" style={{ height: 480, borderRadius: "var(--radius-xl)" }} />
+      </div>
+      <div className="pd-info-skeleton">
+        <div className="skeleton" style={{ height: 16, width: "35%" }} />
+        <div className="skeleton" style={{ height: 36, width: "70%", marginTop: 8 }} />
+        <div className="skeleton" style={{ height: 14, width: "50%", marginTop: 6 }} />
+        <div className="skeleton" style={{ height: 48, width: "40%", marginTop: 16 }} />
+        <div className="skeleton" style={{ height: 14, width: "90%", marginTop: 12 }} />
+        <div className="skeleton" style={{ height: 14, width: "80%", marginTop: 6 }} />
+        <div className="skeleton" style={{ height: 56, width: "100%", marginTop: 20, borderRadius: 32 }} />
       </div>
     </div>
   );
 }
 
+/* ── Star row ─────────────────────────────────────────────────── */
+function StarRow({ rating = 4, count = 128 }) {
+  return (
+    <div className="pd-stars">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <FaStar key={s} size={15} className={s <= rating ? "pd-star filled" : "pd-star empty"} />
+      ))}
+      <span className="pd-star-count">{rating}.0 · {count} đánh giá</span>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------
+   COMPONENT: ProductDetail
+   --------------------------------------------------------------
+   - Dùng useParams để lấy `id` sản phẩm từ URL.
+   - useNavigate để điều hướng (quay lại, login).
+   - Các state quản lý: product, loading, error, quantity,
+     isFavorite, showChat, addSuccess.
+   - useEffect gọi API lấy chi tiết sản phẩm và danh sách yêu thích.
+   -------------------------------------------------------------- */
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const userId = getUserId();
-
-  const [product,    setProduct]    = useState(null);
+  const { addNotification } = useNotifications();
+  const [showChat, setShowChat] = useState(false);
+  const [product, setProduct] = useState(null);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [error,      setError]      = useState("");
-  const [loading,    setLoading]    = useState(true);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [addSuccess, setAddSuccess] = useState(false);
-  const [quantity,   setQuantity]   = useState(1);
+  const [quantity, setQuantity] = useState(1);
 
+    /* --------------------------------------------------------------
+   FETCH PRODUCT & FAVORITES
+   --------------------------------------------------------------
+   - Gọi song song `getProduct` và API yêu thích.
+   - Khi dữ liệu trả về, cập nhật state `product` và `isFavorite`.
+   - Bắt lỗi và cập nhật `error` nếu có vấn đề.
+   - Cuối cùng đặt `loading` thành false.
+   -------------------------------------------------------------- */
   useEffect(() => {
     const fetchDetail = async () => {
       try {
@@ -72,19 +126,44 @@ const ProductDetail = () => {
     fetchDetail();
   }, [id, userId]);
 
-  const handleAddToCart = async () => {
+    /* --------------------------------------------------------------
+   HANDLE ADD TO CART
+   --------------------------------------------------------------
+   - Kiểm tra đăng nhập, nếu chưa login chuyển đến /login.
+   - Kiểm tra tồn kho bằng `isProductAvailable`.
+   - Gọi service `addToCart` với userId, productId, quantity và size.
+   - Khi thành công hiển thị trạng thái success trong 2.5s.
+   - Bắt lỗi và hiển thị thông báo.
+   -------------------------------------------------------------- */
+  const handleAddToCart = async (e) => {
     if (!userId) { navigate("/login"); return; }
     try {
       if (!isProductAvailable(product)) { setError("Món này hiện đang hết."); return; }
-      await addToCart(userId, product.id, quantity, product.size || "M");
+      const activeOrderCode = localStorage.getItem("activeOrderCode");
+      await addToCart(userId, product.id, quantity, product.size || "M", activeOrderCode);
+
+      // Hiện thông báo toast
+      addNotification(
+        "new_order",
+        "🛒 Giỏ hàng",
+        `Đã thêm "${product.name}" vào giỏ hàng thành công!`
+      );
+
       setAddSuccess(true);
-      setTimeout(() => setAddSuccess(false), 2000);
+      setTimeout(() => setAddSuccess(false), 2500);
     } catch (e) {
       console.error(e);
       setError("Không thể thêm sản phẩm vào giỏ hàng.");
     }
   };
 
+    /* --------------------------------------------------------------
+   TOGGLE FAVORITE
+   --------------------------------------------------------------
+   - Kiểm tra đăng nhập, nếu chưa login chuyển đến /login.
+   - Nếu đã yêu thích, gọi DELETE để bỏ; ngược lại POST để thêm.
+   - Cập nhật trạng thái `isFavorite`.
+   -------------------------------------------------------------- */
   const toggleFavorite = async () => {
     if (!userId) { navigate("/login"); return; }
     try {
@@ -96,7 +175,6 @@ const ProductDetail = () => {
       setIsFavorite(!isFavorite);
     } catch (e) {
       console.error(e);
-      setError("Không thể cập nhật yêu thích.");
     }
   };
 
@@ -104,219 +182,263 @@ const ProductDetail = () => {
 
   if (error || !product) {
     return (
-      <div className="dashboard-page">
-        <div className="dashboard-shell">
-          <div className="commerce-empty">
-            <div className="commerce-empty-icon">😕</div>
-            <h3>{error || "Không tìm thấy sản phẩm."}</h3>
-            <button className="dashboard-btn dashboard-btn-primary" onClick={() => navigate(-1)}>
-              <FaArrowLeft /> Quay lại
-            </button>
-          </div>
+      <div className="pd-page">
+        <div className="pd-error">
+          <div className="pd-error-icon">😕</div>
+          <h3>{error || "Không tìm thấy sản phẩm."}</h3>
+          <button className="pd-back-btn" onClick={() => navigate(-1)}>
+            <FaArrowLeft /> Quay lại
+          </button>
         </div>
       </div>
     );
   }
 
   const available = isProductAvailable(product);
+  const totalPrice = Number(product.price) * quantity;
 
   return (
-    <div className="dashboard-page">
-      <div className="dashboard-shell">
+    <div className="pd-page">
+      {/* ── Back button ── */}
+              {/* --------------------------------------------------------------
+          BACK BUTTON
+          --------------------------------------------------------------
+          Nút quay lại danh sách sản phẩm trước, sử dụng animate-fadeInUp để có
+          hiệu ứng xuất hiện nhẹ.
+        -------------------------------------------------------------- */}
+        <button className="pd-back-btn animate-fadeInUp" onClick={() => navigate(-1)}>
+        <FaArrowLeft /> Quay lại danh sách
+      </button>
 
-        {/* ── Breadcrumb back ── */}
-        <div className="animate-fadeInUp">
-          <button className="dashboard-back-btn" onClick={() => navigate(-1)}>
-            <FaArrowLeft /> Quay lại danh sách
+      {/* ── Main card ── */}
+      <div className="pd-card animate-fadeInUp" style={{ animationDelay: "0.05s" }}>
+
+        {/* ── LEFT: Image panel ── */}
+                {/* --------------------------------------------------------------
+          LEFT PANEL: IMAGE
+          --------------------------------------------------------------
+          - Hiển thị ảnh sản phẩm đầy đủ, không nền gradient.
+          - Nếu sản phẩm hết, hiển thị ribbon "Hết món".
+          - Nút yêu thích (heart) và badge "Hot" được overlay trên ảnh.
+        -------------------------------------------------------------- */}
+        <div className="pd-image-panel">
+          {/* Unavailable ribbon */}
+          {!available && <div className="pd-ribbon">Hết món</div>}
+
+          {/* Product image */}
+          <div className="pd-image-wrap">
+            <ProductImage
+              src={product.image}
+              alt={product.name}
+              className="pd-image"
+            />
+            {/* Decorative blobs */}
+            <div className="pd-blob pd-blob-1" />
+            <div className="pd-blob pd-blob-2" />
+          </div>
+
+          {/* Floating badges */}
+          <div className="pd-floating-badges">
+            {available && (
+              <div className="pd-badge-hot">
+                <FaFire size={11} /> Hot
+              </div>
+            )}
+          </div>
+
+          {/* Fav button */}
+          <button
+            type="button"
+            className={`pd-fav-btn ${isFavorite ? "active" : ""}`}
+            onClick={toggleFavorite}
+            aria-label={isFavorite ? "Bỏ yêu thích" : "Thêm yêu thích"}
+          >
+            {isFavorite ? <FaHeart /> : <FaRegHeart />}
           </button>
         </div>
 
-        {/* ── Main card ── */}
-        <div className="dashboard-panel animate-fadeInUp animate-delay-1" style={{ overflow: "hidden", padding: 0 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(280px,45%) 1fr" }}>
+        {/* ── RIGHT: Info panel ── */}
+                {/* --------------------------------------------------------------
+          RIGHT PANEL: INFO
+          --------------------------------------------------------------
+          - Hiển thị danh mục, mã sản phẩm, trạng thái (còn bán/hết món).
+          - Tên sản phẩm, đánh giá sao, giá, size.
+          - Mô tả, các perks và các nút hành động (đặt số lượng, thêm giỏ, yêu thích).
+          - Tổng tiền khi số lượng >1 và banner "Tư vấn ngay".
+        -------------------------------------------------------------- */}
+        <div className="pd-info-panel">
 
-            {/* ── Image side ── */}
-            <div style={{
-              background: "var(--color-bg-warm)",
-              position: "relative",
-              minHeight: 360,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "var(--space-8)",
-            }}>
-              {/* Decorative circle */}
-              <div style={{ position: "absolute", width: 260, height: 260, borderRadius: "50%", background: "var(--color-brand-pale)", opacity: 0.5 }} />
-
-              <div style={{ position: "relative", width: "100%", maxWidth: 280, aspectRatio: "1/1", borderRadius: "var(--radius-xl)", overflow: "hidden", boxShadow: "var(--shadow-xl)" }}>
-                <ProductImage
-                  src={product.image}
-                  alt={product.name}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              </div>
-
-              {/* Unavailable ribbon */}
-              {!available && (
-                <div style={{
-                  position: "absolute", top: 20, left: 0,
-                  background: "var(--color-danger)", color: "white",
-                  fontWeight: 800, fontSize: "0.78rem", padding: "6px 20px",
-                  borderRadius: "0 var(--radius-sm) var(--radius-sm) 0",
-                  letterSpacing: "0.05em", textTransform: "uppercase",
-                }}>Hết món</div>
-              )}
-
-              {/* Fav button */}
-              <button
-                type="button"
-                onClick={toggleFavorite}
-                style={{
-                  position: "absolute", top: 16, right: 16,
-                  width: 44, height: 44, borderRadius: "50%",
-                  background: isFavorite ? "var(--color-rose)" : "var(--color-surface)",
-                  color: isFavorite ? "white" : "var(--color-rose)",
-                  border: `2px solid ${isFavorite ? "var(--color-rose)" : "var(--color-border)"}`,
-                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 18, boxShadow: "var(--shadow-md)",
-                  transition: "all var(--transition-base)",
-                }}>
-                {isFavorite ? <FaHeart /> : <FaRegHeart />}
-              </button>
-            </div>
-
-            {/* ── Info side ── */}
-            <div style={{ padding: "var(--space-8)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-              {/* Category & code */}
-              <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-                <span className="commerce-card-category">{product.category || "Đồ uống"}</span>
-                <span className="dashboard-badge dashboard-badge-neutral" style={{ fontSize: "0.7rem" }}>{product.code || "SP"}</span>
-                <span className={`dashboard-badge ${available ? "dashboard-badge-success" : "dashboard-badge-danger"}`} style={{ fontSize: "0.7rem" }}>
-                  {available ? "● Đang bán" : "● Hết món"}
-                </span>
-              </div>
-
-              {/* Name */}
-              <h1 style={{ margin: 0, fontFamily: "var(--app-font-display)", fontSize: "1.8rem", fontWeight: 800, color: "var(--color-text)", letterSpacing: "-0.04em", lineHeight: 1.2 }}>
-                {product.name}
-              </h1>
-
-              {/* Rating */}
-              <div className="commerce-rating">
-                <div className="commerce-rating-stars">
-                  {[1,2,3,4,5].map(s => <FaStar key={s} size={14} opacity={s <= 4 ? 1 : 0.3} />)}
-                </div>
-                <span className="commerce-rating-count">4.0 · 128 đánh giá</span>
-              </div>
-
-              {/* Price */}
-              <div style={{ margin: "4px 0" }}>
-                <span style={{
-                  fontFamily: "var(--app-font-display)", fontSize: "2.2rem", fontWeight: 900,
-                  color: "var(--color-brand-dark)", letterSpacing: "-0.04em",
-                }}>
-                  {fmt(product.price)}
-                </span>
-              </div>
-
-              {/* Size badge */}
-              {product.size && (
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                  <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--color-text-muted)" }}>Kích thước:</span>
-                  <span className="dashboard-badge dashboard-badge-info" style={{ fontSize: "0.78rem" }}>Size {product.size}</span>
-                </div>
-              )}
-
-              {/* Description */}
-              {product.description && (
-                <p style={{ margin: 0, fontSize: "0.9rem", lineHeight: 1.7, color: "var(--color-text-muted)", borderLeft: "3px solid var(--color-brand)", paddingLeft: "var(--space-4)" }}>
-                  {product.description}
-                </p>
-              )}
-
-              {/* Perks */}
-              <div style={{ display: "flex", gap: "var(--space-4)", flexWrap: "wrap", padding: "var(--space-4) 0", borderTop: "1px solid var(--color-border-light)", borderBottom: "1px solid var(--color-border-light)" }}>
-                {[
-                  { icon: <FaTruck />,    text: "Giao trong 30 phút" },
-                  { icon: <FaLeaf />,     text: "Nguyên liệu tươi"   },
-                  { icon: <FaShieldAlt />,text: "Đảm bảo chất lượng" },
-                ].map((p) => (
-                  <div key={p.text} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", color: "var(--color-text-muted)", fontWeight: 600 }}>
-                    <span style={{ color: "var(--color-brand)" }}>{p.icon}</span>
-                    {p.text}
-                  </div>
-                ))}
-              </div>
-
-              {/* Quantity + Add to cart */}
-              {error && <div className="auth-alert auth-alert-danger"><span>⚠️</span> {error}</div>}
-
-              <div style={{ display: "flex", gap: "var(--space-3)", alignItems: "center", flexWrap: "wrap" }}>
-                {/* Qty */}
-                <div style={{ display: "flex", alignItems: "center", gap: 0, border: "1.5px solid var(--color-border)", borderRadius: "var(--radius-pill)", overflow: "hidden" }}>
-                  <button type="button" onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    style={{ width: 38, height: 44, background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--color-text-muted)", transition: "background var(--transition-fast)" }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-bg-alt)"}
-                    onMouseLeave={(e) => e.currentTarget.style.background = ""}>−</button>
-                  <span style={{ width: 36, textAlign: "center", fontWeight: 800, fontSize: "1rem", color: "var(--color-text)" }}>{quantity}</span>
-                  <button type="button" onClick={() => setQuantity((q) => q + 1)}
-                    style={{ width: 38, height: 44, background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--color-text-muted)", transition: "background var(--transition-fast)" }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-bg-alt)"}
-                    onMouseLeave={(e) => e.currentTarget.style.background = ""}>+</button>
-                </div>
-
-                {/* Add to cart */}
-                <button type="button" className="auth-submit-btn"
-                  style={{ flex: 1, minWidth: 180, height: 48, borderRadius: "var(--radius-pill)" }}
-                  disabled={!available}
-                  onClick={handleAddToCart}>
-                  {addSuccess
-                    ? <span style={{ display: "flex", alignItems: "center", gap: 8 }}>✅ Đã thêm vào giỏ!</span>
-                    : <><FaCartPlus /> {available ? `Thêm ${quantity > 1 ? `(${quantity}) ` : ""}vào giỏ` : "Hết món"}</>}
-                </button>
-
-                {/* Fav toggle (text) */}
-                <button type="button"
-                  className={`dashboard-btn ${isFavorite ? "dashboard-btn-danger" : "dashboard-btn-secondary"}`}
-                  style={{ borderRadius: "var(--radius-pill)", height: 48 }}
-                  onClick={toggleFavorite}>
-                  {isFavorite ? <FaHeart /> : <FaRegHeart />}
-                </button>
-              </div>
-
-              {/* Total */}
-              {quantity > 1 && (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "var(--space-3) var(--space-4)", background: "var(--color-brand-pale)", borderRadius: "var(--radius-md)", fontSize: "0.875rem" }}>
-                  <span style={{ color: "var(--color-text-muted)", fontWeight: 600 }}>Thành tiền ({quantity} ly):</span>
-                  <span style={{ fontWeight: 900, color: "var(--color-brand-dark)", fontSize: "1.1rem" }}>{fmt(Number(product.price) * quantity)}</span>
-                </div>
-              )}
-            </div>
+          {/* Category + status row */}
+          <div className="pd-meta-row">
+            <span className="pd-category">{product.category || "Đồ uống"}</span>
+            <span className="pd-code">{product.code || "SP"}</span>
+            <span className={`pd-status ${available ? "available" : "unavailable"}`}>
+              <span className="pd-status-dot" />
+              {available ? "Đang bán" : "Hết món"}
+            </span>
           </div>
-        </div>
 
-        {/* ── Related / suggestion section ── */}
-        <div className="dashboard-panel animate-fadeInUp animate-delay-2" style={{ padding: "var(--space-5) var(--space-6)" }}>
-          <div className="dashboard-panel-header" style={{ padding: 0, marginBottom: "var(--space-3)" }}>
-            <h2 className="dashboard-panel-title">💡 Thông tin thêm</h2>
+          {/* Name */}
+          <h1 className="pd-name">{product.name}</h1>
+
+          {/* Stars */}
+          <StarRow rating={4} count={128} />
+
+          {/* Price */}
+          <div className="pd-price-wrap">
+            <span className="pd-price">{fmt(product.price)}</span>
+            {product.size && (
+              <span className="pd-size-badge">Size {product.size}</span>
+            )}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "var(--space-4)" }}>
+
+          {/* Description */}
+          {product.description && (
+            <p className="pd-desc">{product.description}</p>
+          )}
+
+          {/* Perks */}
+          <div className="pd-perks">
             {[
-              ["🌡️", "Nhiệt độ", "Phục vụ lạnh hoặc nóng theo yêu cầu"],
-              ["🥛", "Thành phần", "Sữa tươi, đường ăn kiêng, trà nguyên lá"],
-              ["⏱️", "Thời gian",  "Chuẩn bị trong 5-7 phút"],
-              ["♻️", "Đóng gói",   "Ly nhựa tái chế + ống hút giấy"],
-            ].map(([icon, label, val]) => (
-              <div key={label} style={{ background: "var(--color-bg-alt)", borderRadius: "var(--radius-md)", padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: 6 }}>
-                <div style={{ fontSize: "1.4rem" }}>{icon}</div>
-                <div style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-faint)" }}>{label}</div>
-                <div style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", lineHeight: 1.5 }}>{val}</div>
+              { icon: <FaTruck />, text: "Giao trong 30 phút" },
+              { icon: <FaLeaf />, text: "Nguyên liệu tươi" },
+              { icon: <FaShieldAlt />, text: "Đảm bảo chất lượng" },
+            ].map((p) => (
+              <div key={p.text} className="pd-perk">
+                <span className="pd-perk-icon">{p.icon}</span>
+                {p.text}
               </div>
             ))}
           </div>
-        </div>
 
+          {/* Divider */}
+          <div className="pd-divider" />
+
+          {/* Error */}
+          {error && (
+            <div className="pd-alert">
+              <span>⚠️</span> {error}
+            </div>
+          )}
+
+          {/* Quantity + actions */}
+                    {/* --------------------------------------------------------------
+            ACTIONS SECTION
+            --------------------------------------------------------------
+            - Stepper số lượng (‑ / +) với giới hạn tối thiểu 1.
+            - Nút "Thêm vào giỏ" (hoạt hoá khi còn hàng).
+            - Nút "Yêu thích" dạng text (icon heart).
+            - Khi thêm thành công, nút chuyển màu xanh và hiển thị ký hiệu check.
+          -------------------------------------------------------------- */}
+          <div className="pd-actions">
+            {/* Qty stepper */}
+            <div className="pd-qty-stepper">
+              <button
+                type="button"
+                className="pd-qty-btn"
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                disabled={quantity <= 1}
+              >−</button>
+              <span className="pd-qty-value">{quantity}</span>
+              <button
+                type="button"
+                className="pd-qty-btn"
+                onClick={() => setQuantity((q) => q + 1)}
+              >+</button>
+            </div>
+
+            {/* Add to cart */}
+            <button
+              type="button"
+              className={`pd-cart-btn ${addSuccess ? "success" : ""}`}
+              disabled={!available}
+              onClick={handleAddToCart}
+            >
+              {addSuccess
+                ? <><FaCheck /> Đã thêm vào giỏ!</>
+                : <><FaCartPlus /> {available ? `Thêm ${quantity > 1 ? `(${quantity}) ` : ""}vào giỏ` : "Hết món"}</>}
+            </button>
+
+            {/* Fav button (text) */}
+            <button
+              type="button"
+              className={`pd-fav-text-btn ${isFavorite ? "active" : ""}`}
+              onClick={toggleFavorite}
+            >
+              {isFavorite ? <FaHeart /> : <FaRegHeart />}
+            </button>
+          </div>
+
+          {/* Total summary (when qty > 1) */}
+          {quantity > 1 && (
+            <div className="pd-total">
+              <span>Thành tiền ({quantity} ly)</span>
+              <span className="pd-total-price">{fmt(totalPrice)}</span>
+            </div>
+          )}
+
+          {/* Consult CTA */}
+                    {/* --------------------------------------------------------------
+            CONSULT BANNER
+            --------------------------------------------------------------
+            - Thông báo mời người dùng hỏi AI về món ăn.
+            - Nút "Tư vấn ngay" mở ChatOverlay (setShowChat(true)).
+          -------------------------------------------------------------- */}
+          <div className="pd-consult-banner">
+            <div className="pd-consult-left">
+              <div className="pd-consult-emoji">🍵</div>
+              <div>
+                <div className="pd-consult-title">Bạn muốn biết thêm về món này?</div>
+                <div className="pd-consult-sub">AI tư vấn hương vị, nguyên liệu, cách dùng...</div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="pd-consult-btn"
+              onClick={() => setShowChat(true)}
+            >
+              <FaComments /> Tư vấn ngay
+            </button>
+          </div>
+
+        </div>
       </div>
+
+      {/* ── Info cards ── */}
+              {/* --------------------------------------------------------------
+          INFO CARDS GRID
+          --------------------------------------------------------------
+          - Hiển thị các thông tin phụ: nhiệt độ, thành phần, thời gian, đóng gói.
+          - Sắp xếp dạng grid, mỗi thẻ có icon, label và giá trị.
+        -------------------------------------------------------------- */}
+        <div className="pd-info-cards animate-fadeInUp" style={{ animationDelay: "0.12s" }}>
+        <div className="pd-info-header">
+          <h2 className="pd-info-title">💡 Thông tin thêm</h2>
+        </div>
+        <div className="pd-info-grid">
+          {[
+            { icon: "🌡️", label: "Nhiệt độ", val: "Phục vụ lạnh hoặc nóng theo yêu cầu" },
+            { icon: "🥛", label: "Thành phần", val: "Sữa tươi, đường ăn kiêng, trà nguyên lá" },
+            { icon: "⏱️", label: "Thời gian", val: "Chuẩn bị trong 5-7 phút" },
+            { icon: "♻️", label: "Đóng gói", val: "Ly nhựa tái chế + ống hút giấy" },
+          ].map(({ icon, label, val }) => (
+            <div key={label} className="pd-info-card">
+              <div className="pd-info-card-icon">{icon}</div>
+              <div className="pd-info-card-label">{label}</div>
+              <div className="pd-info-card-val">{val}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Chat overlay */}
+              {/* --------------------------------------------------------------
+          CHAT OVERLAY
+          --------------------------------------------------------------
+          - Khi `showChat` true, render component ChatOverlay.
+          - Pass `product` để AI có ngữ cảnh và `onClose` để đóng.
+        -------------------------------------------------------------- */}
+        {showChat && <ChatOverlay onClose={() => setShowChat(false)} product={product} />}
     </div>
   );
 };

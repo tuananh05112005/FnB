@@ -1,3 +1,11 @@
+// ==============================================================
+// TÊN FILE: session.js
+// MÔ TẢ: Quản lý phiên đăng nhập (Session) của người dùng sử dụng LocalStorage.
+//        Cung cấp các hàm lưu trữ, truy xuất, xóa thông tin JWT Token, vai trò (role),
+//        mã người dùng (userId), tên người dùng, và hàm giải mã JWT Token (decodeTokenPayload).
+// ==============================================================
+
+// Khai báo các key lưu trữ trong LocalStorage
 const SESSION_KEYS = {
   token: "token",
   role: "role",
@@ -5,6 +13,7 @@ const SESSION_KEYS = {
   name: "name",
 };
 
+// Hàm phụ giúp kiểm tra tính sẵn sàng của môi trường trình duyệt (LocalStorage)
 const safeStorage = () => {
   if (typeof window === "undefined") {
     return null;

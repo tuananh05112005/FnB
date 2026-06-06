@@ -7,6 +7,7 @@ import {
 } from "react-icons/fa";
 
 import { api } from "../lib/api";
+import socket from "../lib/socket";
 import { getUserId } from "../lib/session";
 import Pagination from "../components/common/Pagination";
 import "../styles/dashboard.css";
@@ -40,18 +41,21 @@ const METHOD_CFG = {
 const getMethod = (m) => METHOD_CFG[m] || METHOD_CFG.banking;
 const getStatus = (s) => STATUS_CFG[s] || STATUS_CFG.pending;
 
+// Component quản lý lịch sử giao dịch/mua hàng dành cho khách hàng
 const History = () => {
   const navigate = useNavigate();
-  const userId   = getUserId();
+  const userId   = getUserId(); // Lấy ID của user hiện tại từ session
 
-  const [history,  setHistory]  = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState("");
-  const [search,   setSearch]   = useState("");
-  const [filter,   setFilter]   = useState("all");
-  const [viewMode, setViewMode] = useState("card");
-  const [page,     setPage]     = useState(1);
+  // Khai báo các State
+  const [history,  setHistory]  = useState([]); // Danh sách lịch sử mua hàng tải về từ API
+  const [loading,  setLoading]  = useState(true); // Trạng thái đang tải trang
+  const [error,    setError]    = useState(""); // Lưu thông báo lỗi nếu tải thất bại
+  const [search,   setSearch]   = useState(""); // Từ khóa tìm kiếm sản phẩm hoặc mã đơn
+  const [filter,   setFilter]   = useState("all"); // Bộ lọc hình thức thanh toán (all, cash, banking)
+  const [viewMode, setViewMode] = useState("card"); // Chế độ hiển thị: dạng thẻ (card) hoặc dạng bảng (table)
+  const [page,     setPage]     = useState(1); // Trang hiện tại khi phân trang
 
+  // Effect 1: Tải lịch sử mua hàng của khách hàng từ API khi mở trang
   useEffect(() => {
     if (!userId) return;
     const load = async () => {
@@ -68,6 +72,21 @@ const History = () => {
     load();
   }, [userId]);
 
+  // Effect 2: Đăng ký Socket listener để đồng bộ hóa cập nhật trạng thái đơn hàng Real-time từ phía Admin/Staff
+  useEffect(() => {
+    const handleStatusUpdate = (data) => {
+      setHistory((prev) =>
+        prev.map((item) => (item.cart_id === Number(data.orderId) ? { ...item, status: data.status } : item))
+      );
+    };
+
+    socket.on("orderStatusUpdated", handleStatusUpdate);
+    return () => {
+      socket.off("orderStatusUpdated", handleStatusUpdate);
+    };
+  }, []);
+
+  // Hàm handleDelete: Cho phép người dùng xóa lịch sử giao dịch đơn hàng của riêng mình
   const handleDelete = async (paymentId) => {
     if (!window.confirm("Bạn có chắc muốn xóa giao dịch này?")) return;
     try {
@@ -78,12 +97,12 @@ const History = () => {
     }
   };
 
-  // Totals
-  const totalAmount  = useMemo(() => history.reduce((s, i) => s + Number(i.amount || 0), 0), [history]);
-  const cashOrders   = useMemo(() => history.filter((i) => i.payment_method === "cash"), [history]);
-  const bankOrders   = useMemo(() => history.filter((i) => i.payment_method !== "cash"), [history]);
+  // Tính toán các số liệu tổng quan chi tiêu
+  const totalAmount  = useMemo(() => history.reduce((s, i) => s + Number(i.amount || 0), 0), [history]); // Tổng chi tiêu
+  const cashOrders   = useMemo(() => history.filter((i) => i.payment_method === "cash"), [history]); // Số lượng đơn thanh toán tiền mặt
+  const bankOrders   = useMemo(() => history.filter((i) => i.payment_method !== "cash"), [history]); // Số lượng đơn thanh toán banking
 
-  // Filtered list
+  // useMemo: Lọc danh sách giao dịch dựa trên từ khóa tìm kiếm và bộ lọc hình thức thanh toán
   const displayed = useMemo(() => {
     let list = [...history];
     if (filter !== "all") list = list.filter((i) => i.payment_method === filter);
@@ -94,12 +113,13 @@ const History = () => {
     return list;
   }, [history, filter, search]);
 
-  // Group by date for card view — paginate at item level
+  // useMemo: Phân trang danh sách giao dịch
   const pagedDisplayed = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return displayed.slice(start, start + PAGE_SIZE);
   }, [displayed, page]);
 
+  // useMemo: Gom nhóm danh sách giao dịch theo ngày tạo để hiển thị dạng Timeline trên giao diện thẻ
   const grouped = useMemo(() => {
     const map = {};
     pagedDisplayed.forEach((item) => {

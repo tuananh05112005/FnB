@@ -1,3 +1,11 @@
+// ==============================================================
+// TÊN FILE: AddProductForm.js
+// MÔ TẢ: Trang thêm sản phẩm mới dành cho Admin/Staff.
+//        - Sử dụng thư viện Formik kết hợp Yup để kiểm tra tính hợp lệ dữ liệu nhập.
+//        - Cho phép chọn ảnh nhanh từ thư viện ảnh gợi ý (ProductImagePicker).
+//        - Tích hợp tính năng AI gợi ý mô tả sản phẩm tự động (buildProductDescription).
+// ==============================================================
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ErrorMessage, Field, Form, Formik } from "formik";
@@ -10,20 +18,24 @@ import { buildProductDescription, getImageNameSuggestion } from "../../utils/pro
 import "../../styles/dashboard.css";
 import "../../styles/commerce.css";
 
+// Định nghĩa quy tắc kiểm tra tính hợp lệ dữ liệu đầu vào (Validation Schema) bằng Yup
 const validationSchema = Yup.object({
   image: Yup.string().required("Vui lòng nhập URL hình ảnh."),
   code: Yup.string().required("Vui lòng nhập mã sản phẩm.").max(20),
   name: Yup.string().required("Vui lòng nhập tên sản phẩm.").max(100),
-  price: Yup.number().typeError("Giá phải là số.").positive().required(),
+  price: Yup.number().typeError("Giá phải là số.").positive().required("Vui lòng nhập giá sản phẩm."),
   description: Yup.string().required("Vui lòng nhập mô tả."),
   size: Yup.string().required("Vui lòng nhập kích cỡ."),
 });
 
+// Component chính trang thêm sản phẩm mới
 const AddProductForm = () => {
   const navigate = useNavigate();
-  const [successMessage, setSuccessMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [previewImage, setPreviewImage] = useState("");
+  
+  // Khai báo các trạng thái giao diện và thông báo lỗi/thành công
+  const [successMessage, setSuccessMessage] = useState(""); // Thông báo thành công
+  const [errorMessage, setErrorMessage] = useState("");     // Thông báo lỗi nếu gửi dữ liệu thất bại
+  const [previewImage, setPreviewImage] = useState("");     // Ảnh xem trước của URL hình ảnh sản phẩm
 
   return (
     <div className="dashboard-page">
@@ -62,6 +74,7 @@ const AddProductForm = () => {
               </div>
             )}
 
+            {/* Sử dụng Formik quản lý trạng thái form và kiểm tra đầu vào */}
             <Formik
               initialValues={{
                 image: "",
@@ -77,10 +90,12 @@ const AddProductForm = () => {
                 setSuccessMessage("");
 
                 try {
+                  // Gọi API thêm sản phẩm mới
                   await createProduct(values);
                   setSuccessMessage("ản phẩm đã được thêm thành công.");
                   resetForm();
                   setPreviewImage("");
+                  // Quay lại trang danh mục sau khi thêm thành công
                   setTimeout(() => navigate("/products"), 1200);
                 } catch (error) {
                   console.error("Không thể thêm sản phẩm:", error);

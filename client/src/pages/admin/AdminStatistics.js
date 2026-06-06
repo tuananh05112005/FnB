@@ -65,11 +65,14 @@ function TrendPill({ value, positive }) {
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
+// Component chính trang thống kê chuyên sâu dành cho Admin
 const AdminStatistics = () => {
-  const [stats,   setStats]   = useState(null);
-  const [orders,  setOrders]  = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Khai báo các State
+  const [stats,   setStats]   = useState(null); // Tổng hợp số liệu hệ thống từ API (users, revenue, etc.)
+  const [orders,  setOrders]  = useState([]); // Danh sách toàn bộ đơn hàng/giao dịch để phân tích xu hướng
+  const [loading, setLoading] = useState(true); // Trạng thái tải dữ liệu
 
+  // Effect: Tải số liệu tổng quan và danh sách đơn hàng
   useEffect(() => {
     const load = async () => {
       try {
@@ -91,9 +94,9 @@ const AdminStatistics = () => {
     load();
   }, []);
 
-  // ── Derived analytics ─────────────────────────────────────────────────────
+  // ── Tính toán các số liệu phục vụ biểu đồ (Derived analytics) ──────────────────
 
-  // 1. Revenue trend — last 10 distinct dates
+  // 1. Xu hướng doanh thu theo ngày (lấy 10 ngày gần nhất có doanh thu)
   const revenueTrend = useMemo(() => {
     const map = {};
     orders.forEach((o) => {
@@ -107,7 +110,7 @@ const AdminStatistics = () => {
       .map(([date, amount]) => ({ date: date.slice(5), amount }));
   }, [orders]);
 
-  // 2. Payment method split
+  // 2. Cơ cấu đơn hàng theo hình thức thanh toán (Tiền mặt vs Chuyển khoản)
   const paymentSplit = useMemo(() => {
     const cash    = orders.filter((o) => o.payment_method === "cash").length;
     const banking = orders.filter((o) => o.payment_method !== "cash").length;
@@ -117,7 +120,7 @@ const AdminStatistics = () => {
     ];
   }, [orders]);
 
-  // 3. Status distribution (for radial chart)
+  // 3. Phân bổ trạng thái đơn hàng (để vẽ biểu đồ Radial)
   const statusDist = useMemo(() => {
     const counts = { received: 0, completed: 0, pending: 0, cancelled: 0 };
     orders.forEach((o) => { if (counts[o.status] !== undefined) counts[o.status]++; });
@@ -130,7 +133,7 @@ const AdminStatistics = () => {
     }));
   }, [orders]);
 
-  // 4. Revenue by payment method (bar)
+  // 4. Tổng doanh thu theo phương thức thanh toán
   const revenueByMethod = useMemo(() => {
     const cash    = orders.filter((o) => o.payment_method === "cash")   .reduce((s, o) => s + Number(o.amount || 0), 0);
     const banking = orders.filter((o) => o.payment_method !== "cash")   .reduce((s, o) => s + Number(o.amount || 0), 0);
@@ -140,7 +143,7 @@ const AdminStatistics = () => {
     ];
   }, [orders]);
 
-  // 5. KPI cards derived from stats + orders
+  // 5. Thẻ KPI đo lường các chỉ số cốt lõi (Tỷ lệ hoàn thành, hủy đơn, giá trị TB đơn, tổng khách)
   const completionRate = pct(
     orders.filter((o) => o.status === "received").length,
     orders.length

@@ -1,3 +1,12 @@
+// ==============================================================
+// TÊN FILE: LoyaltyWallet.js
+// MÔ TẢ: Trang Ví tích điểm & Quản lý Voucher (LoyaltyWallet).
+//        - Phân quyền User: Xem điểm tích lũy, thanh tiến trình lên hạng Gold,
+//          danh sách các voucher cá nhân sở hữu và hòm thư thông báo khuyến mãi.
+//        - Phân quyền Admin: Quản lý danh sách voucher toàn hệ thống, tạo mã voucher mới
+//          (giảm % hoặc giảm tiền mặt), gán voucher cho nhóm người dùng cụ thể hoặc toàn bộ khách hàng.
+// ==============================================================
+
 import { useEffect, useState } from "react";
 import axios from "axios";
 import {
@@ -7,27 +16,39 @@ import {
 import "../styles/dashboard.css";
 
 
+// Hàm tiện ích định dạng tiền tệ VNĐ (ví dụ: 50.000 ₫)
 const fmt = (v) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(v || 0);
 
+// Cấu hình URL cơ sở của Server Backend
 const BASE = "http://localhost:5000";
 
 const LoyaltyWallet = () => {
+  // --- Các Hook State quản lý điểm thưởng và Voucher ---
+  // points: Số điểm tích lũy của khách hàng hiện tại
   const [points,        setPoints]        = useState(0);
+  // vouchers: Danh sách voucher mà khách hàng sở hữu
   const [vouchers,      setVouchers]      = useState([]);
+  // allVouchers: Danh sách tất cả voucher tồn tại trong hệ thống (dành cho Admin)
   const [allVouchers,   setAllVouchers]   = useState([]);
+  // users: Danh sách người dùng để Admin lựa chọn phân phối voucher
   const [users,         setUsers]         = useState([]);
+  // selectedUsers: Mảng ID người dùng được chọn nhận voucher
   const [selectedUsers, setSelectedUsers] = useState([]);
+  // notifications: Danh sách thông báo tích lũy/khuyến mãi của khách hàng
   const [notifications, setNotifications] = useState([]);
+  // newVoucher: State lưu thông tin biểu mẫu tạo voucher mới
   const [newVoucher,    setNewVoucher]    = useState({
     code: "", discount_type: "percent", discount_value: "",
     min_order: "", usage_limit: "", expired_at: null,
   });
+  // toast: Lưu trữ nội dung thông báo nổi trên giao diện
   const [toast, setToast] = useState("");
 
   const user_id = localStorage.getItem("user_id");
   const role    = localStorage.getItem("role");
 
+  // Tải dữ liệu ban đầu khi component mount dựa vào vai trò Admin hoặc User
   useEffect(() => {
     if (role === "admin") {
       axios.get(`${BASE}/api/users/all`).then((r) => setUsers(r.data)).catch(console.error);
@@ -41,8 +62,10 @@ const LoyaltyWallet = () => {
     }
   }, [user_id, role]);
 
+  // Hiển thị toast tự tắt sau 2.5 giây
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
+  // Gọi API phân phát/gửi voucher được chọn đến những user được đánh dấu
   const handleAssign = async (voucherId) => {
     try {
       await axios.post(`${BASE}/api/vouchers/assign`, {
@@ -53,6 +76,7 @@ const LoyaltyWallet = () => {
     } catch (err) { console.error(err); }
   };
 
+  // Gọi API tạo voucher mới từ dữ liệu form nhập và làm mới danh sách voucher
   const handleCreate = async () => {
     try {
       await axios.post(`${BASE}/api/vouchers`, newVoucher);
@@ -63,8 +87,10 @@ const LoyaltyWallet = () => {
     } catch (err) { console.error(err); }
   };
 
+  // Cập nhật giá trị thuộc tính cụ thể trong object newVoucher
   const patch = (field, val) => setNewVoucher((p) => ({ ...p, [field]: val }));
 
+  // Nhận dạng nhãn và class CSS hiển thị loại giảm giá (phần trăm % hay số tiền)
   const discountBadge = (type) => type === "percent"
     ? { label: "Giảm %",    cls: "dashboard-badge-info" }
     : { label: "Giảm tiền", cls: "dashboard-badge-success" };

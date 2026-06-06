@@ -1,3 +1,14 @@
+// ==============================================================
+// TÊN FILE: Home.js
+// MÔ TẢ: Trang chủ (Dashboard) của hệ thống FnB.
+//        Trang có thiết kế giao diện động phân quyền:
+//        - Đối với Khách hàng (User): Hiển thị banner chào mừng, các bộ sưu tập/nhóm sản phẩm
+//          (Trà sữa, Cafe, Matcha, Nước ép, v.v.) và các liên kết thao tác nhanh.
+//        - Đối với Quản lý/Nhân viên (Admin/Staff): Đóng vai trò là một Dashboard quản trị
+//          hiển thị các biểu đồ doanh thu tuần qua (Recharts), tỷ lệ đơn hàng (Pie chart),
+//          danh sách đơn đặt hàng gần đây, và các thẻ thống kê nhanh chỉ số KPI kinh doanh.
+// ==============================================================
+
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -17,9 +28,11 @@ import "../styles/commerce.css";
 import "./Home.css";
 
 /* ── Helpers ────────────────────────────────────────────────────── */
+// Định dạng tiền tệ VNĐ (ví dụ: 120.000 ₫)
 const fmt = (n) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(Number(n) || 0);
 
+// Ánh xạ trạng thái đơn hàng sang nhãn tiếng Việt và Class CSS tương ứng
 const STATUS_MAP = {
   pending:   { label: "Đang xử lý", cls: "dashboard-badge-warning" },
   completed: { label: "Đang giao",  cls: "dashboard-badge-info"    },
@@ -40,6 +53,10 @@ const CATEGORIES = [
 ];
 
 /* ── Order Modal ────────────────────────────────────────────────── */
+/**
+ * OrderModal Component: Hiển thị hộp thoại (modal) chi tiết của một đơn hàng.
+ * Phục vụ cho tính năng xem nhanh đơn hàng vừa đặt tại Dashboard.
+ */
 function OrderModal({ order, onClose }) {
   const st = STATUS_MAP[order.status] || STATUS_MAP.pending;
   return (
@@ -80,6 +97,10 @@ function OrderModal({ order, onClose }) {
 }
 
 /* ── Skeleton ───────────────────────────────────────────────────── */
+/**
+ * SkeletonStat Component: Hiển thị placeholder tải thông tin thống kê dạng khung xương.
+ * Tăng trải nghiệm người dùng trong thời gian chờ gọi API stats.
+ */
 function SkeletonStat() {
   return (
     <div className="home-skeleton-stat">
@@ -99,11 +120,17 @@ const Home = () => {
   const isAdmin   = role === "admin";
   const isManager = role === "admin" || role === "staff";
 
+  // --- Các Hook State lưu giữ thông tin của trang chủ ---
+  // stats: Lưu trữ đối tượng KPI thống kê (doanh thu, số lượng user, sản phẩm đã bán, đơn hủy)
   const [stats,    setStats]    = useState(null);
+  // orders: Danh sách toàn bộ đơn hàng có trên hệ thống để hiển thị đơn gần đây và tính toán vẽ biểu đồ
   const [orders,   setOrders]   = useState([]);
+  // loading: Trạng thái đang tải dữ liệu từ API
   const [loading,  setLoading]  = useState(true);
+  // selOrder: Đơn hàng cụ thể đang được chọn xem chi tiết trong modal
   const [selOrder, setSelOrder] = useState(null);
 
+  // Tải dữ liệu từ Backend khi linh kiện được mount
   useEffect(() => {
     const load = async () => {
       try {
@@ -125,6 +152,7 @@ const Home = () => {
     load();
   }, [isManager]);
 
+  // Cấu trúc danh sách các thẻ thống kê nhanh (KPI cards) từ dữ liệu API thống kê
   const statCards = useMemo(() => {
     if (!stats) return [];
     return [
@@ -135,6 +163,7 @@ const Home = () => {
     ];
   }, [stats]);
 
+  // Phân tích trạng thái đơn hàng để làm dữ liệu đầu vào cho biểu đồ tròn (Pie Chart)
   const orderStatusData = useMemo(() => {
     if (!orders.length) return [];
     const counts = { pending: 0, completed: 0, received: 0, cancelled: 0 };
@@ -146,8 +175,10 @@ const Home = () => {
     }));
   }, [orders]);
 
+  // Chỉ lấy 6 đơn hàng mới nhất để hiện ở khu vực "Đơn gần đây"
   const recentOrders = useMemo(() => orders.slice(0, 6), [orders]);
 
+  // Tổng hợp doanh thu theo từng ngày trong 7 ngày gần nhất để làm đầu vào cho biểu đồ cột (Bar Chart)
   const revenueData = useMemo(() => {
     if (!orders.length) return [];
     const map = {};

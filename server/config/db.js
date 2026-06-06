@@ -5,6 +5,7 @@ const util = require("util");
 let db;
 let query;
 
+// Khoi tao ket noi MySQL va tao ham query dang Promise dung chung.
 function initDB() {
   db = mysql.createConnection({
     host: process.env.DB_HOST || "localhost",
@@ -18,16 +19,29 @@ function initDB() {
       console.error("Lỗi kết nối MySQL:", err);
     } else {
       console.log("Kết nối MySQL thành công!");
+      // Một lần duy nhất gán order_code cho các dòng cũ
+      db.query(
+        "UPDATE cart SET order_code = CONCAT('DH', LPAD(id, 8, '0')) WHERE order_code IS NULL",
+        (updateErr) => {
+          if (updateErr) {
+            console.error("Lỗi cập nhật order_code cho dữ liệu cũ:", updateErr);
+          } else {
+            console.log("Đã đồng bộ order_code cho các bản ghi cũ thành công.");
+          }
+        }
+      );
     }
   });
 
   query = util.promisify(db.query).bind(db);
 }
 
+// Tra ve ket noi MySQL goc cho nhung controller dang dung callback.
 function getDB() {
   return db;
 }
 
+// Tra ve ham query Promise de dung voi async/await.
 function getQuery() {
   return query;
 }

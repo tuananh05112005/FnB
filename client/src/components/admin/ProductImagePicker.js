@@ -1,3 +1,11 @@
+// ==============================================================
+// TÊN FILE: ProductImagePicker.js
+// MÔ TẢ: Hợp phần giao diện chọn ảnh sản phẩm tự động dành cho Admin (ProductImagePicker).
+//        Tích hợp nút bấm gọi API dịch vụ tìm kiếm ảnh minh họa từ Pexels (qua Backend),
+//        hiển thị danh sách kết quả ảnh lưới (grid) kèm tác giả chụp hình,
+//        và trả về ảnh được chọn cho form sản phẩm.
+// ==============================================================
+
 import { useState } from "react";
 import { FaImage, FaSearch } from "react-icons/fa";
 
@@ -9,11 +17,12 @@ const ProductImagePicker = ({ query, onSelect }) => {
   const [error, setError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
 
+  // Gọi API tìm kiếm ảnh dựa trên từ khóa tên sản phẩm truyền vào
   const handleSearch = async () => {
     const keyword = String(query || "").trim();
 
     if (!keyword) {
-      setError("Nhap ten san pham truoc khi tim anh.");
+      setError("Nhập tên sản phẩm trước khi tìm ảnh.");
       return;
     }
 
@@ -24,9 +33,9 @@ const ProductImagePicker = ({ query, onSelect }) => {
       const data = await searchProductImages(keyword);
       setImages(data.images || []);
     } catch (searchError) {
-      console.error("Khong the tim anh san pham:", searchError);
+      console.error("Không thể tìm sản phẩm:", searchError);
       setImages([]);
-      setError(searchError.response?.data?.message || "Khong the tim anh luc nay.");
+      setError(searchError.response?.data?.message || "Khônng thể tìm ảnh lúc này.");
     } finally {
       setIsLoading(false);
     }
@@ -41,18 +50,20 @@ const ProductImagePicker = ({ query, onSelect }) => {
         disabled={isLoading}
       >
         <FaSearch />
-        {isLoading ? "Dang tim anh..." : "Tim anh tu dong"}
+        {isLoading ? "Đang tìm ảnh..." : "Tìm ảnh tự động"}
       </button>
 
       {error && <div className="commerce-alert commerce-alert-danger">{error}</div>}
 
+      {/* Trạng thái trống khi đã tìm kiếm nhưng không trả về kết quả ảnh nào */}
       {hasSearched && !isLoading && images.length === 0 && !error && (
         <div className="dashboard-empty product-image-picker-empty">
           <FaImage />
-          Khong tim thay anh phu hop.
+          Không tìm thấy ảnh phù hợp.
         </div>
       )}
 
+      {/* Hiển thị danh sách ảnh Pexels dưới dạng lưới để Admin click lựa chọn */}
       {images.length > 0 && (
         <div className="product-image-picker-grid">
           {images.map((image) => (
@@ -63,7 +74,7 @@ const ProductImagePicker = ({ query, onSelect }) => {
               onClick={() => onSelect(image)}
               title={`Photo by ${image.photographer || "Pexels"}`}
             >
-              <img src={image.thumbnail} alt={image.alt || "Anh san pham"} />
+              <img src={image.thumbnail} alt={image.alt || "Ảnh sản phẩm"} />
               <span>{image.photographer || "Pexels"}</span>
             </button>
           ))}

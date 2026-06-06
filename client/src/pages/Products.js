@@ -1,3 +1,12 @@
+// ==============================================================
+// TÊN FILE: Products.js
+// MÔ TẢ: Trang danh sách thực đơn (Products) của hệ thống FnB.
+//        Cho phép khách hàng duyệt thực đơn, tìm kiếm sản phẩm theo tên/mô tả/mã,
+//        lọc theo size, sắp xếp theo tên/giá/mới nhất, chuyển đổi chế độ xem (Lưới/Danh sách).
+//        Tài khoản User có thể thêm sản phẩm vào giỏ hoặc thả tim sản phẩm yêu thích.
+//        Tài khoản Admin/Staff có thể thêm, sửa, xóa sản phẩm trực tiếp tại danh sách này.
+// ==============================================================
+
 import { useNavigate } from "react-router-dom";
 import {
   FaBoxOpen, FaCartPlus, FaEdit, FaEye,
@@ -13,10 +22,14 @@ import { isProductAvailable } from "../services/productService";
 import "../styles/dashboard.css";
 import "../styles/commerce.css";
 
+// Định dạng tiền tệ VNĐ (ví dụ: 25.000 ₫)
 const formatCurrency = (amount) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number(amount) || 0);
 
 /* ── Skeleton card ─────────────────────────────────────────────── */
+/**
+ * SkeletonProductCard Component: Khung xương tải giả lập cho thẻ sản phẩm.
+ */
 function SkeletonProductCard() {
   return (
     <div className="commerce-skeleton">
@@ -36,7 +49,11 @@ function SkeletonProductCard() {
 const Products = () => {
   const navigate = useNavigate();
   const role = getRole();
+  
+  // Custom hook lấy tiêu đề, phụ đề, banner của cửa hàng
   const menuSettings = useMenuSettings();
+  
+  // Custom hook đồng bộ tất cả tham số tìm kiếm, lọc size, sắp xếp, phân trang, và các hành động (AddToCart, Delete, ToggleFavorite)
   const {
     category, products, favorites, cartItems,
     viewMode, setViewMode, searchTerm, setSearchTerm,
@@ -70,7 +87,7 @@ const Products = () => {
                 <FaPlus /> Thêm sản phẩm
               </button>
             )}
-            <button type="button" className="dashboard-btn dashboard-btn-secondary"
+            <button type="button" id="header-cart-btn" className="dashboard-btn dashboard-btn-secondary"
               onClick={() => navigate("/carts")}>
               <FaEye /> Giỏ hàng ({cartItems.length})
             </button>
@@ -250,7 +267,7 @@ const Products = () => {
                       ) : (
                         <button type="button" className="commerce-add-btn"
                           disabled={!available}
-                          onClick={() => handleAddToCart(navigate, product)}
+                          onClick={(e) => handleAddToCart(navigate, product, e)}
                           title={available ? "Thêm vào giỏ" : "Hết món"}>
                           +
                         </button>
@@ -303,7 +320,7 @@ const Products = () => {
                         ) : (
                           <button className="dashboard-btn dashboard-btn-primary" style={{ padding: "7px 14px", fontSize: "0.8rem" }}
                             disabled={!available}
-                            onClick={() => handleAddToCart(navigate, product)}>
+                            onClick={(e) => handleAddToCart(navigate, product, e)}>
                             <FaCartPlus /> {available ? "Thêm" : "Hết"}
                           </button>
                         )}

@@ -1,6 +1,15 @@
+// ==============================================================
+// TÊN FILE: menuSettings.js
+// MÔ TẢ: Quản lý cấu hình giao diện hiển thị của menu thực đơn (tên cửa hàng, tiêu đề menu, banner).
+//        Sử dụng LocalStorage để lưu trữ và tải cấu hình giao diện của quán,
+//        đồng thời phát CustomEvent ('menu-settings-updated') toàn cục khi có thay đổi.
+// ==============================================================
+
 const MENU_SETTINGS_KEY = "menu_display_settings";
+// Sự kiện dùng để đồng bộ nhanh giao diện giữa các thành phần React khi Admin lưu thay đổi
 export const MENU_SETTINGS_EVENT = "menu-settings-updated";
 
+// Giá trị mặc định của cửa hàng
 export const DEFAULT_MENU_SETTINGS = {
   storeName: "Tiệm trà happy",
   topbarName: "TeaShop",
@@ -9,6 +18,7 @@ export const DEFAULT_MENU_SETTINGS = {
   bannerImage: "",
 };
 
+// Kiểm tra xem trình duyệt có hỗ trợ LocalStorage không
 const canUseStorage = () => typeof window !== "undefined" && window.localStorage;
 
 export const getMenuSettings = () => {

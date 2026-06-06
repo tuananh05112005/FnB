@@ -1,12 +1,24 @@
+// ==============================================================
+// TÊN FILE: sepayWebhookController.js
+// MÔ TẢ: Bộ điều khiển tiếp nhận và xử lý Webhook tự động từ dịch vụ thanh toán SePay.
+//        - Xác thực API Key và Signature HMAC từ SePay để bảo mật giao dịch.
+//        - Trích xuất mã giao dịch (ví dụ: DH20260606) từ nội dung chuyển khoản.
+//        - Ghi nhật ký lịch sử Webhook (logs) để giám sát và đối soát.
+//        - Tự động so khớp số tiền thanh toán thực nhận với số tiền hóa đơn yêu cầu.
+//        - Chuyển trạng thái đơn sang Đã thanh toán (markPaymentPaid) và cộng điểm thưởng tích lũy.
+// ==============================================================
+
 const crypto = require("crypto");
 
 const { getQuery } = require("../config/db");
 const { markPaymentPaid } = require("./paymentController");
 
+// Hàm tiện ích in nhật ký log Webhook theo từng bước để dễ gỡ lỗi (Debugging)
 function logStep(message, details = {}) {
   console.log(`[SePay Webhook] ${message}`, details);
 }
 
+// So sánh hai chuỗi ký tự an toàn thời gian thực (tránh tấn công Timing Attack)
 function secureEqual(a, b) {
   const aBuffer = Buffer.from(String(a || ""));
   const bBuffer = Buffer.from(String(b || ""));
@@ -18,18 +30,19 @@ function secureEqual(a, b) {
   return crypto.timingSafeEqual(aBuffer, bBuffer);
 }
 
+// Xác thực API Key gửi trong Header Authorization từ SePay
 function verifyApiKey(req) {
   const expectedApiKey = process.env.SEPAY_API_KEY;
 
   if (!expectedApiKey) {
-    logStep("SEPAY_API_KEY chua cau hinh, bo qua xac thuc API key");
+    logStep("SEPAY_API_KEY chưa cấu hình, bỏ qua xác thực API key");
     return true;
   }
 
   const authorization = req.get("authorization");
   const isValid = secureEqual(authorization, `Apikey ${expectedApiKey}`);
 
-  logStep("Kiem tra API key", {
+  logStep("Kiểm tra API key", {
     hasAuthorizationHeader: Boolean(authorization),
     isValid,
   });
@@ -37,6 +50,7 @@ function verifyApiKey(req) {
   return isValid;
 }
 
+// Xác thực tính toàn vẹn dữ liệu bằng chữ ký số HMAC SHA256 (nếu cấu hình)
 function verifyHmac(req) {
   const secret = process.env.SEPAY_WEBHOOK_SECRET;
 
@@ -49,14 +63,15 @@ function verifyHmac(req) {
   const rawBody = req.rawBody || JSON.stringify(req.body || {});
 
   if (!signature || !timestamp) {
-    logStep("Thieu HMAC signature hoac timestamp");
+    logStep("Thiếu HMAC signature hoặc timestamp");
     return false;
   }
 
   const now = Math.floor(Date.now() / 1000);
 
+  // Cho phép sai lệch thời gian tối đa 5 phút (300 giây) để tránh tấn công Replay Attack
   if (Math.abs(now - timestamp) > 300) {
-    logStep("HMAC timestamp qua han", { timestamp, now });
+    logStep("HMAC timestamp quá hạn", { timestamp, now });
     return false;
   }
 
@@ -69,11 +84,12 @@ function verifyHmac(req) {
 
   const isValid = secureEqual(signature, expectedSignature);
 
-  logStep("Kiem tra HMAC", { isValid });
+  logStep("Kiểm tra HMAC", { isValid });
 
   return isValid;
 }
 
+// Trích xuất mã hóa đơn đặt hàng (định dạng DHxxxxxx) từ nội dung tin nhắn chuyển khoản
 function extractTransactionCode(payload) {
   const searchableText = [
     payload.content,
@@ -83,7 +99,8 @@ function extractTransactionCode(payload) {
     .filter(Boolean)
     .join(" ");
 
-  const matches = searchableText.match(/DH\d{8,}/gi) || [];
+  // Tìm regex khớp ký tự DH theo sau là ít nhất 8 chữ số (hỗ trợ cả tiền tố CART_DH cho thanh toán giỏ hàng)
+  const matches = searchableText.match(/(?:CART_)?DH\d{8,}/gi) || [];
 
   if (matches.length) {
     return matches
@@ -94,34 +111,20 @@ function extractTransactionCode(payload) {
   return "";
 }
 
-async function ensureWebhookLogTable(query) {
-  await query(`
-    CREATE TABLE IF NOT EXISTS sepay_webhook_logs (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      sepay_transaction_id VARCHAR(100) NOT NULL UNIQUE,
-      payment_id INT NULL,
-      transaction_code VARCHAR(100) NULL,
-      transfer_amount BIGINT NULL,
-      transfer_type VARCHAR(20) NULL,
-      reference_code VARCHAR(100) NULL,
-      payload LONGTEXT NULL,
-      status VARCHAR(30) NOT NULL DEFAULT 'received',
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-}
 
+// Tiếp nhận Webhook giao dịch chuyển khoản ngân hàng thành công từ SePay
 exports.handleSepayWebhook = async (req, res) => {
   const payload = req.body || {};
 
-  logStep("Nhan request", {
+  logStep("Nhận request", {
     path: req.originalUrl,
     body: payload,
   });
 
   try {
+    // 1. Xác thực bảo mật request từ SePay
     if (!verifyApiKey(req) || !verifyHmac(req)) {
-      logStep("Tu choi webhook vi xac thuc that bai");
+      logStep("Từ chối webhook vì xác thực thất bại");
 
       return res.status(401).json({
         success: false,
@@ -135,7 +138,7 @@ exports.handleSepayWebhook = async (req, res) => {
       payload.id ?? payload.referenceCode ?? `${transactionCode}-${payload.transferAmount}`,
     );
 
-    logStep("Da tach thong tin giao dich", {
+    logStep("Đã tách thông tin giao dịch", {
       sepayTransactionId,
       transactionCode,
       transferType: payload.transferType,
@@ -143,8 +146,7 @@ exports.handleSepayWebhook = async (req, res) => {
       referenceCode: payload.referenceCode,
     });
 
-    await ensureWebhookLogTable(query);
-
+    // 2. Ghi nhật ký log Webhook vào Database để đối soát sau này
     const logResult = await query(
       `
       INSERT IGNORE INTO sepay_webhook_logs (
@@ -168,18 +170,19 @@ exports.handleSepayWebhook = async (req, res) => {
     );
 
     if (!logResult.affectedRows) {
-      logStep("Webhook bi lap, tiep tuc xu ly de retry neu lan truoc fail", {
+      logStep("Webhook bị trùng lặp (duplicate payload), bỏ qua xử lý tiếp theo", {
         sepayTransactionId,
       });
     }
 
+    // 3. Nếu không tìm thấy mã đơn hàng hoặc là giao dịch rút tiền (transferType !== "in"), bỏ qua
     if (!transactionCode || payload.transferType !== "in") {
       await query(
         "UPDATE sepay_webhook_logs SET status = 'ignored' WHERE sepay_transaction_id = ?",
         [sepayTransactionId],
       );
 
-      logStep("Bo qua webhook vi khong phai tien vao hoac khong co ma DH", {
+      logStep("Bỏ qua webhook vì không phải tiền vào hoặc không có mã DH", {
         transactionCode,
         transferType: payload.transferType,
       });
@@ -187,6 +190,7 @@ exports.handleSepayWebhook = async (req, res) => {
       return res.json({ success: true, ignored: true });
     }
 
+    // 4. Tìm kiếm thông tin thanh toán trong Database dựa trên mã giao dịch (transaction_code)
     const payments = await query(
       `
       SELECT *
@@ -203,7 +207,7 @@ exports.handleSepayWebhook = async (req, res) => {
         [sepayTransactionId],
       );
 
-      logStep("Khong tim thay payment theo ma giao dich", { transactionCode });
+      logStep("Không tìm thấy payment theo mã giao dịch", { transactionCode });
 
       return res.json({ success: true, ignored: true });
     }
@@ -211,13 +215,14 @@ exports.handleSepayWebhook = async (req, res) => {
     const payment = payments[0];
     const transferAmount = Number(payload.transferAmount || 0);
 
-    logStep("Tim thay payment", {
+    logStep("Tìm thấy payment", {
       paymentId: payment.id,
       expectedAmount: Number(payment.amount || 0),
       transferAmount,
       currentStatus: payment.payment_status,
     });
 
+    // 5. Kiểm tra chênh lệch số tiền (Đề phòng trường hợp khách chuyển thiếu tiền)
     if (transferAmount < Number(payment.amount || 0)) {
       await query(
         `
@@ -228,7 +233,7 @@ exports.handleSepayWebhook = async (req, res) => {
         [payment.id, sepayTransactionId],
       );
 
-      logStep("So tien khong du, khong xac nhan payment", {
+      logStep("Số tiền chuyển khoản không đủ, không xác nhận thanh toán", {
         paymentId: payment.id,
         expectedAmount: Number(payment.amount || 0),
         transferAmount,
@@ -237,8 +242,10 @@ exports.handleSepayWebhook = async (req, res) => {
       return res.json({ success: true, ignored: true });
     }
 
+    // 6. Đánh dấu hóa đơn đã thanh toán thành công (markPaymentPaid)
     const paidResult = await markPaymentPaid(payment, query);
 
+    // 7. Cập nhật nhật ký webhook trạng thái sang đã xác nhận (confirmed)
     await query(
       `
       UPDATE sepay_webhook_logs
@@ -248,7 +255,7 @@ exports.handleSepayWebhook = async (req, res) => {
       [payment.id, sepayTransactionId],
     );
 
-    logStep("Xac nhan thanh toan thanh cong", {
+    logStep("Xác nhận thanh toán thành công", {
       paymentId: payment.id,
       transactionCode,
       alreadyPaid: paidResult.alreadyPaid,
@@ -262,11 +269,11 @@ exports.handleSepayWebhook = async (req, res) => {
       status: "confirmed",
     });
   } catch (err) {
-    console.error("[SePay Webhook] Loi xu ly webhook:", err);
+    console.error("[SePay Webhook] Lỗi xử lý webhook:", err);
 
     return res.status(500).json({
       success: false,
-      message: "Loi server",
+      message: "Lỗi server",
     });
   }
 };

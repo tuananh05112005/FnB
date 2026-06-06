@@ -1,11 +1,19 @@
+// ==============================================================
+// TÊN FILE: categorySettings.js
+// MÔ TẢ: Quản lý cài đặt danh mục sản phẩm (sắp xếp thứ tự danh mục, ẩn/hiện danh mục).
+//        Cung cấp các hàm gọi API lấy và lưu cấu hình từ server,
+//        và các hàm xử lý danh mục phía client (chuẩn hóa danh mục, sắp xếp tiếng Việt).
+// ==============================================================
+
 import { api } from "./api";
 
+// Cấu hình mặc định cho danh mục (mảng trống nghĩa là hiện tất cả và không thay đổi thứ tự)
 export const DEFAULT_CATEGORY_SETTINGS = {
   hiddenCategories: [],
   categoryOrder: [],
 };
 
-// Fetch cài đặt từ server (async)
+// Gọi API lấy thông tin cấu hình ẩn/hiện và sắp xếp danh mục từ server
 export const fetchCategorySettings = async () => {
   try {
     const { data } = await api.get("/api/category-settings");

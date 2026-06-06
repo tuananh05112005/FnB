@@ -1,6 +1,14 @@
-// controllers/productController.js
+// ==============================================================
+// TÊN FILE: productController.js
+// MÔ TẢ: Controller quản lý Thực đơn sản phẩm (Products Catalog).
+//        Xử lý nghiệp vụ: thêm, sửa, xóa, lấy chi tiết, lấy danh mục sản phẩm,
+//        ghi lịch sử chỉnh sửa sản phẩm (product_edit_logs),
+//        và tích hợp API Pexels để tìm kiếm ảnh đồ ăn/nước uống phù hợp theo tên món.
+// ==============================================================
+
 const { getDB, getQuery } = require("../config/db");
 
+// Bảng ánh xạ từ khóa món ăn tiếng Việt sang từ khóa tiếng Anh tương ứng của Pexels để cho kết quả ảnh đẹp nhất
 const FOOD_IMAGE_QUERY_MAP = [
   ["tra sua", "milk tea"],
   ["trà sữa", "milk tea"],
@@ -20,6 +28,7 @@ const FOOD_IMAGE_QUERY_MAP = [
   ["waffle", "waffle dessert"],
 ];
 
+// Chuan hoa chuoi tim kiem de so khop tu khoa tieng Viet khong dau
 function normalizeQuery(value = "") {
   return String(value)
     .trim()
@@ -29,12 +38,17 @@ function normalizeQuery(value = "") {
     .replace(/đ/g, "d");
 }
 
+// Chuyen ten san pham/tieng Viet thanh tu khoa Pexels tieng Anh phu hop
 function buildPexelsQuery(query) {
   const normalized = normalizeQuery(query);
   const matched = FOOD_IMAGE_QUERY_MAP.find(([keyword]) => normalized.includes(normalizeQuery(keyword)));
   return matched ? matched[1] : `${query} food drink`;
 }
 
+/**
+ * searchImages: API tích hợp Pexels (GET /api/products/image-search).
+ * Tìm kiếm các ảnh minh họa vuông có độ phân giải cao phục vụ cho việc tạo/sửa sản phẩm.
+ */
 exports.searchImages = async (req, res) => {
   const apiKey = process.env.PEXELS_API_KEY;
   const rawQuery = String(req.query.query || "").trim();
@@ -94,6 +108,9 @@ exports.searchImages = async (req, res) => {
   }
 };
 
+/**
+ * list: API lấy danh sách thực đơn sản phẩm, có hỗ trợ tìm kiếm/lọc mờ theo danh mục (GET /api/products).
+ */
 exports.list = (req, res) => {
   const db = getDB();
   const { category } = req.query;
@@ -117,6 +134,9 @@ exports.list = (req, res) => {
 };
 
 
+/**
+ * detail: API xem chi tiết thông tin của sản phẩm qua ID (GET /api/products/:id).
+ */
 exports.detail = (req, res) => {
   const db = getDB();
   const productId = req.params.id;
@@ -127,6 +147,9 @@ exports.detail = (req, res) => {
   });
 };
 
+/**
+ * create: API thêm mới sản phẩm vào cơ sở dữ liệu (POST /api/products).
+ */
 exports.create = (req, res) => {
   const db = getDB();
   const { image, code, name, price, description, size, category, is_available = 1 } = req.body;
@@ -143,6 +166,11 @@ exports.create = (req, res) => {
   });
 };
 
+/**
+ * update: API cập nhật thông tin sản phẩm và ghi nhận lịch sử thay đổi (PUT /api/products/:id).
+ * - Kiểm tra trùng lặp mã sản phẩm (code) hoặc tên sản phẩm.
+ * - So sánh và ghi nhận các trường thay đổi vào bảng product_edit_logs để lưu vết audit.
+ */
 exports.update = async (req, res) => {
   const query = getQuery();
   const productId = req.params.id;
@@ -181,6 +209,9 @@ exports.update = async (req, res) => {
   }
 };
 
+/**
+ * history: API lấy lịch sử các lần chỉnh sửa của sản phẩm (GET /api/products/:id/history).
+ */
 exports.history = async (req, res) => {
   try {
     const query = getQuery();
@@ -195,6 +226,10 @@ exports.history = async (req, res) => {
   }
 };
 
+/**
+ * remove: API xóa sản phẩm khỏi cơ sở dữ liệu (DELETE /api/products/:id).
+ * Để tránh lỗi ràng buộc khóa ngoại (foreign key), thực hiện xóa các bản ghi thanh toán liên quan trong bảng payments trước.
+ */
 exports.remove = (req, res) => {
   const db = getDB();
   const productId = req.params.id;
@@ -214,6 +249,9 @@ exports.remove = (req, res) => {
   });
 };
 
+/**
+ * categories: API lấy danh sách tất cả các danh mục (category) duy nhất đang có trong bảng products (GET /api/products/categories).
+ */
 exports.categories = (req, res) => {
   const db = getDB();
   const q = `

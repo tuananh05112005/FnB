@@ -1,3 +1,12 @@
+// ==============================================================
+// TÊN FILE: StaffManagement.js
+// MÔ TẢ: Trang quản lý nhân viên và người dùng hệ thống dành cho Admin.
+//        - Xem danh sách người dùng & nhân viên từ backend.
+//        - Phân quyền vai trò (Admin, Staff, User).
+//        - Thêm nhân viên mới (navigate sang trang /admin/create-staff).
+//        - Chỉnh sửa thông tin nhân viên hoặc bật/tắt (Khóa/Kích hoạt) tài khoản.
+// ==============================================================
+
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Dropdown } from "react-bootstrap";
@@ -8,21 +17,25 @@ import {
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
+// Component quản lý tài khoản & phân quyền
 const UserManagement = () => {
-  const [userList, setUserList] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
-  const [formSubmitting, setFormSubmitting] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  // Khai báo các trạng thái dữ liệu người dùng
+  const [userList, setUserList] = useState([]);           // Toàn bộ danh sách người dùng lấy từ API
+  const [filteredUsers, setFilteredUsers] = useState([]);   // Danh sách người dùng sau khi lọc qua ô tìm kiếm
+  const [loading, setLoading] = useState(true);             // Trạng thái tải trang
+  const [error, setError] = useState("");                   // Lưu thông báo lỗi
+  const [showModal, setShowModal] = useState(false);         // Trạng thái hiển thị modal chỉnh sửa thông tin
+  const [editingUser, setEditingUser] = useState(null);     // Đối tượng người dùng đang được chỉnh sửa
+  const [formSubmitting, setFormSubmitting] = useState(false); // Trạng thái đang gửi form lưu thông tin
+  const [searchTerm, setSearchTerm] = useState("");         // Từ khóa tìm kiếm nhanh
+  const [showPassword, setShowPassword] = useState(false);   // Toggle hiển thị mật khẩu
   const navigate = useNavigate();
 
+  // Khai báo biểu mẫu dữ liệu và thông báo lỗi tương ứng
   const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   const [formErrors, setFormErrors] = useState({ name: "", email: "", password: "" });
 
+  // Tải danh sách người dùng từ API backend
   const fetchUsers = async () => {
     try {
       const res = await axios.get("http://localhost:5000/api/users/all");
@@ -35,6 +48,7 @@ const UserManagement = () => {
     }
   };
 
+  // Hàm xử lý tìm kiếm nhanh người dùng (theo tên, email, vai trò)
   const handleSearch = (term) => {
     setSearchTerm(term);
     if (!term) {
@@ -49,6 +63,7 @@ const UserManagement = () => {
     }
   };
 
+  // Trả về cấu hình icon, màu sắc và nhãn hiển thị tương ứng với vai trò (role)
   const getRoleInfo = (role) => {
     switch (role) {
       case "admin": return { icon: <FaUserShield />, color: "#ef4444", bg: "rgba(239,68,68,0.12)", label: "Admin" };
@@ -57,15 +72,19 @@ const UserManagement = () => {
     }
   };
 
+  // Trả về mã màu ngẫu nhiên cho Avatar dựa trên ký tự đầu tiên của tên người dùng
   const getAvatarColor = (name) => {
     const colors = ["#b45309","#92400e","#d97706","#a16207","#78350f","#c2410c","#9a3412"];
     const idx = name ? name.charCodeAt(0) % colors.length : 0;
     return colors[idx];
   };
 
+  // Tải danh sách người dùng khi mở màn hình quản lý
   useEffect(() => { fetchUsers(); }, []);
+  // Tự động lọc lại danh sách khi dữ liệu người dùng thay đổi hoặc có từ khóa mới
   useEffect(() => { handleSearch(searchTerm); }, [userList]);
 
+  // Xóa tài khoản người dùng
   const handleDelete = async (id) => {
     if (!window.confirm("Bạn có chắc muốn xóa người này?")) return;
     try {
@@ -74,12 +93,14 @@ const UserManagement = () => {
     } catch { setError("Không thể xóa người dùng."); }
   };
 
+  // Đặt lại các trường nhập liệu trong form về trạng thái trống
   const resetForm = () => {
     setFormData({ name: "", email: "", password: "" });
     setFormErrors({ name: "", email: "", password: "" });
     setEditingUser(null);
   };
 
+  // Kiểm tra tính hợp lệ của dữ liệu form nhập liệu
   const validateForm = () => {
     const errors = {};
     if (!formData.name.trim()) errors.name = "Tên không được để trống";
@@ -90,16 +111,19 @@ const UserManagement = () => {
     return Object.keys(errors).length === 0;
   };
 
+  // Lưu thông tin (thêm mới hoặc cập nhật) khi gửi form lên backend
   const handleSave = async () => {
     if (!validateForm()) return;
     setFormSubmitting(true);
     setError("");
     try {
       if (editingUser) {
+        // Nếu đang sửa đổi thông tin người dùng hiện tại
         const updateData = { name: formData.name, email: formData.email };
         if (formData.password.trim()) updateData.password = formData.password;
         await axios.put(`http://localhost:5000/api/users/${editingUser.id}`, updateData);
       } else {
+        // Nếu thêm mới một tài khoản nhân viên (Staff)
         await axios.post("http://localhost:5000/api/admin/create-staff", {
           name: formData.name, email: formData.email, password: formData.password,
         });
@@ -114,6 +138,7 @@ const UserManagement = () => {
     }
   };
 
+  // Mở modal popup chỉnh sửa thông tin người dùng
   const openEditModal = (user) => {
     setEditingUser(user);
     setFormData({ name: user.name, email: user.email, password: "" });

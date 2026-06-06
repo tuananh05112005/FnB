@@ -1,3 +1,13 @@
+// ==============================================================
+// TÊN FILE: PaymentPage.js
+// MÔ TẢ: Trang Thanh toán (PaymentPage) của hệ thống FnB.
+//        Thực hiện quy trình thanh toán đa bước: Nhập thông tin giao hàng,
+//        chọn vị trí giao hàng qua bản đồ tương tác (Leaflet/OpenStreetMap),
+//        lựa chọn phương thức thanh toán (Tiền mặt/Chuyển khoản QR),
+//        hiển thị mã QR ngân hàng động và tự động kiểm tra trạng thái thanh toán (polling).
+//        Trang sử dụng LocalStorage để khôi phục phiên thanh toán dở dang khi tải lại trang.
+// ==============================================================
+
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -23,6 +33,7 @@ import "../styles/dashboard.css";
 import "../styles/commerce.css";
 
 /* ── Leaflet icon fix ──────────────────────────────────────────── */
+// Khắc phục lỗi hiển thị marker icon của Leaflet trong React khi dùng Webpack
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
@@ -30,12 +41,15 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     require("leaflet/dist/images/marker-shadow.png"),
 });
 
+// Tọa độ mặc định (Thành phố Hồ Chí Minh)
 const DEFAULT_POSITION = [10.762622, 106.660172];
 const PAYMENT_SESSION_PREFIX = "fnb_payment_session";
 
+// Tạo key lưu session thanh toán theo userId
 const getPaymentSessionKey = (userId) =>
   `${PAYMENT_SESSION_PREFIX}_${userId || "guest"}`;
 
+// Đọc dữ liệu phiên thanh toán tạm thời từ LocalStorage
 const loadPaymentSession = (userId) => {
   try {
     const raw = localStorage.getItem(getPaymentSessionKey(userId));
@@ -45,15 +59,21 @@ const loadPaymentSession = (userId) => {
   }
 };
 
+// Ghi dữ liệu phiên thanh toán vào LocalStorage
 const savePaymentSession = (userId, payload) => {
   localStorage.setItem(getPaymentSessionKey(userId), JSON.stringify(payload));
 };
 
+// Xóa dữ liệu phiên thanh toán khỏi LocalStorage (khi giao dịch hoàn tất)
 const clearPaymentSession = (userId) => {
   localStorage.removeItem(getPaymentSessionKey(userId));
 };
 
 /* ── Map click handler ──────────────────────────────────────────── */
+/**
+ * MapClickHandler: Lắng nghe sự kiện click trên bản đồ.
+ * Gọi API Nominatim OpenStreetMap để dịch tọa độ thành địa chỉ chi tiết (reverse geocoding).
+ */
 function MapClickHandler({ onSelect }) {
   useMapEvents({
     click({ latlng: { lat, lng } }) {
@@ -68,6 +88,10 @@ function MapClickHandler({ onSelect }) {
 }
 
 /* ── Map Modal (native, no Bootstrap) ──────────────────────────── */
+/**
+ * MapModal: Hiển thị bản đồ Leaflet trong một modal.
+ * Giúp khách hàng chọn vị trí giao hàng trực quan trên bản đồ.
+ */
 function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm, onClose }) {
   if (!show) return null;
   return (
@@ -153,10 +177,16 @@ const PaymentPage = () => {
   const location = useLocation();
   const navigate  = useNavigate();
   const userId    = getUserId();
+
+  // Khôi phục session đã lưu từ localStorage (nếu có) để tránh mất thông tin khi reload
   const [savedSession] = useState(() => loadPaymentSession(userId));
   const [checkoutItem, setCheckoutItem] = useState(() => location.state?.item || savedSession?.item || null);
+  const [checkoutItems, setCheckoutItems] = useState(() => location.state?.items || savedSession?.items || []);
+  const [isCart, setIsCart] = useState(() => location.state?.isCart || savedSession?.isCart || false);
+  const [orderCode, setOrderCode] = useState(() => location.state?.orderCode || savedSession?.orderCode || null);
   const item = checkoutItem;
 
+  // Các State quản lý thông tin thanh toán, tiến trình và dữ liệu trả về từ API QR Code
   const [paymentInfo, setPaymentInfo] = useState(() => savedSession?.paymentInfo || { name: "", address: "", phone: "", paymentMethod: "cash" });
   const [currentStep,      setCurrentStep]      = useState(() => savedSession?.currentStep || 1);
   const [isSubmitting,     setIsSubmitting]      = useState(false);
@@ -168,23 +198,38 @@ const PaymentPage = () => {
   const [transactionCode,  setTransactionCode]   = useState(() => savedSession?.transactionCode || "");
   const [transferContent,  setTransferContent]   = useState(() => savedSession?.transferContent || "");
   const [bankInfo,         setBankInfo]          = useState(() => savedSession?.bankInfo || null);
-  const [error,            setError]             = useState("");
+  const [error,            setError]             =             useState("");
   const [sessionClosed,    setSessionClosed]     = useState(false);
 
+  // Cập nhật món hàng thanh toán từ state chuyển hướng của react-router-dom
   useEffect(() => {
     if (location.state?.item) {
       setCheckoutItem(location.state.item);
+      setCheckoutItems([]);
+      setIsCart(false);
+      setOrderCode(null);
+    } else if (location.state?.items) {
+      setCheckoutItems(location.state.items);
+      setCheckoutItem(null);
+      setIsCart(true);
+      setOrderCode(location.state.orderCode || null);
     }
   }, [location.state]);
 
-  /* Redirect if no product */
-  useEffect(() => { if (!item && !sessionClosed) navigate("/carts"); }, [item, navigate, sessionClosed]);
-
+  // Điều hướng về trang Giỏ hàng nếu không có món hàng nào để thanh toán
   useEffect(() => {
-    if (!item || sessionClosed) return;
+    if (!item && !checkoutItems.length && !sessionClosed) navigate("/carts");
+  }, [item, checkoutItems, navigate, sessionClosed]);
+
+  // Tự động lưu thông tin phiên thanh toán vào localStorage để lưu vết khi F5 trang
+  useEffect(() => {
+    if ((!item && !checkoutItems.length) || sessionClosed) return;
 
     savePaymentSession(userId, {
       item,
+      items: checkoutItems,
+      isCart,
+      orderCode,
       paymentInfo,
       currentStep,
       qrUrl,
@@ -197,6 +242,9 @@ const PaymentPage = () => {
   }, [
     userId,
     item,
+    checkoutItems,
+    isCart,
+    orderCode,
     paymentInfo,
     currentStep,
     qrUrl,
@@ -208,7 +256,7 @@ const PaymentPage = () => {
     sessionClosed,
   ]);
 
-  /* Polling QR payment status */
+  // Thiết lập vòng lặp kiểm tra (polling) trạng thái thanh toán chuyển khoản QR sau mỗi 3 giây
   useEffect(() => {
     if (!paymentId) return;
     const interval = setInterval(async () => {
@@ -222,11 +270,13 @@ const PaymentPage = () => {
     return () => clearInterval(interval);
   }, [paymentId]);
 
+  // Xử lý thay đổi dữ liệu trên form thông tin giao hàng
   const handlePaymentInfoChange = (e) => {
     const { name, value } = e.target;
     setPaymentInfo((p) => ({ ...p, [name]: value }));
   };
 
+  // Xác nhận thông tin giao hàng hợp lệ để chuyển qua bước 2 (Phương thức thanh toán)
   const handleNextStep = () => {
     if (!paymentInfo.name || !paymentInfo.address || !paymentInfo.phone) {
       setError("Vui lòng nhập đầy đủ thông tin giao hàng."); return;
@@ -237,16 +287,29 @@ const PaymentPage = () => {
     setError(""); setCurrentStep(2);
   };
 
+  // Tính tổng tiền cần thanh toán
+  const totalAmount = isCart
+    ? checkoutItems.reduce((sum, it) => sum + Number(it.price) * Number(it.quantity), 0)
+    : Number(item?.price || 0) * Number(item?.quantity || 0);
+
+  const firstProductId = isCart
+    ? (checkoutItems[0]?.product_id || checkoutItems[0]?.id)
+    : (item?.product_id || item?.id);
+
+  // Cấu trúc dữ liệu gửi lên Backend để khởi tạo thanh toán
   const basePayload = {
     user_id: userId || 1,
-    product_id: item?.product_id || item?.id,
+    product_id: firstProductId,
     name: paymentInfo.name,
     address: paymentInfo.address,
     phone: paymentInfo.phone,
     payment_method: paymentInfo.paymentMethod,
-    amount: Number(item?.price || 0) * Number(item?.quantity || 0),
+    amount: totalAmount,
+    is_cart: isCart, // Tells backend to complete entire cart
+    order_code: orderCode, // Send orderCode to server
   };
 
+  // Xử lý xác nhận thanh toán (nếu là chuyển khoản ngân hàng thì gọi sinh QR code động, ngược lại hoàn tất ngay)
   const handleConfirmPayment = async () => {
     setIsSubmitting(true); setError("");
     try {
@@ -272,17 +335,27 @@ const PaymentPage = () => {
     } finally { setIsSubmitting(false); }
   };
 
+  // Hoàn thành đơn hàng, dọn dẹp các state, xóa localStorage session và điều hướng về trang sản phẩm
   const handleFinish = () => {
     setSessionClosed(true);
     clearPaymentSession(userId);
     setCheckoutItem(null);
+    setCheckoutItems([]);
+    setIsCart(false);
+    setOrderCode(null);
     setPaymentInfo({ name: "", address: "", phone: "", paymentMethod: "cash" });
     setCurrentStep(1); setQrUrl(""); setPaymentId(null);
     setPaymentStatus(""); setTransactionCode(""); setTransferContent(""); setBankInfo(null);
+    
+    const active = localStorage.getItem("activeOrderCode");
+    if (active === orderCode) {
+      localStorage.removeItem("activeOrderCode");
+    }
+    
     navigate("/products");
   };
 
-  if (!item) return null;
+  if (!item && !checkoutItems.length) return null;
 
   return (
     <div className="dashboard-page">
@@ -347,7 +420,7 @@ const PaymentPage = () => {
             <div className="dashboard-panel-header">
               <h2 className="dashboard-panel-title">🛒 Sản phẩm</h2>
             </div>
-            <ProductInfo item={item} />
+            <ProductInfo item={item} items={checkoutItems} />
           </div>
         )}
 

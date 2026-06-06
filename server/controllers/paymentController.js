@@ -1,5 +1,22 @@
+// ==============================================================
+// TÊN FILE: paymentController.js
+// MÔ TẢ: Controller xử lý nghiệp vụ Thanh toán (Payment) của hệ thống FnB.
+//        Quản lý các luồng thanh toán Tiền mặt (Cash) và Chuyển khoản qua ngân hàng (VietQR).
+//        Tự động tích điểm thành viên (1 điểm cho mỗi 10.000 VNĐ chi tiêu), đồng bộ trạng thái
+//        giỏ hàng (status = 'completed'), tạo thông báo hệ thống và phát thông báo real-time
+//        qua Socket.io tới Admin/Nhân viên và Khách hàng khi có giao dịch thành công.
+// ==============================================================
+
 const { getDB, getQuery } = require("../config/db");
 
+/**
+ * markPaymentPaid: Hàm nội bộ xử lý nghiệp vụ khi một hóa đơn được xác nhận đã chuyển khoản thành công.
+ * - Cập nhật trạng thái thanh toán thành 'paid' trong bảng payments.
+ * - Cập nhật trạng thái giỏ hàng (cart) của món hàng tương ứng sang 'completed' (đã hoàn thành thanh toán).
+ * - Tích điểm cho thành viên (cộng 1 điểm cho mỗi 10.000 VNĐ).
+ * - Ghi nhận bản ghi thông báo mới cho khách hàng trong DB.
+ * - Phát các sự kiện Socket.io báo đơn hàng đã thanh toán thành công tới Admin/Nhân viên và Khách hàng.
+ */
 async function markPaymentPaid(payment, query) {
   if (payment.payment_status === "paid") {
     return { alreadyPaid: true, pointsEarned: 0 };
@@ -21,15 +38,43 @@ async function markPaymentPaid(payment, query) {
     return { alreadyPaid: true, pointsEarned: 0 };
   }
 
-  await query(
+  // Cập nhật trạng thái giỏ hàng bằng order_code (transaction_code)
+  const cartUpdateResult = await query(
     `
     UPDATE cart
     SET status = 'completed'
-    WHERE user_id = ?
-    AND product_id = ?
+    WHERE order_code = ?
     `,
-    [payment.user_id, payment.product_id],
+    [payment.transaction_code],
   );
+
+  const isCartPayment = payment.transaction_code && payment.transaction_code.startsWith("CART_");
+
+  // Fallback nếu không khớp order_code (dành cho giao dịch cũ)
+  if (cartUpdateResult.affectedRows === 0) {
+    if (isCartPayment) {
+      await query(
+        `
+        UPDATE cart
+        SET status = 'completed'
+        WHERE user_id = ?
+        AND status = 'pending'
+        `,
+        [payment.user_id],
+      );
+    } else {
+      await query(
+        `
+        UPDATE cart
+        SET status = 'completed'
+        WHERE user_id = ?
+        AND product_id = ?
+        AND status = 'pending'
+        `,
+        [payment.user_id, payment.product_id],
+      );
+    }
+  }
 
   const pointsEarned = Math.floor(payment.amount / 10000);
 
@@ -42,6 +87,48 @@ async function markPaymentPaid(payment, query) {
       `,
       [pointsEarned, payment.user_id],
     );
+  }
+
+  // Lấy tên các sản phẩm trong đơn hàng để tạo thông báo chi tiết
+  let displayProductName = "Đơn hàng";
+  const cartProducts = await query(
+    `
+    SELECT p.name 
+    FROM cart c 
+    JOIN products p ON c.product_id = p.id 
+    WHERE c.order_code = ?
+    `,
+    [payment.transaction_code]
+  );
+  if (cartProducts && cartProducts.length > 0) {
+    displayProductName = cartProducts.map(p => p.name).join(", ");
+  } else {
+    const products = await query("SELECT name FROM products WHERE id = ?", [payment.product_id]);
+    const productName = products.length ? products[0].name : "Sản phẩm";
+    displayProductName = isCartPayment ? "Giỏ hàng" : productName;
+  }
+
+  // Luu thong bao vao database cho khach hang
+  await query(
+    "INSERT INTO notifications (user_id, message) VALUES (?, ?)",
+    [payment.user_id, `Đơn hàng #${payment.transaction_code} (${displayProductName}) đã được thanh toán thành công.`]
+  );
+
+  if (global.io) {
+    global.io.to("managers").emit("orderPaid", {
+      id: payment.id,
+      user_id: payment.user_id,
+      name: payment.name,
+      amount: payment.amount,
+      payment_method: payment.payment_method,
+      productName: displayProductName
+    });
+    global.io.to(`user:${payment.user_id}`).emit("orderPaidCustomer", {
+      id: payment.id,
+      amount: payment.amount,
+      name: payment.name,
+      productName: displayProductName
+    });
   }
 
   return { alreadyPaid: false, pointsEarned };
@@ -64,6 +151,11 @@ CREATE PAYMENT
 ====================================================
 */
 
+/**
+ * create: API khởi tạo hóa đơn thanh toán mới (POST /api/payments).
+ * Hỗ trợ thanh toán tiền mặt (Cash) và chuyển khoản ngân hàng (Banking) tự sinh mã QR động (VietQR).
+ * Đồng thời áp dụng trừ điểm tích lũy hoặc voucher giảm giá nếu có.
+ */
 exports.create = async (req, res) => {
   const {
     user_id,
@@ -76,10 +168,20 @@ exports.create = async (req, res) => {
     voucher_id,
     use_points,
     generateQR,
+    is_cart,
+    order_code,
   } = req.body;
 
   try {
     const query = getQuery();
+
+    let productName = "Sản phẩm";
+    if (product_id) {
+      const products = await query("SELECT name FROM products WHERE id = ?", [product_id]);
+      if (products && products.length > 0) {
+        productName = products[0].name;
+      }
+    }
 
     /*
     ============================================
@@ -115,6 +217,9 @@ exports.create = async (req, res) => {
     */
 
     if (payment_method === "cash") {
+      const isCart = is_cart || false;
+      const transactionCode = order_code || (isCart ? `CART_DH${Date.now()}` : `DH${Date.now()}`);
+
       const result = await query(
         `
         INSERT INTO payments (
@@ -125,9 +230,10 @@ exports.create = async (req, res) => {
           phone,
           payment_method,
           amount,
-          payment_status
+          payment_status,
+          transaction_code
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           user_id,
@@ -138,6 +244,7 @@ exports.create = async (req, res) => {
           payment_method,
           amount,
           "paid",
+          transactionCode,
         ],
       );
 
@@ -147,15 +254,39 @@ exports.create = async (req, res) => {
       ============================================
       */
 
-      await query(
+      const cartUpdateResult = await query(
         `
         UPDATE cart
         SET status = 'completed'
-        WHERE user_id = ?
-        AND product_id = ?
+        WHERE order_code = ?
         `,
-        [user_id, product_id],
+        [transactionCode],
       );
+
+      if (cartUpdateResult.affectedRows === 0) {
+        if (isCart) {
+          await query(
+            `
+            UPDATE cart
+            SET status = 'completed'
+            WHERE user_id = ?
+            AND status = 'pending'
+            `,
+            [user_id],
+          );
+        } else {
+          await query(
+            `
+            UPDATE cart
+            SET status = 'completed'
+            WHERE user_id = ?
+            AND product_id = ?
+            AND status = 'pending'
+            `,
+            [user_id, product_id],
+          );
+        }
+      }
 
       /*
       ============================================
@@ -174,6 +305,48 @@ exports.create = async (req, res) => {
         [pointsEarned, user_id],
       );
 
+      // Lấy tên các sản phẩm trong đơn hàng để làm thông báo
+      let displayProductName = "Đơn hàng";
+      const cartProducts = await query(
+        `
+        SELECT p.name 
+        FROM cart c 
+        JOIN products p ON c.product_id = p.id 
+        WHERE c.order_code = ?
+        `,
+        [transactionCode]
+      );
+      if (cartProducts && cartProducts.length > 0) {
+        displayProductName = cartProducts.map(p => p.name).join(", ");
+      } else {
+        displayProductName = isCart ? "Giỏ hàng" : productName;
+      }
+
+      // Luu thong bao vao database cho khach hang
+      await query(
+        "INSERT INTO notifications (user_id, message) VALUES (?, ?)",
+        [user_id, `Đơn hàng #${transactionCode} (${displayProductName}) trị giá ${new Intl.NumberFormat("vi-VN").format(amount)}đ đã được thanh toán thành công (Tiền mặt).`]
+      );
+
+      if (global.io) {
+        global.io.to("managers").emit("newOrder", {
+          id: result.insertId,
+          user_id,
+          name,
+          amount,
+          payment_method: "cash",
+          payment_status: "paid",
+          productName: displayProductName,
+          created_at: new Date()
+        });
+        global.io.to(`user:${user_id}`).emit("orderPaidCustomer", {
+          id: result.insertId,
+          amount: amount,
+          name: name,
+          productName: displayProductName
+        });
+      }
+
       return res.status(201).json({
         success: true,
         message: "Thanh toan tien mat thanh cong",
@@ -188,7 +361,8 @@ exports.create = async (req, res) => {
     */
 
     if (payment_method === "banking" && generateQR) {
-      const transactionCode = `DH${Date.now()}`;
+      const isCart = is_cart || false;
+      const transactionCode = order_code || (isCart ? `CART_DH${Date.now()}` : `DH${Date.now()}`);
 
       const result = await query(
         `
@@ -239,6 +413,41 @@ exports.create = async (req, res) => {
         `&content=${encodeURIComponent(transferContent)}` +
         `&addInfo=${encodeURIComponent(transferContent)}`;
 
+      // Lấy tên các sản phẩm trong đơn hàng
+      let displayProductName = "Đơn hàng";
+      const cartProducts = await query(
+        `
+        SELECT p.name 
+        FROM cart c 
+        JOIN products p ON c.product_id = p.id 
+        WHERE c.order_code = ?
+        `,
+        [transactionCode]
+      );
+      if (cartProducts && cartProducts.length > 0) {
+        displayProductName = cartProducts.map(p => p.name).join(", ");
+      } else {
+        displayProductName = productName;
+      }
+
+      // Luu thong bao vao database cho khach hang
+      await query(
+        "INSERT INTO notifications (user_id, message) VALUES (?, ?)",
+        [user_id, `Đơn hàng #${transactionCode} (${displayProductName}) trị giá ${new Intl.NumberFormat("vi-VN").format(amount)}đ đã được tạo thành công (Chờ chuyển khoản).`]
+      );
+
+      if (global.io) {
+        global.io.to("managers").emit("newOrder", {
+          id: result.insertId,
+          user_id,
+          name,
+          amount,
+          payment_method: "banking",
+          payment_status: "pending",
+          productName: displayProductName,
+          created_at: new Date()
+        });
+      }
 
       return res.status(200).json({
         success: true,
@@ -274,6 +483,9 @@ GET PAYMENT STATUS
 ====================================================
 */
 
+/**
+ * getPaymentStatus: API tra cứu trạng thái thanh toán của hóa đơn bằng ID (GET /api/payments/status/:id).
+ */
 exports.getPaymentStatus = async (req, res) => {
   const { id } = req.params;
 
@@ -318,6 +530,9 @@ ADMIN LIST ALL PAYMENTS
 ====================================================
 */
 
+/**
+ * adminList: API lấy toàn bộ danh sách lịch sử thanh toán trong hệ thống (GET /api/admin/payments).
+ */
 exports.adminList = async (_req, res) => {
   try {
     const query = getQuery();
@@ -328,7 +543,39 @@ exports.adminList = async (_req, res) => {
         p.*,
         u.email,
         pr.name AS product_name,
-        pr.image
+        pr.image,
+        COALESCE(
+          (
+            SELECT c.status 
+            FROM cart c 
+            WHERE c.order_code = p.transaction_code 
+            LIMIT 1
+          ),
+          (
+            SELECT c.status 
+            FROM cart c 
+            WHERE c.user_id = p.user_id 
+              AND c.product_id = p.product_id 
+            ORDER BY ABS(TIMESTAMPDIFF(SECOND, c.updated_at, p.created_at)) ASC
+            LIMIT 1
+          )
+        ) AS status,
+        COALESCE(
+          (
+            SELECT c.id 
+            FROM cart c 
+            WHERE c.order_code = p.transaction_code 
+            LIMIT 1
+          ),
+          (
+            SELECT c.id 
+            FROM cart c 
+            WHERE c.user_id = p.user_id 
+              AND c.product_id = p.product_id 
+            ORDER BY ABS(TIMESTAMPDIFF(SECOND, c.updated_at, p.created_at)) ASC
+            LIMIT 1
+          )
+        ) AS cart_id
       FROM payments p
       JOIN users u ON p.user_id = u.id
       JOIN products pr ON p.product_id = pr.id
@@ -353,6 +600,9 @@ ADMIN LIST PENDING
 ====================================================
 */
 
+/**
+ * adminListPending: API lấy danh sách các giao dịch thanh toán chuyển khoản đang ở trạng thái chờ xử lý (pending) (GET /api/admin/payments/pending).
+ */
 exports.adminListPending = async (_req, res) => {
   try {
     const query = getQuery();
@@ -389,6 +639,9 @@ ADMIN CONFIRM PAYMENT
 ====================================================
 */
 
+/**
+ * adminConfirmPending: API cho phép Admin/Nhân viên phê duyệt thủ công một giao dịch chuyển khoản ngân hàng đang chờ (PUT /api/admin/payments/pending/:id/confirm).
+ */
 exports.adminConfirmPending = async (req, res) => {
   const { id } = req.params;
 
@@ -442,6 +695,9 @@ PAYMENT HISTORY BY USER
 ====================================================
 */
 
+/**
+ * historyByUser: API truy vấn danh sách lịch sử giao dịch mua sắm của một khách hàng cụ thể (GET /api/payments/history/:user_id).
+ */
 exports.historyByUser = async (req, res) => {
   const { user_id } = req.params;
 
@@ -460,7 +716,39 @@ exports.historyByUser = async (req, res) => {
         pr.name AS product_name,
         pr.image,
         pr.price,
-        pr.size
+        pr.size,
+        COALESCE(
+          (
+            SELECT c.status 
+            FROM cart c 
+            WHERE c.order_code = p.transaction_code 
+            LIMIT 1
+          ),
+          (
+            SELECT c.status 
+            FROM cart c 
+            WHERE c.user_id = p.user_id 
+              AND c.product_id = p.product_id 
+            ORDER BY ABS(TIMESTAMPDIFF(SECOND, c.updated_at, p.created_at)) ASC
+            LIMIT 1
+          )
+        ) AS status,
+        COALESCE(
+          (
+            SELECT c.id 
+            FROM cart c 
+            WHERE c.order_code = p.transaction_code 
+            LIMIT 1
+          ),
+          (
+            SELECT c.id 
+            FROM cart c 
+            WHERE c.user_id = p.user_id 
+              AND c.product_id = p.product_id 
+            ORDER BY ABS(TIMESTAMPDIFF(SECOND, c.updated_at, p.created_at)) ASC
+            LIMIT 1
+          )
+        ) AS cart_id
       FROM payments p
       JOIN products pr
       ON p.product_id = pr.id
@@ -487,6 +775,9 @@ DELETE PAYMENT
 ====================================================
 */
 
+/**
+ * remove: API xóa bản ghi lịch sử giao dịch khỏi cơ sở dữ liệu (DELETE /api/payments/:payment_id).
+ */
 exports.remove = async (req, res) => {
   const { payment_id } = req.params;
 

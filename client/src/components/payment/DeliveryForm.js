@@ -1,10 +1,18 @@
+// ==============================================================
+// TÊN FILE: DeliveryForm.js
+// MÔ TẢ: Hợp phần biểu mẫu điền thông tin giao hàng của khách hàng.
+//        - Cho phép nhập tên người nhận và số điện thoại.
+//        - Cho phép mở bản đồ (Leaflet/OSM) để chọn địa chỉ nhận hàng trực quan.
+// ==============================================================
+
 import { FaMapMarkerAlt, FaPhone, FaTruck, FaUser } from "react-icons/fa";
 
+// Component hiển thị Form thông tin giao hàng
 const DeliveryForm = ({
-  paymentInfo,
-  handlePaymentInfoChange,
-  handleOpenMap,
-  handleNextStep,
+  paymentInfo,              // Đối tượng chứa thông tin thanh toán (name, phone, address)
+  handlePaymentInfoChange,  // Hàm xử lý sự thay đổi dữ liệu trên các ô nhập liệu
+  handleOpenMap,            // Hàm kích hoạt mở modal bản đồ để chọn vị trí địa chỉ
+  handleNextStep,           // Hàm chuyển sang bước thanh toán tiếp theo
 }) => (
   <section className="dashboard-panel">
     <div className="dashboard-panel-header">

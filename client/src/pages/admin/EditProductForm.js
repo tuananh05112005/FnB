@@ -1,3 +1,11 @@
+// ==============================================================
+// TÊN FILE: EditProductForm.js
+// MÔ TẢ: Trang chỉnh sửa thông tin sản phẩm và theo dõi lịch sử chỉnh sửa dành cho Admin/Staff.
+//        - Tải thông tin sản phẩm từ backend bằng `getProduct`.
+//        - Gọi API lấy lịch sử chỉnh sửa sản phẩm (`/api/product/:id/history`).
+//        - Hỗ trợ đổi ảnh bằng gợi ý (ProductImagePicker) và sinh mô tả tự động (buildProductDescription).
+// ==============================================================
+
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FaArrowLeft, FaHistory, FaMagic, FaSave } from "react-icons/fa";
@@ -9,6 +17,7 @@ import { buildProductDescription, getImageNameSuggestion } from "../../utils/pro
 import "../../styles/dashboard.css";
 import "../../styles/commerce.css";
 
+// Khởi tạo trạng thái sản phẩm mặc định
 const defaultProduct = {
   image: "",
   code: "",
@@ -18,17 +27,20 @@ const defaultProduct = {
   size: "",
 };
 
+// Component chính chỉnh sửa sản phẩm
 const EditProductForm = () => {
-  const { id } = useParams();
+  const { id } = useParams(); // Lấy ID sản phẩm cần chỉnh sửa từ thanh địa chỉ URL
   const navigate = useNavigate();
 
-  const [editingProduct, setEditingProduct] = useState(defaultProduct);
-  const [history, setHistory] = useState([]);
-  const [showHistory, setShowHistory] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  // Khai báo các trạng thái của component
+  const [editingProduct, setEditingProduct] = useState(defaultProduct); // Dữ liệu sản phẩm đang chỉnh sửa
+  const [history, setHistory] = useState([]);                           // Lịch sử chỉnh sửa sản phẩm
+  const [showHistory, setShowHistory] = useState(false);                 // Toggle hiển thị lịch sử chỉnh sửa
+  const [isLoading, setIsLoading] = useState(true);                     // Trạng thái đang tải dữ liệu sản phẩm
+  const [error, setError] = useState("");                               // Lưu thông báo lỗi
+  const [successMessage, setSuccessMessage] = useState("");             // Lưu thông báo thành công
 
+  // Tải thông tin sản phẩm và lịch sử chỉnh sửa khi mở trang
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -50,11 +62,13 @@ const EditProductForm = () => {
     fetchData();
   }, [id]);
 
+  // Xử lý sự thay đổi dữ liệu của các ô nhập thông tin
   const handleInputChange = (event) => {
     const { name, value } = event.target;
     setEditingProduct((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Gửi yêu cầu cập nhật thông tin sản phẩm lên API backend
   const handleUpdateProduct = async () => {
     try {
       setError("");
@@ -211,7 +225,7 @@ const EditProductForm = () => {
                 disabled={!editingProduct.name}
               >
                 <FaMagic />
-                Goi y mo ta
+                Gợi ý mô tả
               </button>
             </div>
 

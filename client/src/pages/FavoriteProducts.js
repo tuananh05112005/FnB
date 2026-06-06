@@ -1,7 +1,19 @@
+// ==============================================================
+// TÊN FILE: FavoriteProducts.js
+// MÔ TẢ: Trang Danh sách sản phẩm yêu thích (FavoriteProducts) của khách hàng.
+//        Cho phép người dùng xem danh sách các đồ uống/bánh ngọt đã lưu,
+//        xem tổng giá trị danh sách yêu thích, thực hiện bỏ yêu thích từng món,
+//        thêm nhanh sản phẩm vào giỏ hàng hoặc xóa toàn bộ danh sách yêu thích.
+// ==============================================================
+
+/**
+ * Trang Sản phẩm yêu thích (FavoriteProducts): hiển thị danh sách sản phẩm mà người dùng đã lưu yêu thích.
+ * Cung cấp chức năng bỏ yêu thích, thêm vào giỏ, và xem chi tiết sản phẩm.
+ */
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FaHeart, FaRegHeart, FaCartPlus, FaStar,
+  FaHeart, FaCartPlus, FaStar,
   FaShoppingBag, FaTrash,
 } from "react-icons/fa";
 
@@ -9,13 +21,18 @@ import ProductImage from "../components/common/ProductImage";
 import { api } from "../lib/api";
 import { getUserId } from "../lib/session";
 import { addToCart } from "../services/cartService";
+import { useNotifications } from "../components/common/NotificationContext";
 import "../styles/dashboard.css";
 import "../styles/commerce.css";
 
+// Định dạng tiền tệ VNĐ (ví dụ: 45.000 ₫)
 const fmt = (n) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(Number(n) || 0);
 
 /* ── Skeleton card ─────────────────────────────────────────────── */
+/**
+ * SkeletonCard Component: Khung xương tải giả lập cho các thẻ sản phẩm.
+ */
 function SkeletonCard() {
   return (
     <div className="commerce-skeleton">
@@ -35,15 +52,19 @@ function SkeletonCard() {
 const FavoriteProducts = () => {
   const navigate = useNavigate();
   const userId = getUserId();
+  const { addNotification } = useNotifications();
 
+  // --- Các Hook State quản lý danh sách yêu thích ---
+  // products: Lưu danh sách sản phẩm yêu thích lấy từ API
   const [products, setProducts] = useState([]);
+  // loading: Trạng thái tải danh sách ban đầu
   const [loading,  setLoading]  = useState(true);
+  // error: Lưu thông tin lỗi hệ thống hiển thị cho người dùng
   const [error,    setError]    = useState("");
-  const [toast,    setToast]    = useState("");
-  const [adding,   setAdding]   = useState(null); // product id being added
+  // adding: Lưu ID sản phẩm đang tiến hành thêm vào giỏ hàng
+  const [adding,   setAdding]   = useState(null);
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2200); };
-
+  // Tải danh sách yêu thích khi component được mount (nếu chưa đăng nhập chuyển hướng về /login)
   useEffect(() => {
     if (!userId) { navigate("/login"); return; }
     api.get(`/api/favorites/${userId}`)
@@ -52,21 +73,34 @@ const FavoriteProducts = () => {
       .finally(() => setLoading(false));
   }, [navigate, userId]);
 
+  // Gọi API bỏ yêu thích một sản phẩm cụ thể và cập nhật lại state products
   const handleRemoveFavorite = async (productId, productName) => {
     try {
       await api.delete("/api/favorites", { data: { user_id: userId, product_id: productId } });
       setProducts((prev) => prev.filter((p) => p.id !== productId));
-      showToast(`❌ Đã bỏ yêu thích "${productName}"`);
+      addNotification(
+        "order_cancelled",
+        "💖 Yêu thích",
+        `Đã bỏ yêu thích "${productName}"`
+      );
     } catch {
       setError("Không thể cập nhật danh sách yêu thích.");
     }
   };
 
-  const handleAddToCart = async (product) => {
+  // Thêm nhanh sản phẩm yêu thích hiện hành vào giỏ hàng của người dùng (mặc định số lượng 1, size M)
+  const handleAddToCart = async (product, e) => {
     try {
       setAdding(product.id);
-      await addToCart(userId, product.id, 1, product.size || "M");
-      showToast(`✅ Đã thêm "${product.name}" vào giỏ!`);
+      const activeOrderCode = localStorage.getItem("activeOrderCode");
+      await addToCart(userId, product.id, 1, product.size || "M", activeOrderCode);
+
+      // Hiện thông báo toast
+      addNotification(
+        "new_order",
+        "🛒 Giỏ hàng",
+        `Đã thêm "${product.name}" vào giỏ hàng thành công!`
+      );
     } catch {
       setError("Không thể thêm sản phẩm vào giỏ hàng.");
     } finally {
@@ -75,22 +109,11 @@ const FavoriteProducts = () => {
   };
 
   /* ── Stat: total value of favorites ── */
+  // Tính tổng giá trị của toàn bộ các sản phẩm yêu thích trong danh sách
   const totalValue = products.reduce((s, p) => s + Number(p.price || 0), 0);
 
   return (
     <div className="dashboard-page">
-      {/* Toast */}
-      {toast && (
-        <div style={{
-          position: "fixed", top: 80, right: 24, zIndex: 9999,
-          background: "var(--color-surface)", border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-md)", padding: "12px 20px",
-          boxShadow: "var(--shadow-lg)", fontSize: "0.9rem", fontWeight: 600,
-          color: "var(--color-text)", animation: "fadeInDown 0.3s ease",
-        }}>
-          {toast}
-        </div>
-      )}
 
       <div className="dashboard-shell">
 
@@ -265,7 +288,7 @@ const FavoriteProducts = () => {
                           className="commerce-add-btn"
                           title="Thêm vào giỏ"
                           disabled={!available || adding === product.id}
-                          onClick={() => handleAddToCart(product)}
+                          onClick={(e) => handleAddToCart(product, e)}
                         >
                           {adding === product.id ? "⏳" : <FaCartPlus size={14} />}
                         </button>
@@ -301,7 +324,11 @@ const FavoriteProducts = () => {
                     await api.delete("/api/favorites", { data: { user_id: userId, product_id: p.id } }).catch(() => {});
                   }
                   setProducts([]);
-                  showToast("🗑️ Đã xóa toàn bộ yêu thích");
+                  addNotification(
+                    "order_cancelled",
+                    "💖 Yêu thích",
+                    "Đã xóa toàn bộ sản phẩm yêu thích"
+                  );
                 }}>
                 <FaTrash size={13} /> Xóa tất cả
               </button>

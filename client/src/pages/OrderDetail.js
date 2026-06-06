@@ -1,3 +1,11 @@
+// ==============================================================
+// TÊN FILE: OrderDetail.js
+// MÔ TẢ: Trang Chi tiết đơn hàng (OrderDetail) sử dụng React Bootstrap.
+//        Hiển thị chi tiết một đơn đặt hàng cụ thể (tên sản phẩm, hình ảnh,
+//        mã đơn, kích cỡ, phương thức thanh toán, thời gian đặt hàng và tổng tiền).
+//        Dữ liệu đơn hàng được truyền từ component cha thông qua React Router Location State.
+// ==============================================================
+
 // src/pages/OrderDetail.jsx
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -7,15 +15,18 @@ import { FaArrowLeft, FaBox, FaCalendarAlt, FaCreditCard, FaTag, FaRulerCombined
 const OrderDetail = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Nhận dữ liệu đơn hàng được truyền qua state khi chuyển hướng (ví dụ từ trang History)
   const order = location.state?.order;
 
+  // Định dạng số tiền tệ VNĐ (ví dụ: 30.000 ₫), trả về "N/A" nếu không có giá trị hợp lệ
   const formatCurrency = (value) => {
     return value
       ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value)
       : "N/A";
   };
 
-
+  // Nếu người dùng truy cập trực tiếp mà không qua chuyển hướng (không có order trong state)
   if (!order) {
     return (
       <div className="container py-5">

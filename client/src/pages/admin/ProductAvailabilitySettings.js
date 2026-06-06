@@ -1,3 +1,11 @@
+// ==============================================================
+// TÊN FILE: ProductAvailabilitySettings.js
+// MÔ TẢ: Cài đặt hệ thống bán hàng dành cho Admin bao gồm:
+//        - Cài đặt món ăn: Bật/tắt trạng thái hiển thị của món (is_available).
+//        - Cài đặt menu: Đổi tên quán, tên topbar, ảnh banner và mô tả menu.
+//        - Cài đặt danh mục: Ẩn/hiển thị danh mục, kéo thả/sắp xếp thứ tự danh mục.
+// ==============================================================
+
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -33,27 +41,31 @@ import {
 import "../../styles/dashboard.css";
 import "../../styles/commerce.css";
 
+// Component cài đặt hệ thống Admin
 const ProductAvailabilitySettings = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams(); // Sử dụng React Router Search Params để lưu trữ tab cài đặt hiện tại
 
+  // Nhận diện tab cài đặt hiện tại đang hoạt động
   const tab = searchParams.get("tab");
   const activeSetting =
     tab === "products" || tab === "menu" || tab === "categories" ? tab : null;
 
-  const [categoryForm, setCategoryForm] = useState(DEFAULT_CATEGORY_SETTINGS);
-  const [menuForm, setMenuForm] = useState(getMenuSettings);
-  const [products, setProducts] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [availabilityFilter, setAvailabilityFilter] = useState("all");
-  const [updatingId, setUpdatingId] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-  const [prodPage, setProdPage] = useState(1);
+  // Khai báo các trạng thái biểu mẫu cài đặt và danh sách sản phẩm
+  const [categoryForm, setCategoryForm] = useState(DEFAULT_CATEGORY_SETTINGS); // Dữ liệu form cài đặt danh mục
+  const [menuForm, setMenuForm] = useState(getMenuSettings);                     // Dữ liệu form cài đặt giao diện menu
+  const [products, setProducts] = useState([]);                                 // Danh sách các sản phẩm (món ăn) lấy từ API
+  const [searchTerm, setSearchTerm] = useState("");                             // Từ khóa tìm kiếm sản phẩm nhanh
+  const [availabilityFilter, setAvailabilityFilter] = useState("all");           // Bộ lọc trạng thái món (Tất cả, Đang bán, Hết món)
+  const [updatingId, setUpdatingId] = useState(null);                           // ID sản phẩm đang cập nhật trạng thái hiển thị
+  const [isLoading, setIsLoading] = useState(true);                             // Trạng thái đang tải dữ liệu
+  const [error, setError] = useState("");                                       // Lưu thông báo lỗi
+  const [successMessage, setSuccessMessage] = useState("");                     // Lưu thông báo thành công
+  const [prodPage, setProdPage] = useState(1);                                 // Trang hiện tại khi phân trang món ăn
 
-  const PROD_PAGE_SIZE = 10;
+  const PROD_PAGE_SIZE = 10; // Kích thước phân trang món ăn hiển thị
 
+  // Effect 1: Tải danh sách món ăn từ backend khi vào trang
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -72,7 +84,7 @@ const ProductAvailabilitySettings = () => {
     fetchProducts();
   }, []);
 
-  // Load category settings when component mounts
+  // Effect 2: Tải cấu hình cài đặt danh mục từ localStorage/backend khi tải trang
   useEffect(() => {
     const loadCategory = async () => {
       try {

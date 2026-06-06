@@ -10,6 +10,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { api } from "../../lib/api";
+import socket from "../../lib/socket";
 import Pagination from "../../components/common/Pagination";
 import "../../styles/dashboard.css";
 import "react-datepicker/dist/react-datepicker.css";
@@ -38,20 +39,23 @@ const STATUS_BADGE = {
 
 const getBadge = (s) => STATUS_BADGE[s] || STATUS_BADGE.pending;
 
+// Component chính quản lý danh sách đơn hàng dành cho Admin/Staff
 const OrderList = () => {
   const navigate = useNavigate();
 
-  const [orders,         setOrders]         = useState([]);
-  const [loading,        setLoading]        = useState(true);
-  const [activeStatus,   setActiveStatus]   = useState("all");
-  const [search,         setSearch]         = useState("");
-  const [startDateInput, setStartDateInput] = useState(null);
-  const [endDateInput,   setEndDateInput]   = useState(null);
-  const [startDate,      setStartDate]      = useState(null);
-  const [endDate,        setEndDate]        = useState(null);
-  const [showFilter,     setShowFilter]     = useState(false);
-  const [page,           setPage]           = useState(1);
+  // Khai báo các State
+  const [orders,         setOrders]         = useState([]); // Danh sách toàn bộ đơn hàng/giao dịch lấy từ API
+  const [loading,        setLoading]        = useState(true); // Trạng thái tải trang
+  const [activeStatus,   setActiveStatus]   = useState("all"); // Bộ lọc trạng thái đơn hàng đang chọn (All, Pending, Completed, Received, Cancelled)
+  const [search,         setSearch]         = useState(""); // Nội dung ô tìm kiếm (email, tên, mã đơn)
+  const [startDateInput, setStartDateInput] = useState(null); // Ngày bắt đầu lọc (ở ô nhập liệu)
+  const [endDateInput,   setEndDateInput]   = useState(null); // Ngày kết thúc lọc (ở ô nhập liệu)
+  const [startDate,      setStartDate]      = useState(null); // Ngày bắt đầu lọc chính thức áp dụng
+  const [endDate,        setEndDate]        = useState(null); // Ngày kết thúc lọc chính thức áp dụng
+  const [showFilter,     setShowFilter]     = useState(false); // Trạng thái hiển thị form lọc theo ngày
+  const [page,           setPage]           = useState(1); // Trang hiện tại (Pagination)
 
+  // Effect 1: Tải danh sách đơn hàng từ API khi mở trang
   useEffect(() => {
     const load = async () => {
       try {
@@ -66,6 +70,51 @@ const OrderList = () => {
     load();
   }, []);
 
+  // Effect 2: Đăng ký các sự kiện Socket.io để đồng bộ trạng thái đơn hàng thời gian thực (Real-time)
+  useEffect(() => {
+    // Lắng nghe khi khách hàng xác nhận đã nhận hàng thành công
+    const handleOrderDelivered = (data) => {
+      setOrders((prev) =>
+        prev.map((o) => (o.cart_id === Number(data.id) ? { ...o, status: "received" } : o))
+      );
+    };
+
+    // Lắng nghe khi đơn hàng bị hủy
+    const handleOrderCancelled = (data) => {
+      setOrders((prev) =>
+        prev.map((o) => (o.cart_id === Number(data.id) ? { ...o, status: "cancelled" } : o))
+      );
+    };
+
+    // Lắng nghe khi Admin hoặc quy trình tự động cập nhật trạng thái đơn hàng
+    const handleOrderStatusUpdated = (data) => {
+      setOrders((prev) =>
+        prev.map((o) => (o.cart_id === Number(data.orderId) ? { ...o, status: data.status } : o))
+      );
+    };
+
+    // Lắng nghe khi đơn hàng banking hoàn tất thanh toán thành công
+    const handleOrderPaid = (data) => {
+      setOrders((prev) =>
+        prev.map((o) => (o.id === Number(data.id) ? { ...o, status: "completed" } : o))
+      );
+    };
+
+    socket.on("orderDelivered", handleOrderDelivered);
+    socket.on("orderCancelled", handleOrderCancelled);
+    socket.on("orderStatusUpdated", handleOrderStatusUpdated);
+    socket.on("orderPaid", handleOrderPaid);
+
+    // Hủy đăng ký listener khi component unmount
+    return () => {
+      socket.off("orderDelivered", handleOrderDelivered);
+      socket.off("orderCancelled", handleOrderCancelled);
+      socket.off("orderStatusUpdated", handleOrderStatusUpdated);
+      socket.off("orderPaid", handleOrderPaid);
+    };
+  }, []);
+
+  // useMemo: Lọc danh sách đơn hàng dựa trên trạng thái, khoảng ngày và từ khóa tìm kiếm
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
       const d = new Date(o.created_at || o.order_date);
@@ -80,6 +129,7 @@ const OrderList = () => {
     });
   }, [activeStatus, endDate, orders, startDate, search]);
 
+  // useMemo: Tính toán các số liệu thống kê đơn hàng (Tổng doanh thu, số lượng đơn theo hình thức thanh toán/trạng thái)
   const stats = useMemo(() => {
     const cash    = filteredOrders.filter((o) => o.payment_method === "cash");
     const banking = filteredOrders.filter((o) => o.payment_method !== "cash");
@@ -95,6 +145,7 @@ const OrderList = () => {
     };
   }, [filteredOrders]);
 
+  // Hàm handleDelete: Gửi yêu cầu xóa giao dịch đơn hàng lên server
   const handleDelete = async (id) => {
     if (!window.confirm("Bạn có chắc muốn xóa đơn hàng này?")) return;
     try {

@@ -1,0 +1,497 @@
+/* src/components/common/NotificationToast.css */
+
+.notification-toast-container {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 380px;
+  width: calc(100% - 48px);
+  pointer-events: none; /* Tránh cản trở click chuột vào các phần tử dưới */
+}
+
+/* Base Toast Style với hiệu ứng Glassmorphism cao cấp */
+.notification-toast {
+  pointer-events: auto; /* Cho phép tương tác bên trong toast */
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  padding: 16px 20px 18px 20px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08), 
+              0 4px 12px rgba(0, 0, 0, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+/* Hỗ trợ chế độ Dark Mode của hệ thống */
+[data-theme="dark"] .notification-toast {
+  background: rgba(26, 26, 26, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* Các loại thông báo khác nhau */
+.notification-toast.new_order {
+  border-left: 5px solid var(--color-brand, #8B5A2B);
+}
+
+.notification-toast.payment_success,
+.notification-toast.payment_success_customer,
+.notification-toast.order_delivered {
+  border-left: 5px solid #10b981; /* Emerald/Green */
+}
+
+.notification-toast.status_updated {
+  border-left: 5px solid #3b82f6; /* Blue */
+}
+
+.notification-toast.order_cancelled {
+  border-left: 5px solid #ef4444; /* Red */
+}
+
+/* Header của Toast */
+.notification-toast-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.notification-toast-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .notification-toast-icon-wrap {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.notification-toast-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text, #2d3748);
+  flex-grow: 1;
+}
+
+[data-theme="dark"] .notification-toast-title {
+  color: #f7fafc;
+}
+
+.notification-toast-close-btn {
+  background: none;
+  border: none;
+  color: #a0aec0;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.notification-toast-close-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #4a5568;
+}
+
+[data-theme="dark"] .notification-toast-close-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #edf2f7;
+}
+
+/* Body của Toast */
+.notification-toast-body {
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--color-text-muted, #718096);
+  padding-left: 44px;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .notification-toast-body {
+  color: #cbd5e0;
+}
+
+/* Progress bar chạy co lại biểu thị thời gian đóng toast */
+.notification-toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.06);
+  transform-origin: left;
+  animation: toast-progress-anim 30s linear forwards;
+}
+
+.notification-toast.new_order .notification-toast-progress {
+  background: var(--color-brand, #8B5A2B);
+  opacity: 0.45;
+}
+
+.notification-toast.payment_success .notification-toast-progress,
+.notification-toast.payment_success_customer .notification-toast-progress,
+.notification-toast.order_delivered .notification-toast-progress {
+  background: #10b981;
+  opacity: 0.45;
+}
+
+.notification-toast.status_updated .notification-toast-progress {
+  background: #3b82f6;
+  opacity: 0.45;
+}
+
+.notification-toast.order_cancelled .notification-toast-progress {
+  background: #ef4444;
+  opacity: 0.45;
+}
+
+[data-theme="dark"] .notification-toast-progress {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Hiệu ứng trượt và mờ dần */
+.animate-slide-in {
+  animation: slide-in-toast 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Keyframes */
+@keyframes slide-in-toast {
+  0% {
+    opacity: 0;
+    transform: translateX(110%) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes toast-progress-anim {
+  0% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+/* Phản hồi trên thiết bị di động */
+@media (max-width: 480px) {
+  .notification-toast-container {
+    top: 16px;
+    right: 24px;
+    left: 24px;
+    width: auto;
+  }
+}
+
+/* ── Dropdown thông báo ── */
+.app-notify-container {
+  position: relative;
+  display: inline-block;
+}
+
+.app-icon-btn-notify {
+  position: relative;
+}
+
+.app-notify-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 800;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-shadow: 0 0 0 2px var(--color-bg, #ffffff), 0 2px 4px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  animation: pulse-badge 2s infinite;
+}
+
+[data-theme="dark"] .app-notify-badge {
+  box-shadow: 0 0 0 2px #18181b, 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes pulse-badge {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.app-notify-dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: -10px;
+  width: 360px;
+  max-height: 480px;
+  border-radius: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 
+              0 1px 3px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  animation: dropdown-fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .app-notify-dropdown {
+  background: rgba(30, 30, 40, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes dropdown-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.app-notify-dropdown-header {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .app-notify-dropdown-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.app-notify-dropdown-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--color-text, #1a202c);
+}
+
+[data-theme="dark"] .app-notify-dropdown-header h3 {
+  color: #f7fafc;
+}
+
+.app-notify-dropdown-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.app-notify-action-btn {
+  background: none;
+  border: none;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #3b82f6;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.app-notify-action-btn:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.app-notify-action-btn.clear {
+  color: #e11d48;
+}
+
+.app-notify-action-btn.clear:hover:not(:disabled) {
+  background: rgba(225, 29, 72, 0.08);
+}
+
+.app-notify-action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.app-notify-dropdown-list {
+  overflow-y: auto;
+  flex-grow: 1;
+  max-height: 380px;
+}
+
+.app-notify-dropdown-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.app-notify-dropdown-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-notify-dropdown-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+[data-theme="dark"] .app-notify-dropdown-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.app-notify-dropdown-empty {
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #a0aec0;
+  text-align: center;
+  gap: 12px;
+}
+
+.app-notify-dropdown-empty .empty-icon {
+  opacity: 0.4;
+}
+
+.app-notify-dropdown-empty p {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.app-notify-item {
+  display: flex;
+  padding: 14px 20px;
+  gap: 14px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+  position: relative;
+  align-items: flex-start;
+}
+
+[data-theme="dark"] .app-notify-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.app-notify-item:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="dark"] .app-notify-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.app-notify-item.unread {
+  background: rgba(59, 130, 246, 0.04);
+}
+
+[data-theme="dark"] .app-notify-item.unread {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.app-notify-item.unread:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.app-notify-item-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .app-notify-item-icon-wrap {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.app-notify-item-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-notify-item-title {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-text, #2d3748);
+}
+
+[data-theme="dark"] .app-notify-item-title {
+  color: #edf2f7;
+}
+
+.app-notify-item-msg {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--color-text-muted, #718096);
+  font-weight: 500;
+}
+
+[data-theme="dark"] .app-notify-item-msg {
+  color: #a0aec0;
+}
+
+.app-notify-item-time {
+  font-size: 0.72rem;
+  color: #a0aec0;
+  font-weight: 600;
+}
+
+.app-notify-item-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3b82f6;
+  position: absolute;
+  top: 18px;
+  right: 20px;
+}
+
+/* Responsive adjustment for Mobile */
+@media (max-width: 768px) {
+  .app-notify-dropdown {
+    position: fixed;
+    top: 60px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+    max-height: calc(100vh - 80px);
+  }
+}

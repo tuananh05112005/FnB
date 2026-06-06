@@ -14,7 +14,7 @@ const FALLBACK_IMAGE =
       <rect width="640" height="640" fill="url(#bg)"/>
       <circle cx="320" cy="270" r="112" fill="#ffffff" opacity="0.8"/>
       <path d="M218 344c26-68 76-108 135-108 48 0 87 27 109 75 10 22-6 47-30 47H245c-20 0-34-18-27-14Z" fill="#7c3aed" opacity="0.18"/>
-      <text x="320" y="405" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#475569">Anh dang duoc cap nhat</text>
+      <text x="320" y="405" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#475569">Ảnh đang được cập nhật</text>
     </svg>
   `);
 

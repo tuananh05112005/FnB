@@ -1,3 +1,11 @@
+// ==============================================================
+// TÊN FILE: Sidebar.js
+// MÔ TẢ: Hợp phần thanh điều hướng bên (Sidebar) của toàn bộ ứng dụng.
+//        - Phân chia danh mục chức năng theo quyền hạn người dùng (Admin, Staff, User).
+//        - Lấy cấu hình hiển thị danh mục sản phẩm real-time từ API.
+//        - Hỗ trợ giao diện Responsive trên Desktop và Mobile.
+// ==============================================================
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
@@ -26,20 +34,23 @@ import { applyCategorySettings } from "../../lib/categorySettings";
 import { api } from "../../lib/api";
 import { clearSession, decodeTokenPayload, getSession } from "../../lib/session";
 
+// Component Sidebar chính nhận trạng thái đóng/mở làm thuộc tính
 const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
-  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 992);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAccountOpen, setIsAccountOpen] = useState(false);
-  const [isProductOpen, setIsProductOpen] = useState(false);
-  const [userRole, setUserRole] = useState("");
-  const [categories, setCategories] = useState([]);
-  const categorySettings = useCategorySettings();
-  const menuSettings = useMenuSettings();
+  // Định nghĩa các trạng thái giao diện và phiên đăng nhập
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 992); // Nhận diện thiết bị PC/Desktop
+  const [isLoggedIn, setIsLoggedIn] = useState(false);                 // Trạng thái đã đăng nhập
+  const [isAccountOpen, setIsAccountOpen] = useState(false);           // Toggle danh sách tài khoản
+  const [isProductOpen, setIsProductOpen] = useState(false);           // Toggle danh sách món ăn
+  const [userRole, setUserRole] = useState("");                         // Vai trò của người dùng (admin/staff/user)
+  const [categories, setCategories] = useState([]);                     // Danh sách phân loại sản phẩm
+  const categorySettings = useCategorySettings();                       // Hook tùy chỉnh thứ tự danh mục
+  const menuSettings = useMenuSettings();                               // Hook cấu hình tên quán & banner
 
   const sidebarRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Effect 1: Theo dõi kích thước màn hình để tự động cập nhật ẩn/hiện Sidebar tương ứng
   useEffect(() => {
     const updateViewport = () => {
       const desktop = window.innerWidth >= 992;
@@ -52,6 +63,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
     return () => window.removeEventListener("resize", updateViewport);
   }, [setIsSidebarOpen]);
 
+  // Effect 2: Đồng bộ phiên đăng nhập (token, vai trò người dùng) khi mở trang hoặc thay đổi Storage
   useEffect(() => {
     const syncSession = () => {
       const session = getSession();
@@ -66,6 +78,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
     return () => window.removeEventListener("storage", syncSession);
   }, []);
 
+  // Effect 3: Tải danh mục sản phẩm từ backend để hiển thị trên Sidebar
   useEffect(() => {
     api
       .get("/api/product-categories")
@@ -73,10 +86,12 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
       .catch((error) => console.error("Failed to load categories:", error));
   }, []);
 
+  // Effect 4: Tự động mở danh sách danh mục nếu đường dẫn bắt đầu bằng "/products"
   useEffect(() => {
     setIsProductOpen(location.pathname.startsWith("/products"));
   }, [location.pathname]);
 
+  // Effect 5: Đóng Sidebar khi nhấp chuột ra ngoài cửa sổ menu trên giao diện di động
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -93,12 +108,14 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isDesktop, isSidebarOpen, setIsSidebarOpen]);
 
+  // Đóng Sidebar dành cho thiết bị di động
   const closeMobileSidebar = () => {
     if (!isDesktop) {
       setIsSidebarOpen(false);
     }
   };
 
+  // Xử lý sự kiện đăng xuất: xóa phiên, chuyển hướng về trang Đăng nhập
   const handleLogout = () => {
     clearSession();
     setIsLoggedIn(false);
@@ -108,31 +125,32 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
   };
 
   const baseItems = useMemo(
-    () => [
-      { to: "/", label: "Trang chủ", icon: Home, accent: "purple" },
-      { to: "/carts", label: "Giỏ hàng", icon: ShoppingCart, accent: "green" },
-      userRole === "admin"
-        ? { to: "/admin/statistics", label: "Thống kê", icon: BarChart3, accent: "amber" }
-        : null,
-      userRole === "admin"
-        ? { to: "/admin/staffs", label: "Quản lý nhân viên", icon: Users, accent: "pink" }
-        : null,
-      userRole === "admin" || userRole === "staff"
-        ? { to: "/orders", label: "Lịch sử giao dịch", icon: History, accent: "violet" }
-        : null,
-      userRole === "user"
-        ? { to: "/history", label: "Lịch sử giao dịch", icon: History, accent: "violet" }
-        : null,
-      userRole === "user"
-        ? { to: "/favorite-products", label: "Yêu thích", icon: FaHeart, accent: "rose" }
-        : null,
-      userRole === "user" || userRole === "admin"
-        ? { to: "/wallet", label: "Ưu đãi", icon: Gift, accent: "gold" }
-        : null,
-      userRole === "admin" || userRole === "staff" || userRole === "user"
-        ? { to: "/admin/settings", label: "Cài đặt", icon: Settings, accent: "slate" }
-        : null,  
-    ].filter(Boolean),
+    () =>
+      [
+        { to: "/", label: "Trang chủ", icon: Home, accent: "purple" },
+        { to: "/carts", label: "Giỏ hàng", icon: ShoppingCart, accent: "green" },
+        userRole === "admin"
+          ? { to: "/admin/statistics", label: "Thống kê", icon: BarChart3, accent: "amber" }
+          : null,
+        userRole === "admin"
+          ? { to: "/admin/staffs", label: "Quản lý nhân viên", icon: Users, accent: "pink" }
+          : null,
+        userRole === "admin" || userRole === "staff"
+          ? { to: "/orders", label: "Lịch sử giao dịch", icon: History, accent: "violet" }
+          : null,
+        userRole === "user"
+          ? { to: "/history", label: "Lịch sử giao dịch", icon: History, accent: "violet" }
+          : null,
+        userRole === "user"
+          ? { to: "/favorite-products", label: "Yêu thích", icon: FaHeart, accent: "rose" }
+          : null,
+        userRole === "user" || userRole === "admin"
+          ? { to: "/wallet", label: "Ưu đãi", icon: Gift, accent: "gold" }
+          : null,
+        userRole === "admin" || userRole === "staff" || userRole === "user"
+          ? { to: "/admin/settings", label: "Cài đặt", icon: Settings, accent: "slate" }
+          : null,
+      ].filter(Boolean),
     [userRole]
   );
 
@@ -153,6 +171,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
       key={to}
       to={to}
       end={to === "/"}
+      id={to === "/carts" ? "sidebar-cart-btn" : undefined}
       className={({ isActive }) =>
         `sidebar-nav-link ${isActive ? "sidebar-nav-link-active" : ""}`
       }

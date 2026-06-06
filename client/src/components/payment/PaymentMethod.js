@@ -1,3 +1,10 @@
+// ==============================================================
+// TÊN FILE: PaymentMethod.js
+// MÔ TẢ: Hợp phần lựa chọn phương thức thanh toán.
+//        - Cung cấp 2 lựa chọn: Tiền mặt (Cash) và Chuyển khoản (Banking).
+//        - Hiển thị các nút quay lại bước cũ hoặc xác nhận thanh toán/đặt hàng.
+// ==============================================================
+
 import {
   FaArrowLeft,
   FaCheckCircle,
@@ -6,12 +13,13 @@ import {
   FaMoneyBillWave,
 } from "react-icons/fa";
 
+// Component hiển thị các phương thức thanh toán
 const PaymentMethod = ({
-  paymentInfo,
-  handlePaymentInfoChange,
-  handlePrevStep,
-  handleConfirmPayment,
-  isSubmitting,
+  paymentInfo,              // Đối tượng chứa thông tin thanh toán (paymentMethod)
+  handlePaymentInfoChange,  // Hàm xử lý khi thay đổi phương thức thanh toán qua radio button
+  handlePrevStep,           // Hàm quay lại bước nhập thông tin trước đó
+  handleConfirmPayment,     // Hàm xử lý xác nhận đặt hàng và thanh toán
+  isSubmitting,             // Trạng thái đang gửi yêu cầu lên server
 }) => (
   <div className="payment-method-panel">
     <div className="payment-section-kicker">

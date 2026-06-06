@@ -1,7 +1,18 @@
-// controllers/userController.js
+// ==============================================================
+// TÊN FILE: userController.js
+// MÔ TẢ: Bộ điều khiển quản lý tài khoản người dùng và nhân viên (User Management).
+//        - Lấy toàn bộ người dùng (loại trừ Admin) phục vụ quản trị.
+//        - Cập nhật vai trò (phân quyền: user/staff/admin).
+//        - Xóa tài khoản người dùng (ngăn chặn xóa tài khoản admin).
+//        - Cập nhật thông tin cơ bản của người dùng (hỗ trợ đổi mật khẩu mã hóa).
+//        - Thay đổi trạng thái khóa/kích hoạt hoạt động của tài khoản (`is_active`).
+//        - Tạo mới tài khoản nhân viên (Staff) và lấy danh sách nhân viên.
+// ==============================================================
+
 const bcrypt = require("bcryptjs");
 const { getDB, getQuery } = require("../config/db");
 
+// Lấy danh sách toàn bộ người dùng và nhân viên trong hệ thống (loại bỏ vai trò admin)
 exports.getAll = async (req, res) => {
   try {
     const query = getQuery();
@@ -15,6 +26,7 @@ exports.getAll = async (req, res) => {
   }
 };
 
+// Cập nhật vai trò / phân quyền của người dùng (chỉ cho phép các vai trò hợp lệ)
 exports.updateRole = async (req, res) => {
   const { id } = req.params;
   const { role } = req.body;
@@ -31,6 +43,7 @@ exports.updateRole = async (req, res) => {
   }
 };
 
+// Xóa tài khoản người dùng theo ID (không được phép xóa tài khoản của admin)
 exports.remove = async (req, res) => {
   const { id } = req.params;
   try {
@@ -48,16 +61,19 @@ exports.remove = async (req, res) => {
   }
 };
 
+// Cập nhật thông tin chi tiết người dùng (có thể cập nhật mật khẩu mới nếu được gửi lên)
 exports.update = async (req, res) => {
   const { id } = req.params;
   const { name, email, password } = req.body;
   try {
     const query = getQuery();
     if (password) {
+      // Nếu có đổi mật khẩu, tiến hành băm mật khẩu trước khi lưu
       const hashedPassword = bcrypt.hashSync(password, 8);
       await query("UPDATE users SET name = ?, email = ?, password = ? WHERE id = ?",
         [name, email, hashedPassword, id]);
     } else {
+      // Nếu không đổi mật khẩu, chỉ lưu tên và email
       await query("UPDATE users SET name = ?, email = ? WHERE id = ?",
         [name, email, id]);
     }
@@ -68,6 +84,7 @@ exports.update = async (req, res) => {
   }
 };
 
+// Khóa hoặc Mở khóa hoạt động của tài khoản người dùng (cột is_active)
 exports.updateStatus = (req, res) => {
   const db = getDB();
   const { id } = req.params;
@@ -79,14 +96,17 @@ exports.updateStatus = (req, res) => {
   });
 };
 
+// Tạo tài khoản nhân viên (Staff) mới
 exports.createStaff = async (req, res) => {
   const { name, email, password } = req.body;
   try {
     const query = getQuery();
     const hashedPassword = bcrypt.hashSync(password, 8);
+    // Kiểm tra xem email muốn tạo đã tồn tại trên hệ thống chưa
     const [exist] = await query("SELECT * FROM users WHERE email = ?", [email]);
     if (exist) return res.status(400).json({ message: "Email đã tồn tại" });
 
+    // Tạo tài khoản mới gán cứng quyền là 'staff'
     await query(
       "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'staff')",
       [name, email, hashedPassword]
@@ -98,6 +118,7 @@ exports.createStaff = async (req, res) => {
   }
 };
 
+// Lấy danh sách tài khoản thuộc bộ phận nhân viên (role = 'staff')
 exports.getStaffs = async (_req, res) => {
   try {
     const query = getQuery();
