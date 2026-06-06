@@ -5,14 +5,22 @@ const util = require("util");
 let db;
 let query;
 
-// Khoi tao ket noi MySQL va tao ham query dang Promise dung chung.
 function initDB() {
-  db = mysql.createConnection({
+  const connectionConfig = {
     host: process.env.DB_HOST || "localhost",
+    port: parseInt(process.env.DB_PORT, 10) || 3306,
     user: process.env.DB_USER || "root",
     password: process.env.DB_PASS || "05112005",
     database: process.env.DB_NAME || "pr",
-  });
+  };
+
+  if (process.env.DB_SSL === "true") {
+    connectionConfig.ssl = {
+      rejectUnauthorized: false
+    };
+  }
+
+  db = mysql.createConnection(connectionConfig);
 
   db.connect((err) => {
     if (err) {
