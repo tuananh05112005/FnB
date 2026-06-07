@@ -8,7 +8,7 @@
 // ==============================================================
 
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import { api } from "../../lib/api";
 import { Dropdown } from "react-bootstrap";
 import {
   FaTrash, FaEdit, FaPlus, FaLock, FaUnlock,
@@ -38,7 +38,7 @@ const UserManagement = () => {
   // Tải danh sách người dùng từ API backend
   const fetchUsers = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/users/all");
+      const res = await api.get("/api/users/all");
       setUserList(res.data);
       setFilteredUsers(res.data);
     } catch {
@@ -88,7 +88,7 @@ const UserManagement = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Bạn có chắc muốn xóa người này?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/users/${id}`);
+      await api.delete(`/api/users/${id}`);
       fetchUsers();
     } catch { setError("Không thể xóa người dùng."); }
   };
@@ -121,10 +121,10 @@ const UserManagement = () => {
         // Nếu đang sửa đổi thông tin người dùng hiện tại
         const updateData = { name: formData.name, email: formData.email };
         if (formData.password.trim()) updateData.password = formData.password;
-        await axios.put(`http://localhost:5000/api/users/${editingUser.id}`, updateData);
+        await api.put(`/api/users/${editingUser.id}`, updateData);
       } else {
         // Nếu thêm mới một tài khoản nhân viên (Staff)
-        await axios.post("http://localhost:5000/api/admin/create-staff", {
+        await api.post("/api/admin/create-staff", {
           name: formData.name, email: formData.email, password: formData.password,
         });
       }
@@ -151,14 +151,14 @@ const UserManagement = () => {
 
   const handleChangeRole = async (id, newRole) => {
     try {
-      await axios.put(`http://localhost:5000/api/users/${id}/role`, { role: newRole });
+      await api.put(`/api/users/${id}/role`, { role: newRole });
       fetchUsers();
     } catch { setError("Lỗi khi cập nhật vai trò."); }
   };
 
   const toggleUserStatus = async (id, newStatus) => {
     try {
-      await axios.put(`http://localhost:5000/api/users/${id}/status`, { is_active: newStatus });
+      await api.put(`/api/users/${id}/status`, { is_active: newStatus });
       fetchUsers();
     } catch { setError("Không thể thay đổi trạng thái hoạt động."); }
   };

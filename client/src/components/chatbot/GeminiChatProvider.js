@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { api } from '../../lib/api';
 
 // Khởi tạo Context cho hộp thoại chat Gemini
 const GeminiChatContext = createContext();
@@ -30,7 +30,7 @@ export const GeminiChatProvider = ({ children }) => {
     const userMsg = { from: 'user', text };
     setMessages((prev) => [...prev, userMsg]);
     try {
-      const res = await axios.post('http://localhost:5000/api/ai/chat', {
+      const res = await api.post('/api/ai/chat', {
         message: text,
         userId: 1,
       });

@@ -5,7 +5,7 @@
 // ==============================================================
 
 import { useState } from "react";
-import axios from "axios";
+import { api } from "../../lib/api";
 
 const AIChat = () => {
   const [message, setMessage] = useState("");
@@ -13,8 +13,8 @@ const AIChat = () => {
 
   // Gửi tin nhắn thô lên API chat AI của server
   const sendMessage = async () => {
-    const res = await axios.post(
-      "http://localhost:5000/api/ai/chat",
+    const res = await api.post(
+      "/api/ai/chat",
       {
         message,
         userId: 1,

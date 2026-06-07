@@ -8,7 +8,7 @@
 // ==============================================================
 
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { api } from "../lib/api";
 import {
   FaTicketAlt, FaStar, FaBell, FaPaperPlane,
   FaSave, FaGift, FaInfinity,
@@ -19,9 +19,6 @@ import "../styles/dashboard.css";
 // Hàm tiện ích định dạng tiền tệ VNĐ (ví dụ: 50.000 ₫)
 const fmt = (v) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(v || 0);
-
-// Cấu hình URL cơ sở của Server Backend
-const BASE = "http://localhost:5000";
 
 const LoyaltyWallet = () => {
   // --- Các Hook State quản lý điểm thưởng và Voucher ---
@@ -51,10 +48,10 @@ const LoyaltyWallet = () => {
   // Tải dữ liệu ban đầu khi component mount dựa vào vai trò Admin hoặc User
   useEffect(() => {
     if (role === "admin") {
-      axios.get(`${BASE}/api/users/all`).then((r) => setUsers(r.data)).catch(console.error);
-      axios.get(`${BASE}/api/vouchers`).then((r) => setAllVouchers(r.data || [])).catch(console.error);
+      api.get("/api/users/all").then((r) => setUsers(r.data)).catch(console.error);
+      api.get("/api/vouchers").then((r) => setAllVouchers(r.data || [])).catch(console.error);
     } else if (user_id) {
-      axios.get(`${BASE}/api/loyalty/${user_id}`).then((r) => {
+      api.get(`/api/loyalty/${user_id}`).then((r) => {
         setPoints(r.data.points);
         setVouchers(r.data.vouchers || []);
         setNotifications(r.data.notifications || []);
@@ -68,7 +65,7 @@ const LoyaltyWallet = () => {
   // Gọi API phân phát/gửi voucher được chọn đến những user được đánh dấu
   const handleAssign = async (voucherId) => {
     try {
-      await axios.post(`${BASE}/api/vouchers/assign`, {
+      await api.post("/api/vouchers/assign", {
         voucher_id: voucherId,
         user_ids: selectedUsers.length > 0 ? selectedUsers : [],
       });
@@ -79,10 +76,10 @@ const LoyaltyWallet = () => {
   // Gọi API tạo voucher mới từ dữ liệu form nhập và làm mới danh sách voucher
   const handleCreate = async () => {
     try {
-      await axios.post(`${BASE}/api/vouchers`, newVoucher);
+      await api.post("/api/vouchers", newVoucher);
       showToast("Tạo voucher thành công! ✅");
       setNewVoucher({ code: "", discount_type: "percent", discount_value: "", min_order: "", usage_limit: "", expired_at: null });
-      const r = await axios.get(`${BASE}/api/vouchers`);
+      const r = await api.get("/api/vouchers");
       setAllVouchers(r.data || []);
     } catch (err) { console.error(err); }
   };
