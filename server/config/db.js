@@ -14,23 +14,25 @@ function initDB() {
     database: process.env.DB_NAME || "pr",
   };
 
-  if (process.env.DB_SSL === "true") {
+  if (process.env.DB_SSL === "true" || connectionConfig.host.includes("aivencloud.com")) {
     connectionConfig.ssl = {
       rejectUnauthorized: false
     };
   }
 
-  db = mysql.createConnection(connectionConfig);
+  db = mysql.createPool(connectionConfig);
 
-  db.connect((err) => {
+  // Lấy một kết nối từ pool để kiểm tra và đồng bộ dữ liệu ban đầu
+  db.getConnection((err, connection) => {
     if (err) {
-      console.error("Lỗi kết nối MySQL:", err);
+      console.error("Lỗi kết nối MySQL từ Pool:", err);
     } else {
-      console.log("Kết nối MySQL thành công!");
+      console.log("Kết nối MySQL từ Pool thành công!");
       // Một lần duy nhất gán order_code cho các dòng cũ
-      db.query(
+      connection.query(
         "UPDATE cart SET order_code = CONCAT('DH', LPAD(id, 8, '0')) WHERE order_code IS NULL",
         (updateErr) => {
+          connection.release();
           if (updateErr) {
             console.error("Lỗi cập nhật order_code cho dữ liệu cũ:", updateErr);
           } else {
