@@ -348,6 +348,7 @@ const PaymentPage = () => {
     payment_method: paymentInfo.paymentMethod,
     amount: totalAmount,
     voucher_id: selectedVoucher ? selectedVoucher.id : null, // Gửi voucher_id lên backend để đánh dấu đã dùng
+    user_voucher_id: selectedVoucher ? selectedVoucher.user_voucher_id : null,
     is_cart: isCart, // Tells backend to complete entire cart
     order_code: orderCode, // Send orderCode to server
   };
@@ -593,7 +594,7 @@ const PaymentPage = () => {
                         }
 
                         return (
-                          <div key={v.id}
+                          <div key={v.user_voucher_id || v.id}
                             onClick={() => {
                               if (!isDisabled) {
                                 setSelectedVoucher(v);
@@ -631,7 +632,7 @@ const PaymentPage = () => {
                             {!isDisabled && (
                               <div style={{
                                 width: 20, height: 20, borderRadius: "50%",
-                                border: selectedVoucher?.id === v.id ? "6px solid var(--color-brand)" : "2px solid var(--color-border)",
+                                border: selectedVoucher?.user_voucher_id === v.user_voucher_id ? "6px solid var(--color-brand)" : "2px solid var(--color-border)",
                                 background: "white", transition: "all 0.15s",
                               }} />
                             )}

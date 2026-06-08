@@ -238,7 +238,7 @@ const LoyaltyWallet = () => {
                     const isUsed = v.is_used === 1;
                     const isDisabled = isExpired || isUsed;
                     return (
-                      <div key={v.id} 
+                      <div key={v.user_voucher_id || v.id} 
                         onClick={() => setSelectedVoucherDetails(v)}
                         style={{
                           border: isDisabled ? "2px dashed var(--color-text-faint)" : "2px dashed var(--color-brand)",
