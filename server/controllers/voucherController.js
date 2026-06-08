@@ -12,14 +12,14 @@ const { getQuery } = require("../config/db");
  * create: API tạo mới mã voucher vào hệ thống (POST /api/vouchers).
  */
 exports.create = async (req, res) => {
-  const { code, discount_type, discount_value, min_order, expired_at, usage_limit } =
+  const { code, discount_type, discount_value, min_order, expired_at, usage_limit, applicable_payment_method } =
     req.body;
 
   try {
     const query = getQuery();
     await query(
-      "INSERT INTO vouchers (code, discount_type, discount_value, min_order, expired_at, usage_limit) VALUES (?, ?, ?, ?, ?, ?)",
-      [code, discount_type, discount_value, min_order, expired_at, usage_limit]
+      "INSERT INTO vouchers (code, discount_type, discount_value, min_order, expired_at, usage_limit, applicable_payment_method) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [code, discount_type, discount_value, min_order, expired_at, usage_limit, applicable_payment_method || 'all']
     );
 
     res.json({ message: "Tao voucher thanh cong" });
@@ -81,26 +81,63 @@ exports.redeem = async (req, res) => {
  * validate: API kiểm tra tính hợp lệ của mã voucher khi khách áp dụng lúc đặt hàng (POST /api/vouchers/validate).
  */
 exports.validate = async (req, res) => {
-  const { code } = req.body;
+  const { code, user_id, amount, payment_method } = req.body;
 
   try {
     const query = getQuery();
     const rows = await query(
-      `SELECT * FROM vouchers
-       WHERE code = ?
-       AND (expired_at IS NULL OR expired_at > NOW())
-       AND used_count < usage_limit`,
+      `SELECT * FROM vouchers WHERE code = ?`,
       [code]
     );
 
     if (!rows.length) {
-      return res.json({ valid: false, message: "Voucher khong hop le hoac da het han" });
+      return res.json({ valid: false, message: "Voucher không tồn tại trên hệ thống" });
     }
 
-    res.json({ valid: true, voucher: rows[0] });
+    const voucher = rows[0];
+
+    // 1. Kiểm tra hạn dùng
+    if (voucher.expired_at && new Date(voucher.expired_at) < new Date()) {
+      return res.json({ valid: false, message: "Voucher này đã hết hạn sử dụng" });
+    }
+
+    // 2. Kiểm tra giới hạn số lần sử dụng chung
+    if (voucher.used_count >= voucher.usage_limit) {
+      return res.json({ valid: false, message: "Voucher này đã hết lượt sử dụng" });
+    }
+
+    // 3. Kiểm tra đơn hàng tối thiểu
+    if (amount !== undefined && Number(amount) < Number(voucher.min_order)) {
+      return res.json({
+        valid: false,
+        message: `Chưa đạt giá trị đơn hàng tối thiểu (yêu cầu từ ${Number(voucher.min_order).toLocaleString("vi-VN")}đ)`
+      });
+    }
+
+    // 4. Kiểm tra hình thức thanh toán áp dụng
+    if (payment_method && voucher.applicable_payment_method !== "all" && voucher.applicable_payment_method !== payment_method) {
+      const methodText = voucher.applicable_payment_method === "banking" ? "Chuyển khoản (banking)" : "Tiền mặt (cash)";
+      return res.json({
+        valid: false,
+        message: `Voucher này chỉ áp dụng cho hình thức thanh toán: ${methodText}`
+      });
+    }
+
+    // 5. Kiểm tra xem user này đã sử dụng voucher này chưa
+    if (user_id) {
+      const owned = await query(
+        `SELECT is_used FROM user_vouchers WHERE user_id = ? AND voucher_id = ?`,
+        [user_id, voucher.id]
+      );
+      if (owned.length > 0 && owned[0].is_used === 1) {
+        return res.json({ valid: false, message: "Bạn đã sử dụng voucher này cho đơn hàng trước đó" });
+      }
+    }
+
+    res.json({ valid: true, voucher });
   } catch (err) {
     console.error("Loi validate voucher:", err);
-    res.status(500).json({ valid: false, message: "Loi server" });
+    res.status(500).json({ valid: false, message: "Lỗi hệ thống" });
   }
 };
 

@@ -38,9 +38,12 @@ const LoyaltyWallet = () => {
   const [newVoucher,    setNewVoucher]    = useState({
     code: "", discount_type: "percent", discount_value: "",
     min_order: "", usage_limit: "", expired_at: null,
+    applicable_payment_method: "all"
   });
   // toast: Lưu trữ nội dung thông báo nổi trên giao diện
   const [toast, setToast] = useState("");
+  const [selectedVoucherDetails, setSelectedVoucherDetails] = useState(null);
+  const [activeTab, setActiveTab] = useState("active"); // "active", "used", "expired"
 
   const user_id = localStorage.getItem("user_id");
   const role    = localStorage.getItem("role");
@@ -78,7 +81,7 @@ const LoyaltyWallet = () => {
     try {
       await api.post("/api/vouchers", newVoucher);
       showToast("Tạo voucher thành công! ✅");
-      setNewVoucher({ code: "", discount_type: "percent", discount_value: "", min_order: "", usage_limit: "", expired_at: null });
+      setNewVoucher({ code: "", discount_type: "percent", discount_value: "", min_order: "", usage_limit: "", expired_at: null, applicable_payment_method: "all" });
       const r = await api.get("/api/vouchers");
       setAllVouchers(r.data || []);
     } catch (err) { console.error(err); }
@@ -95,6 +98,18 @@ const LoyaltyWallet = () => {
   /* ── Progress bar points ── */
   const NEXT_TIER = 500;
   const progress = Math.min(100, Math.round((points / NEXT_TIER) * 100));
+
+  const activeVouchers = vouchers.filter(v => v.is_used !== 1 && new Date(v.expired_at) >= new Date());
+  const usedVouchers = vouchers.filter(v => v.is_used === 1);
+  const expiredVouchers = vouchers.filter(v => v.is_used !== 1 && new Date(v.expired_at) < new Date());
+
+  const getDisplayedVouchers = () => {
+    if (activeTab === "active") return activeVouchers;
+    if (activeTab === "used") return usedVouchers;
+    if (activeTab === "expired") return expiredVouchers;
+    return [];
+  };
+  const displayedVouchers = getDisplayedVouchers();
 
   return (
     <div className="dashboard-page">
@@ -168,37 +183,148 @@ const LoyaltyWallet = () => {
 
             {/* Vouchers */}
             <section className="dashboard-panel animate-fadeInUp animate-delay-1">
-              <div className="dashboard-panel-header">
-                <h2 className="dashboard-panel-title">🎫 Voucher của bạn</h2>
+              <div className="dashboard-panel-header" style={{ borderBottom: "none", paddingBottom: 0 }}>
+                <h2 className="dashboard-panel-title">🎫 Kho Voucher</h2>
                 <span className="dashboard-count">{vouchers.length} voucher</span>
               </div>
-              {vouchers.length === 0 ? (
+
+              <div style={{ padding: "0 var(--space-6) var(--space-4) var(--space-6)", borderBottom: "1px solid var(--color-border-light)" }}>
+                <div className="dashboard-toolbar">
+                  <div className="dashboard-toolbar-group">
+                    <button 
+                      className={`dashboard-chip ${activeTab === "active" ? "active" : ""}`}
+                      onClick={() => setActiveTab("active")}
+                      style={{ cursor: "pointer" }}
+                    >
+                      Sẵn sàng sử dụng ({activeVouchers.length})
+                    </button>
+                    <button 
+                      className={`dashboard-chip ${activeTab === "used" ? "active" : ""}`}
+                      onClick={() => setActiveTab("used")}
+                      style={{ cursor: "pointer" }}
+                    >
+                      Đã sử dụng ({usedVouchers.length})
+                    </button>
+                    <button 
+                      className={`dashboard-chip ${activeTab === "expired" ? "active" : ""}`}
+                      onClick={() => setActiveTab("expired")}
+                      style={{ cursor: "pointer" }}
+                    >
+                      Đã hết hạn ({expiredVouchers.length})
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {displayedVouchers.length === 0 ? (
                 <div className="dashboard-empty">
                   <div style={{ fontSize: "2.5rem", opacity: 0.2 }}>🎁</div>
-                  <h3>Chưa có voucher nào</h3>
-                  <p>Mua hàng và tích điểm để nhận voucher ưu đãi!</p>
+                  <h3>
+                    {activeTab === "active" ? "Không có voucher khả dụng" : 
+                     activeTab === "used" ? "Chưa có voucher nào đã sử dụng" : 
+                     "Không có voucher hết hạn"}
+                  </h3>
+                  <p style={{ maxWidth: 400, margin: "0 auto" }}>
+                    {activeTab === "active" ? "Mua hàng và tích điểm để nhận thêm nhiều voucher ưu đãi nhé!" : 
+                     activeTab === "used" ? "Các voucher bạn đã dùng thanh toán thành công sẽ xuất hiện ở đây." : 
+                     "Các voucher quá hạn dùng sẽ hiển thị tại mục này."}
+                  </p>
                 </div>
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "var(--space-4)", padding: "var(--space-5)" }}>
-                  {vouchers.map((v) => {
+                  {displayedVouchers.map((v) => {
                     const b = discountBadge(v.discount_type);
+                    const isExpired = new Date(v.expired_at) < new Date();
+                    const isUsed = v.is_used === 1;
+                    const isDisabled = isExpired || isUsed;
                     return (
-                      <div key={v.id} style={{
-                        border: "2px dashed var(--color-brand)",
-                        borderRadius: "var(--radius-lg)", padding: "var(--space-5)",
-                        background: "var(--color-brand-pale)", position: "relative", overflow: "hidden",
-                      }}>
+                      <div key={v.id} 
+                        onClick={() => setSelectedVoucherDetails(v)}
+                        style={{
+                          border: isDisabled ? "2px dashed var(--color-text-faint)" : "2px dashed var(--color-brand)",
+                          borderRadius: "var(--radius-lg)", padding: "var(--space-5)",
+                          background: isDisabled ? "var(--color-bg-alt)" : "var(--color-brand-pale)", 
+                          position: "relative", overflow: "hidden",
+                          opacity: isDisabled ? 0.65 : 1,
+                          filter: isDisabled ? "grayscale(40%)" : "none",
+                          cursor: "pointer",
+                          transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => { if (!isDisabled) { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "var(--shadow-md)"; } }}
+                        onMouseLeave={(e) => { if (!isDisabled) { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; } }}
+                      >
                         <div style={{ fontSize: "1.5rem", marginBottom: 8 }}>🎫</div>
-                        <div style={{ fontFamily: "var(--app-font-display)", fontSize: "1.1rem", fontWeight: 800, color: "var(--color-brand-dark)", letterSpacing: "0.05em", marginBottom: 6 }}>
+                        <div style={{ fontFamily: "var(--app-font-display)", fontSize: "1.1rem", fontWeight: 800, color: isDisabled ? "var(--color-text-muted)" : "var(--color-brand-dark)", letterSpacing: "0.05em", marginBottom: 6 }}>
                           {v.code}
                         </div>
-                        <span className={`dashboard-badge ${b.cls}`} style={{ marginBottom: 8, display: "inline-flex" }}>{b.label}</span>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
+                          <span className={`dashboard-badge ${b.cls}`} style={{ display: "inline-flex" }}>{b.label}</span>
+                          {isUsed && <span className="dashboard-badge" style={{ display: "inline-flex", background: "#e0dcd3", color: "#5c503e" }}>Đã dùng</span>}
+                          {isExpired && <span className="dashboard-badge" style={{ display: "inline-flex", background: "#f8d7da", color: "#842029" }}>Hết hạn</span>}
+                        </div>
                         <div style={{ fontWeight: 700, color: "var(--color-text)", fontSize: "0.95rem" }}>
                           {v.discount_type === "percent" ? `Giảm ${v.discount_value}%` : `Giảm ${fmt(v.discount_value)}`}
                         </div>
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {/* Modal chi tiết Voucher */}
+              {selectedVoucherDetails && (
+                <div style={{
+                  position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
+                  backdropFilter: "blur(6px)", zIndex: 9999, display: "flex",
+                  alignItems: "center", justifyContent: "center", padding: "var(--space-4)",
+                }} onClick={() => setSelectedVoucherDetails(null)}>
+                  <div style={{
+                    background: "var(--color-surface)", borderRadius: "var(--radius-xl)",
+                    width: "100%", maxWidth: 420, overflow: "hidden",
+                    boxShadow: "var(--shadow-xl)",
+                    display: "flex", flexDirection: "column", padding: "var(--space-6)",
+                    border: "1px solid var(--color-border)",
+                  }} onClick={(e) => e.stopPropagation()}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-4)" }}>
+                      <h3 style={{ margin: 0, fontFamily: "var(--app-font-display)", fontWeight: 850, color: "var(--color-brand-dark)", fontSize: "1.2rem" }}>Chi tiết Voucher</h3>
+                      <button onClick={() => setSelectedVoucherDetails(null)} style={{
+                        background: "none", border: "none", fontSize: "1.4rem", cursor: "pointer", color: "var(--color-text-muted)", padding: 0, lineHeight: 1
+                      }}>✕</button>
+                    </div>
+                    <div style={{ textAlign: "center", padding: "var(--space-4) 0", borderBottom: "1.5px dashed var(--color-border)", marginBottom: "var(--space-4)" }}>
+                      <span style={{ fontSize: "3rem" }}>🎫</span>
+                      <div style={{ fontFamily: "var(--app-font-display)", fontSize: "1.5rem", fontWeight: 900, color: "var(--color-brand-dark)", margin: "8px 0" }}>
+                        {selectedVoucherDetails.code}
+                      </div>
+                      <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--color-text)" }}>
+                        {selectedVoucherDetails.discount_type === "percent" ? `Giảm ${parseFloat(selectedVoucherDetails.discount_value)}%` : `Giảm ${fmt(selectedVoucherDetails.discount_value)}`}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", fontSize: "0.88rem", color: "var(--color-text)" }}>
+                      <div>
+                        <strong>⚙️ Điều kiện sử dụng:</strong> Đơn hàng tối thiểu từ <strong>{fmt(selectedVoucherDetails.min_order)}</strong>
+                      </div>
+                      <div>
+                        <strong>⏰ Thời hạn sử dụng:</strong> Hạn dùng đến <strong>{new Date(selectedVoucherDetails.expired_at).toLocaleString("vi-VN")}</strong>
+                      </div>
+                      <div>
+                        <strong>💳 Hình thức áp dụng:</strong> {
+                          selectedVoucherDetails.applicable_payment_method === "all" ? "Tất cả hình thức thanh toán" :
+                          selectedVoucherDetails.applicable_payment_method === "banking" ? "Chỉ áp dụng Chuyển khoản (banking)" :
+                          "Chỉ áp dụng Tiền mặt (cash)"
+                        }
+                      </div>
+                      <div style={{ marginTop: "var(--space-4)", display: "flex", justifyContent: "center" }}>
+                        {new Date(selectedVoucherDetails.expired_at) < new Date() ? (
+                          <span style={{ padding: "6px 16px", borderRadius: "var(--radius-pill)", background: "#ffebee", color: "#c62828", fontWeight: 700 }}>Đã hết hạn dùng</span>
+                        ) : selectedVoucherDetails.is_used === 1 ? (
+                          <span style={{ padding: "6px 16px", borderRadius: "var(--radius-pill)", background: "#efebe9", color: "#4e342e", fontWeight: 700 }}>Đã sử dụng</span>
+                        ) : (
+                          <span style={{ padding: "6px 16px", borderRadius: "var(--radius-pill)", background: "var(--color-brand-pale)", color: "var(--color-brand-dark)", fontWeight: 700 }}>Sẵn sàng sử dụng</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </section>
@@ -254,7 +380,7 @@ const LoyaltyWallet = () => {
                     <thead>
                       <tr>
                         <th>#</th><th>Mã</th><th>Loại</th><th>Giá trị</th>
-                        <th>Đơn tối thiểu</th><th>Số lần</th><th>Hạn dùng</th><th>Gửi</th>
+                        <th>Đơn tối thiểu</th><th>Số lần</th><th>Áp dụng</th><th>Hạn dùng</th><th>Gửi</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -275,6 +401,14 @@ const LoyaltyWallet = () => {
                             <td style={{ fontWeight: 700 }}>{v.discount_type === "percent" ? `${v.discount_value}%` : fmt(v.discount_value)}</td>
                             <td className="dashboard-muted">{fmt(v.min_order)}</td>
                             <td style={{ textAlign: "center", fontWeight: 700 }}>{v.usage_limit}</td>
+                            <td>
+                              <span className="dashboard-badge" style={{
+                                background: v.applicable_payment_method === "all" ? "rgba(59,130,246,0.12)" : v.applicable_payment_method === "banking" ? "rgba(16,185,129,0.12)" : "rgba(245,158,11,0.12)",
+                                color: v.applicable_payment_method === "all" ? "#3b82f6" : v.applicable_payment_method === "banking" ? "#10b981" : "#f59e0b"
+                              }}>
+                                {v.applicable_payment_method === "all" ? "Tất cả" : v.applicable_payment_method === "banking" ? "Banking" : "Tiền mặt"}
+                              </span>
+                            </td>
                             <td className="dashboard-muted" style={{ fontSize: "0.78rem", whiteSpace: "nowrap" }}>
                               {v.expired_at
                                 ? new Date(v.expired_at).toLocaleDateString("vi-VN")
@@ -349,6 +483,14 @@ const LoyaltyWallet = () => {
                   <div className="dashboard-field">
                     <label>Hạn sử dụng</label>
                     <input className="dashboard-input" type="date" value={newVoucher.expired_at ? newVoucher.expired_at.split("T")[0] : ""} onChange={(e) => patch("expired_at", e.target.value)} />
+                  </div>
+                  <div className="dashboard-field">
+                    <label>Hình thức áp dụng</label>
+                    <select className="dashboard-select" value={newVoucher.applicable_payment_method || "all"} onChange={(e) => patch("applicable_payment_method", e.target.value)}>
+                      <option value="all">Tất cả hình thức</option>
+                      <option value="banking">Chuyển khoản (banking)</option>
+                      <option value="cash">Tiền mặt (cash)</option>
+                    </select>
                   </div>
                 </div>
                 <div className="dashboard-form-actions">

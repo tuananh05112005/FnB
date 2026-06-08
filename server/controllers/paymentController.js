@@ -208,6 +208,16 @@ exports.create = async (req, res) => {
         `,
         [voucher_id],
       );
+      if (user_id) {
+        await query(
+          `
+          UPDATE user_vouchers
+          SET is_used = 1
+          WHERE user_id = ? AND voucher_id = ?
+          `,
+          [user_id, voucher_id]
+        );
+      }
     }
 
     /*

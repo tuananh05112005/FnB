@@ -49,6 +49,9 @@ const PAYMENT_SESSION_PREFIX = "fnb_payment_session";
 const getPaymentSessionKey = (userId) =>
   `${PAYMENT_SESSION_PREFIX}_${userId || "guest"}`;
 
+const fmt = (v) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(v || 0);
+
 // Đọc dữ liệu phiên thanh toán tạm thời từ LocalStorage
 const loadPaymentSession = (userId) => {
   try {
@@ -201,6 +204,30 @@ const PaymentPage = () => {
   const [error,            setError]             =             useState("");
   const [sessionClosed,    setSessionClosed]     = useState(false);
 
+  const [selectedVoucher, setSelectedVoucher] = useState(null);
+  const [userVouchers, setUserVouchers] = useState([]);
+  const [showVoucherModal, setShowVoucherModal] = useState(false);
+
+  useEffect(() => {
+    if (userId) {
+      api.get(`/api/loyalty/${userId}`)
+        .then((res) => {
+          const now = new Date();
+          const validVouchers = (res.data.vouchers || []).filter(v => 
+            v.is_used !== 1 && (!v.expired_at || new Date(v.expired_at) > now)
+          );
+          setUserVouchers(validVouchers);
+        })
+        .catch(console.error);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (selectedVoucher && selectedVoucher.applicable_payment_method !== "all" && selectedVoucher.applicable_payment_method !== paymentInfo.paymentMethod) {
+      setSelectedVoucher(null);
+    }
+  }, [paymentInfo.paymentMethod, selectedVoucher]);
+
   // Cập nhật món hàng thanh toán từ state chuyển hướng của react-router-dom
   useEffect(() => {
     if (location.state?.item) {
@@ -287,10 +314,25 @@ const PaymentPage = () => {
     setError(""); setCurrentStep(2);
   };
 
-  // Tính tổng tiền cần thanh toán
-  const totalAmount = isCart
+  // Tính tổng tiền cần thanh toán ban đầu (trước giảm giá)
+  const subtotal = isCart
     ? checkoutItems.reduce((sum, it) => sum + Number(it.price) * Number(it.quantity), 0)
     : Number(item?.price || 0) * Number(item?.quantity || 0);
+
+  // Tính số tiền được giảm từ voucher
+  let discountAmount = 0;
+  if (selectedVoucher) {
+    if (selectedVoucher.discount_type === "percent") {
+      discountAmount = (subtotal * Number(selectedVoucher.discount_value)) / 100;
+    } else {
+      discountAmount = Number(selectedVoucher.discount_value);
+    }
+    if (discountAmount > subtotal) {
+      discountAmount = subtotal;
+    }
+  }
+
+  const totalAmount = subtotal - discountAmount;
 
   const firstProductId = isCart
     ? (checkoutItems[0]?.product_id || checkoutItems[0]?.id)
@@ -305,6 +347,7 @@ const PaymentPage = () => {
     phone: paymentInfo.phone,
     payment_method: paymentInfo.paymentMethod,
     amount: totalAmount,
+    voucher_id: selectedVoucher ? selectedVoucher.id : null, // Gửi voucher_id lên backend để đánh dấu đã dùng
     is_cart: isCart, // Tells backend to complete entire cart
     order_code: orderCode, // Send orderCode to server
   };
@@ -344,6 +387,7 @@ const PaymentPage = () => {
     setIsCart(false);
     setOrderCode(null);
     setPaymentInfo({ name: "", address: "", phone: "", paymentMethod: "cash" });
+    setSelectedVoucher(null);
     setCurrentStep(1); setQrUrl(""); setPaymentId(null);
     setPaymentStatus(""); setTransactionCode(""); setTransferContent(""); setBankInfo(null);
     
@@ -421,6 +465,22 @@ const PaymentPage = () => {
               <h2 className="dashboard-panel-title">🛒 Sản phẩm</h2>
             </div>
             <ProductInfo item={item} items={checkoutItems} />
+            <div className="dashboard-panel-body" style={{ borderTop: "1px solid var(--color-border-light)", paddingTop: "var(--space-4)", display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+              <div style={{ display: "flex", gap: "var(--space-8)", fontSize: "0.88rem", color: "var(--color-text-muted)" }}>
+                <span>Tạm tính:</span>
+                <span style={{ fontWeight: 600 }}>{fmt(subtotal)}</span>
+              </div>
+              {selectedVoucher && (
+                <div style={{ display: "flex", gap: "var(--space-8)", fontSize: "0.88rem", color: "var(--color-danger)" }}>
+                  <span>Giảm giá (Voucher {selectedVoucher.code}):</span>
+                  <span style={{ fontWeight: 600 }}>-{fmt(discountAmount)}</span>
+                </div>
+              )}
+              <div style={{ display: "flex", gap: "var(--space-8)", fontSize: "1.1rem", color: "var(--color-text)", fontWeight: 800 }}>
+                <span>Tổng tiền:</span>
+                <span style={{ color: "var(--color-brand-dark)" }}>{fmt(totalAmount)}</span>
+              </div>
+            </div>
           </div>
         )}
 
@@ -443,20 +503,147 @@ const PaymentPage = () => {
 
         {/* ── Step 2: Payment method ── */}
         {currentStep === 2 && (
-          <div className="dashboard-panel animate-fadeInUp">
-            <div className="dashboard-panel-header">
-              <h2 className="dashboard-panel-title">💳 Phương thức thanh toán</h2>
+          <>
+            <div className="dashboard-panel animate-fadeInUp">
+              <div className="dashboard-panel-header">
+                <h2 className="dashboard-panel-title">💳 Phương thức thanh toán</h2>
+              </div>
+              <div className="dashboard-panel-body">
+                <PaymentMethod
+                  paymentInfo={paymentInfo}
+                  handlePaymentInfoChange={handlePaymentInfoChange}
+                  handlePrevStep={() => setCurrentStep(1)}
+                  handleConfirmPayment={handleConfirmPayment}
+                  isSubmitting={isSubmitting}
+                />
+
+                {/* Voucher Section */}
+                <div style={{
+                  marginTop: "var(--space-6)", padding: "var(--space-5)",
+                  background: "var(--color-brand-pale)", borderRadius: "var(--radius-lg)",
+                  border: "1px dashed var(--color-brand)",
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: "1.3rem" }}>🎫</span>
+                      <div>
+                        <div style={{ fontWeight: 800, color: "var(--color-brand-dark)", fontSize: "0.95rem" }}>Voucher khuyến mãi</div>
+                        <div style={{ fontSize: "0.78rem", color: "var(--color-text-muted)" }}>
+                          {selectedVoucher 
+                            ? `Đã chọn mã: ${selectedVoucher.code} (Giảm -${selectedVoucher.discount_type === "percent" ? `${parseFloat(selectedVoucher.discount_value)}%` : fmt(selectedVoucher.discount_value)})` 
+                            : "Áp dụng mã giảm giá để nhận ưu đãi đơn hàng."}
+                        </div>
+                      </div>
+                    </div>
+                    {selectedVoucher ? (
+                      <button className="dashboard-btn dashboard-btn-secondary" style={{ padding: "6px 12px", fontSize: "0.78rem" }} onClick={() => setSelectedVoucher(null)}>
+                        Hủy áp dụng
+                      </button>
+                    ) : (
+                      <button className="dashboard-btn dashboard-btn-primary" style={{ padding: "6px 16px", fontSize: "0.78rem" }} onClick={() => setShowVoucherModal(true)}>
+                        Chọn Voucher
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="dashboard-panel-body">
-              <PaymentMethod
-                paymentInfo={paymentInfo}
-                handlePaymentInfoChange={handlePaymentInfoChange}
-                handlePrevStep={() => setCurrentStep(1)}
-                handleConfirmPayment={handleConfirmPayment}
-                isSubmitting={isSubmitting}
-              />
-            </div>
-          </div>
+
+            {/* Voucher Selection Modal */}
+            {showVoucherModal && (
+              <div style={{
+                position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
+                backdropFilter: "blur(6px)", zIndex: 9999, display: "flex",
+                alignItems: "center", justifyContent: "center", padding: "var(--space-4)",
+              }} onClick={() => setShowVoucherModal(false)}>
+                <div style={{
+                  background: "var(--color-surface)", borderRadius: "var(--radius-xl)",
+                  width: "100%", maxWidth: 460, overflow: "hidden",
+                  boxShadow: "var(--shadow-xl)",
+                  display: "flex", flexDirection: "column", padding: "var(--space-6)",
+                  border: "1px solid var(--color-border)",
+                  maxHeight: "80vh",
+                }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-4)" }}>
+                    <h3 style={{ margin: 0, fontFamily: "var(--app-font-display)", fontWeight: 850, color: "var(--color-brand-dark)", fontSize: "1.2rem" }}>Chọn Voucher Khuyến Mãi</h3>
+                    <button onClick={() => setShowVoucherModal(false)} style={{
+                      background: "none", border: "none", fontSize: "1.4rem", cursor: "pointer", color: "var(--color-text-muted)", padding: 0, lineHeight: 1
+                    }}>✕</button>
+                  </div>
+
+                  <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "var(--space-3)", paddingRight: 4 }}>
+                    {userVouchers.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: "var(--space-8) 0", color: "var(--color-text-muted)" }}>
+                        <span style={{ fontSize: "2rem" }}>🎁</span>
+                        <p style={{ marginTop: 8, fontSize: "0.85rem" }}>Bạn chưa sở hữu voucher nào.</p>
+                      </div>
+                    ) : (
+                      userVouchers.map((v) => {
+                        const isExpired = new Date(v.expired_at) < new Date();
+                        const isMinOrderUnmet = subtotal < Number(v.min_order);
+                        const isMethodUnmet = v.applicable_payment_method !== "all" && v.applicable_payment_method !== paymentInfo.paymentMethod;
+                        const isDisabled = isExpired || isMinOrderUnmet || isMethodUnmet;
+
+                        let errMsg = "";
+                        if (isExpired) errMsg = "Voucher đã hết hạn dùng";
+                        else if (isMinOrderUnmet) errMsg = `Chưa đủ đơn tối thiểu ${fmt(v.min_order)} (thiếu ${fmt(Number(v.min_order) - subtotal)})`;
+                        else if (isMethodUnmet) {
+                          const reqMethod = v.applicable_payment_method === "banking" ? "Chuyển khoản (banking)" : "Tiền mặt (cash)";
+                          errMsg = `Chỉ áp dụng cho thanh toán: ${reqMethod}`;
+                        }
+
+                        return (
+                          <div key={v.id}
+                            onClick={() => {
+                              if (!isDisabled) {
+                                setSelectedVoucher(v);
+                                setShowVoucherModal(false);
+                              }
+                            }}
+                            style={{
+                              border: isDisabled ? "1px solid var(--color-border)" : "2px dashed var(--color-brand)",
+                              borderRadius: "var(--radius-md)", padding: "var(--space-4)",
+                              background: isDisabled ? "var(--color-bg-alt)" : "var(--color-brand-pale)",
+                              opacity: isDisabled ? 0.6 : 1,
+                              cursor: isDisabled ? "not-allowed" : "pointer",
+                              display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+                              transition: "transform 0.15s ease",
+                            }}
+                          >
+                            <div style={{ flex: 1, textAlign: "left" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span style={{ fontFamily: "monospace", fontWeight: 800, color: isDisabled ? "var(--color-text-muted)" : "var(--color-brand-dark)", fontSize: "0.95rem" }}>
+                                  {v.code}
+                                </span>
+                                <span className={`dashboard-badge ${v.discount_type === "percent" ? "dashboard-badge-success" : "dashboard-badge-primary"}`} style={{ fontSize: "0.68rem", padding: "2px 6px" }}>
+                                  {v.discount_type === "percent" ? `Giảm ${parseFloat(v.discount_value)}%` : `Giảm ${fmt(v.discount_value)}`}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: 4 }}>
+                                Đơn tối thiểu: {fmt(v.min_order)} | Hạn dùng: {new Date(v.expired_at).toLocaleDateString("vi-VN")}
+                              </div>
+                              {isDisabled && (
+                                <div style={{ fontSize: "0.75rem", color: "var(--color-danger)", fontWeight: 600, marginTop: 4 }}>
+                                  ⚠️ {errMsg}
+                                </div>
+                              )}
+                            </div>
+                            {!isDisabled && (
+                              <div style={{
+                                width: 20, height: 20, borderRadius: "50%",
+                                border: selectedVoucher?.id === v.id ? "6px solid var(--color-brand)" : "2px solid var(--color-border)",
+                                background: "white", transition: "all 0.15s",
+                              }} />
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* ── Step 3: QR code ── */}

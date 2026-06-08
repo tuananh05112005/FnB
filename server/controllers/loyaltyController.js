@@ -49,7 +49,7 @@ exports.wallet = async (req, res) => {
     const points = pointsRes.length ? pointsRes[0].points : 0;
 
     const vouchers = await query(
-      `SELECT v.*
+      `SELECT v.*, uv.is_used
        FROM vouchers v
        JOIN user_vouchers uv ON uv.voucher_id = v.id
        WHERE uv.user_id = ?`,
