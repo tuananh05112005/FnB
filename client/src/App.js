@@ -322,8 +322,8 @@ const AppContent = () => {
                     Chào, {currentUser.name}
                   </span>
                 )}
-                <div className="app-user-pill" title={currentUser.name} onClick={() => setIsUserMenuOpen(prev => !prev)}>
-                  {currentUser.initial}
+                <div className="app-user-pill" title={currentUser.loggedIn ? currentUser.name : "Chưa đăng nhập"} onClick={() => setIsUserMenuOpen(prev => !prev)}>
+                  {currentUser.loggedIn ? currentUser.initial : "👤"}
                 </div>
 
                 {isUserMenuOpen && (
@@ -333,7 +333,7 @@ const AppContent = () => {
                         <div className="app-user-dropdown-header">
                           Tài khoản: {currentUser.name}
                         </div>
-                        <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/loyalty-wallet"); }}>
+                        <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/wallet"); }}>
                           🎫 Ví Voucher & Điểm
                         </button>
                         <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/history"); }}>

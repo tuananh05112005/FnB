@@ -1,21 +1,41 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { clearSession } from "../../lib/session";
+import { auth } from "../../config/firebase";
 
 const Logout = () => {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user_id'); // Xóa user_id
-    localStorage.removeItem('role');
-    alert('Đăng xuất thành công!');
-    navigate('/login');
-  };
+  useEffect(() => {
+    // 1. Clear local storage session (token, role, user_id, name)
+    clearSession();
+
+    // 2. Sign out from Firebase Authentication if active
+    auth.signOut()
+      .then(() => {
+        alert("Đăng xuất thành công!");
+        navigate("/login");
+      })
+      .catch((err) => {
+        console.error("Firebase sign out error:", err);
+        alert("Đăng xuất thành công!");
+        navigate("/login");
+      });
+  }, [navigate]);
 
   return (
-    <button className="btn btn-danger" onClick={handleLogout}>
-      Đăng xuất
-    </button>
+    <div style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      height: "100vh",
+      background: "var(--color-bg)",
+      color: "var(--color-text-muted)",
+      fontFamily: "var(--app-font-sans)",
+      fontWeight: 600,
+    }}>
+      <p>⏳ Đang đăng xuất...</p>
+    </div>
   );
 };
 
