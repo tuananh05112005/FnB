@@ -98,40 +98,20 @@ function MapClickHandler({ onSelect }) {
 function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm, onClose }) {
   if (!show) return null;
   return (
-    <div style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)",
-      backdropFilter: "blur(8px)", zIndex: 9999, display: "flex",
-      alignItems: "center", justifyContent: "center", padding: "var(--space-4)",
-      animation: "fadeIn 0.2s ease",
-    }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{
-        background: "var(--color-surface)", borderRadius: "var(--radius-xl)",
-        width: "100%", maxWidth: 680, overflow: "hidden",
-        boxShadow: "var(--shadow-xl)", animation: "scaleIn 0.3s ease",
-        display: "flex", flexDirection: "column", maxHeight: "90vh",
-      }}>
+    <div className="custom-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="custom-modal-container" style={{ maxWidth: 680, maxHeight: "90dvh" }}>
         {/* Header */}
-        <div style={{
-          background: "var(--color-surface)",
-          borderBottom: "2px solid var(--color-border)",
-          padding: "var(--space-4) var(--space-6)",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-        }}>
+        <div className="custom-modal-header">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", color: "var(--color-brand-dark)" }}>
             <FaMapMarkedAlt />
-            <span style={{ fontWeight: 700, fontSize: "1rem", color: "var(--color-text)" }}>Chọn địa chỉ trên bản đồ</span>
+            <h3 style={{ fontSize: "1.05rem" }}>Chọn địa chỉ trên bản đồ</h3>
           </div>
-          <button onClick={onClose} style={{
-            background: "var(--color-bg-alt)", border: "1.5px solid var(--color-border)", color: "var(--color-text-muted)",
-            borderRadius: "var(--radius-sm)", width: 32, height: 32, cursor: "pointer",
-            fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
-
-          }}><FaTimes /></button>
+          <button className="custom-modal-close-btn" onClick={onClose}><FaTimes /></button>
         </div>
 
         {/* Map */}
-        <div style={{ flex: 1, minHeight: 380 }}>
-          <MapContainer center={DEFAULT_POSITION} zoom={13} style={{ height: "100%", minHeight: 380, width: "100%" }}>
+        <div style={{ flex: 1, minHeight: "280px", position: "relative" }}>
+          <MapContainer center={DEFAULT_POSITION} zoom={13} style={{ height: "100%", minHeight: "280px", width: "100%" }}>
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org">OpenStreetMap</a>'
@@ -153,7 +133,7 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
         )}
 
         {/* Footer */}
-        <div style={{ padding: "var(--space-4) var(--space-6)", display: "flex", gap: "var(--space-3)", justifyContent: "flex-end", borderTop: "1px solid var(--color-border)" }}>
+        <div className="custom-modal-footer">
           <button className="dashboard-btn dashboard-btn-secondary" onClick={onClose}>Đóng</button>
           <button className="auth-submit-btn" style={{ width: "auto", padding: "0 28px", height: 44, borderRadius: "var(--radius-pill)" }}
             disabled={!address} onClick={onConfirm}>
@@ -552,27 +532,14 @@ const PaymentPage = () => {
 
             {/* Voucher Selection Modal */}
             {showVoucherModal && (
-              <div style={{
-                position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
-                backdropFilter: "blur(6px)", zIndex: 9999, display: "flex",
-                alignItems: "center", justifyContent: "center", padding: "var(--space-4)",
-              }} onClick={() => setShowVoucherModal(false)}>
-                <div style={{
-                  background: "var(--color-surface)", borderRadius: "var(--radius-xl)",
-                  width: "100%", maxWidth: 460, overflow: "hidden",
-                  boxShadow: "var(--shadow-xl)",
-                  display: "flex", flexDirection: "column", padding: "var(--space-6)",
-                  border: "1px solid var(--color-border)",
-                  maxHeight: "80vh",
-                }} onClick={(e) => e.stopPropagation()}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-4)" }}>
-                    <h3 style={{ margin: 0, fontFamily: "var(--app-font-display)", fontWeight: 850, color: "var(--color-brand-dark)", fontSize: "1.2rem" }}>Chọn Voucher Khuyến Mãi</h3>
-                    <button onClick={() => setShowVoucherModal(false)} style={{
-                      background: "none", border: "none", fontSize: "1.4rem", cursor: "pointer", color: "var(--color-text-muted)", padding: 0, lineHeight: 1
-                    }}>✕</button>
+              <div className="custom-modal-overlay" onClick={() => setShowVoucherModal(false)}>
+                <div className="custom-modal-container" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+                  <div className="custom-modal-header">
+                    <h3>Chọn Voucher Khuyến Mãi</h3>
+                    <button className="custom-modal-close-btn" onClick={() => setShowVoucherModal(false)}>✕</button>
                   </div>
 
-                  <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "var(--space-3)", paddingRight: 4 }}>
+                  <div className="custom-modal-body" style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                     {userVouchers.length === 0 ? (
                       <div style={{ textAlign: "center", padding: "var(--space-8) 0", color: "var(--color-text-muted)" }}>
                         <span style={{ fontSize: "2rem" }}>🎁</span>

@@ -9,7 +9,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FaPaperPlane, FaTimes, FaPlus, FaTrash } from 'react-icons/fa';
+import { FaPaperPlane, FaTimes, FaPlus, FaTrash, FaBars } from 'react-icons/fa';
 import './../../styles/geminiChat.css';
 import aiService from '../../services/aiService';
 import { getUserId } from '../../lib/session';
@@ -27,6 +27,7 @@ const ChatOverlay = ({ onClose, product }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [isInitializingNewConv, setIsInitializingNewConv] = useState(!!product);
+  const [showSidebar, setShowSidebar] = useState(false);
   const bottomRef = useRef(null);
 
   // So khớp mã sản phẩm từ đường dẫn URL hiện tại
@@ -50,6 +51,7 @@ const ChatOverlay = ({ onClose, product }) => {
   const handleNewConversation = async () => {
     setIsInitializingNewConv(true);
     await createConversation();
+    setShowSidebar(false);
   };
 
   // Tải danh sách tin nhắn cũ của cuộc hội thoại
@@ -191,14 +193,20 @@ const ChatOverlay = ({ onClose, product }) => {
   return createPortal(
     <div className="gc-backdrop" onClick={onClose}>
       <div className="gc-modal" onClick={e => e.stopPropagation()}>
+        <div className={`gc-sidebar-overlay ${showSidebar ? 'show' : ''}`} onClick={() => setShowSidebar(false)} />
 
         {/* ── LEFT SIDEBAR ── */}
-        <aside className="gc-sidebar">
+        <aside className={`gc-sidebar ${showSidebar ? 'show' : ''}`}>
           <div className="gc-sidebar-header">
             <span className="gc-sidebar-title">💬 Lịch sử chat</span>
-            <button className="gc-new-btn" onClick={handleNewConversation} title="Tạo cuộc trò chuyện mới">
-              <FaPlus size={12} /> Mới
-            </button>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <button className="gc-new-btn" onClick={handleNewConversation} title="Tạo cuộc trò chuyện mới">
+                <FaPlus size={12} /> Mới
+              </button>
+              <button className="gc-close-sidebar-btn" onClick={() => setShowSidebar(false)} aria-label="Đóng lịch sử">
+                <FaTimes size={12} />
+              </button>
+            </div>
           </div>
 
           <ul className="gc-conv-list">
@@ -209,7 +217,10 @@ const ChatOverlay = ({ onClose, product }) => {
               <li
                 key={conv.id}
                 className={`gc-conv-item ${conv.id === conversationId ? 'active' : ''}`}
-                onClick={() => setConversationId(conv.id)}
+                onClick={() => {
+                  setConversationId(conv.id);
+                  setShowSidebar(false);
+                }}
               >
                 <div className="gc-conv-title">{conv.title || 'Cuộc trò chuyện'}</div>
                 <div className="gc-conv-date">{formatDate(conv.created_at)}</div>
@@ -227,6 +238,9 @@ const ChatOverlay = ({ onClose, product }) => {
           {/* Header */}
           <div className="gc-header">
             <div className="gc-header-left">
+              <button className="gc-toggle-sidebar-btn" onClick={() => setShowSidebar(true)} aria-label="Lịch sử chat">
+                <FaBars />
+              </button>
               <div className="gemini-avatar gemini-avatar--bot">🍵</div>
               <span className="gc-header-title">Happy Tea Chat</span>
             </div>

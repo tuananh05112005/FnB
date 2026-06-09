@@ -273,55 +273,45 @@ const LoyaltyWallet = () => {
 
               {/* Modal chi tiết Voucher */}
               {selectedVoucherDetails && (
-                <div style={{
-                  position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
-                  backdropFilter: "blur(6px)", zIndex: 9999, display: "flex",
-                  alignItems: "center", justifyContent: "center", padding: "var(--space-4)",
-                }} onClick={() => setSelectedVoucherDetails(null)}>
-                  <div style={{
-                    background: "var(--color-surface)", borderRadius: "var(--radius-xl)",
-                    width: "100%", maxWidth: 420, overflow: "hidden",
-                    boxShadow: "var(--shadow-xl)",
-                    display: "flex", flexDirection: "column", padding: "var(--space-6)",
-                    border: "1px solid var(--color-border)",
-                  }} onClick={(e) => e.stopPropagation()}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-4)" }}>
-                      <h3 style={{ margin: 0, fontFamily: "var(--app-font-display)", fontWeight: 850, color: "var(--color-brand-dark)", fontSize: "1.2rem" }}>Chi tiết Voucher</h3>
-                      <button onClick={() => setSelectedVoucherDetails(null)} style={{
-                        background: "none", border: "none", fontSize: "1.4rem", cursor: "pointer", color: "var(--color-text-muted)", padding: 0, lineHeight: 1
-                      }}>✕</button>
+                <div className="custom-modal-overlay" onClick={() => setSelectedVoucherDetails(null)}>
+                  <div className="custom-modal-container" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+                    <div className="custom-modal-header">
+                      <h3>Chi tiết Voucher</h3>
+                      <button className="custom-modal-close-btn" onClick={() => setSelectedVoucherDetails(null)}>✕</button>
                     </div>
-                    <div style={{ textAlign: "center", padding: "var(--space-4) 0", borderBottom: "1.5px dashed var(--color-border)", marginBottom: "var(--space-4)" }}>
-                      <span style={{ fontSize: "3rem" }}>🎫</span>
-                      <div style={{ fontFamily: "var(--app-font-display)", fontSize: "1.5rem", fontWeight: 900, color: "var(--color-brand-dark)", margin: "8px 0" }}>
-                        {selectedVoucherDetails.code}
+                    <div className="custom-modal-body">
+                      <div style={{ textAlign: "center", padding: "var(--space-2) 0", borderBottom: "1.5px dashed var(--color-border)", marginBottom: "var(--space-4)" }}>
+                        <span style={{ fontSize: "3rem" }}>🎫</span>
+                        <div style={{ fontFamily: "var(--app-font-display)", fontSize: "1.5rem", fontWeight: 900, color: "var(--color-brand-dark)", margin: "8px 0" }}>
+                          {selectedVoucherDetails.code}
+                        </div>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--color-text)" }}>
+                          {selectedVoucherDetails.discount_type === "percent" ? `Giảm ${parseFloat(selectedVoucherDetails.discount_value)}%` : `Giảm ${fmt(selectedVoucherDetails.discount_value)}`}
+                        </div>
                       </div>
-                      <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--color-text)" }}>
-                        {selectedVoucherDetails.discount_type === "percent" ? `Giảm ${parseFloat(selectedVoucherDetails.discount_value)}%` : `Giảm ${fmt(selectedVoucherDetails.discount_value)}`}
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", fontSize: "0.88rem", color: "var(--color-text)" }}>
-                      <div>
-                        <strong>⚙️ Điều kiện sử dụng:</strong> Đơn hàng tối thiểu từ <strong>{fmt(selectedVoucherDetails.min_order)}</strong>
-                      </div>
-                      <div>
-                        <strong>⏰ Thời hạn sử dụng:</strong> Hạn dùng đến <strong>{new Date(selectedVoucherDetails.expired_at).toLocaleString("vi-VN")}</strong>
-                      </div>
-                      <div>
-                        <strong>💳 Hình thức áp dụng:</strong> {
-                          selectedVoucherDetails.applicable_payment_method === "all" ? "Tất cả hình thức thanh toán" :
-                          selectedVoucherDetails.applicable_payment_method === "banking" ? "Chỉ áp dụng Chuyển khoản (banking)" :
-                          "Chỉ áp dụng Tiền mặt (cash)"
-                        }
-                      </div>
-                      <div style={{ marginTop: "var(--space-4)", display: "flex", justifyContent: "center" }}>
-                        {new Date(selectedVoucherDetails.expired_at) < new Date() ? (
-                          <span style={{ padding: "6px 16px", borderRadius: "var(--radius-pill)", background: "#ffebee", color: "#c62828", fontWeight: 700 }}>Đã hết hạn dùng</span>
-                        ) : selectedVoucherDetails.is_used === 1 ? (
-                          <span style={{ padding: "6px 16px", borderRadius: "var(--radius-pill)", background: "#efebe9", color: "#4e342e", fontWeight: 700 }}>Đã sử dụng</span>
-                        ) : (
-                          <span style={{ padding: "6px 16px", borderRadius: "var(--radius-pill)", background: "var(--color-brand-pale)", color: "var(--color-brand-dark)", fontWeight: 700 }}>Sẵn sàng sử dụng</span>
-                        )}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", fontSize: "0.88rem", color: "var(--color-text)" }}>
+                        <div>
+                          <strong>⚙️ Điều kiện sử dụng:</strong> Đơn hàng tối thiểu từ <strong>{fmt(selectedVoucherDetails.min_order)}</strong>
+                        </div>
+                        <div>
+                          <strong>⏰ Thời hạn sử dụng:</strong> Hạn dùng đến <strong>{new Date(selectedVoucherDetails.expired_at).toLocaleString("vi-VN")}</strong>
+                        </div>
+                        <div>
+                          <strong>💳 Hình thức áp dụng:</strong> {
+                            selectedVoucherDetails.applicable_payment_method === "all" ? "Tất cả hình thức thanh toán" :
+                            selectedVoucherDetails.applicable_payment_method === "banking" ? "Chỉ áp dụng Chuyển khoản (banking)" :
+                            "Chỉ áp dụng Tiền mặt (cash)"
+                          }
+                        </div>
+                        <div style={{ marginTop: "var(--space-4)", display: "flex", justifyContent: "center" }}>
+                          {new Date(selectedVoucherDetails.expired_at) < new Date() ? (
+                            <span style={{ padding: "6px 16px", borderRadius: "var(--radius-pill)", background: "#ffebee", color: "#c62828", fontWeight: 700 }}>Đã hết hạn dùng</span>
+                          ) : selectedVoucherDetails.is_used === 1 ? (
+                            <span style={{ padding: "6px 16px", borderRadius: "var(--radius-pill)", background: "#efebe9", color: "#4e342e", fontWeight: 700 }}>Đã sử dụng</span>
+                          ) : (
+                            <span style={{ padding: "6px 16px", borderRadius: "var(--radius-pill)", background: "var(--color-brand-pale)", color: "var(--color-brand-dark)", fontWeight: 700 }}>Sẵn sàng sử dụng</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
