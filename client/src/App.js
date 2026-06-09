@@ -152,6 +152,7 @@ const AppContent = () => {
     return {
       name,
       initial: name.charAt(0).toUpperCase(),
+      loggedIn: !!session.token,
     };
   }, [location.pathname]);
 
