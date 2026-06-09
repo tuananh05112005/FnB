@@ -11,6 +11,7 @@
  * cho phép chỉnh sửa số lượng, thanh toán cả đơn, thêm món và hủy đơn.
  */
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   FaArrowLeft, FaChartLine, FaCheck, FaCreditCard,
@@ -36,32 +37,23 @@ const fmt = (n) =>
  */
 function CancelModal({ show, item, reason, onReasonChange, onConfirm, onClose }) {
   if (!show) return null;
-  return (
-    <div style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
-      backdropFilter: "blur(6px)", display: "flex", alignItems: "center",
-      justifyContent: "center", zIndex: "var(--z-modal)", padding: "var(--space-4)",
-      animation: "fadeIn 0.2s ease",
-    }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{
-        background: "var(--color-surface)", borderRadius: "var(--radius-xl)",
-        width: "100%", maxWidth: 400, boxShadow: "var(--shadow-xl)",
-        overflow: "hidden", animation: "scaleIn 0.3s ease",
-      }}>
+  return createPortal(
+    <div className="custom-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="custom-modal-container" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div style={{ background: "linear-gradient(135deg,#7A4C04,#C8860A)", padding: "var(--space-5) var(--space-6)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="custom-modal-header" style={{ background: "linear-gradient(135deg,#7A4C04,#C8860A)", borderBottom: "none" }}>
           <div>
-            <p style={{ margin: 0, fontFamily: "var(--app-font-display)", fontWeight: 700, color: "white", fontSize: "1rem" }}>Hủy đơn hàng</p>
+            <h3 style={{ color: "white" }}>Hủy đơn hàng</h3>
             {item && (
               <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: "rgba(255,255,255,0.6)" }}>
                 #{item.order_code} – {item.items ? item.items.map(it => it.name).join(", ") : item.name}
               </p>
             )}
           </div>
-          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "rgba(255,255,255,0.8)", borderRadius: "var(--radius-sm)", width: 32, height: 32, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+          <button className="custom-modal-close-btn" style={{ color: "rgba(255,255,255,0.8)" }} onClick={onClose}>✕</button>
         </div>
         {/* Body */}
-        <div style={{ padding: "var(--space-5) var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+        <div className="custom-modal-body" style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
           <div className="dashboard-field">
             <label htmlFor="cancel-reason">Lý do hủy đơn</label>
             <select id="cancel-reason" className="dashboard-select" value={reason} onChange={(e) => onReasonChange(e.target.value)}>
@@ -75,14 +67,15 @@ function CancelModal({ show, item, reason, onReasonChange, onConfirm, onClose })
           {!reason && <p style={{ fontSize: "0.8rem", color: "var(--color-danger)", margin: 0 }}>Vui lòng chọn lý do hủy</p>}
         </div>
         {/* Footer */}
-        <div style={{ padding: "0 var(--space-6) var(--space-5)", display: "flex", gap: "var(--space-3)", justifyContent: "flex-end" }}>
+        <div className="custom-modal-footer">
           <button className="dashboard-btn dashboard-btn-secondary" onClick={onClose}>Đóng</button>
           <button className="dashboard-btn dashboard-btn-danger" onClick={onConfirm} disabled={!reason}>
             <FaTimes /> Xác nhận hủy
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

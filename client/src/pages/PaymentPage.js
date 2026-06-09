@@ -9,6 +9,7 @@
 // ==============================================================
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   FaArrowLeft, FaCheckCircle,
@@ -97,7 +98,7 @@ function MapClickHandler({ onSelect }) {
  */
 function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm, onClose }) {
   if (!show) return null;
-  return (
+  return createPortal(
     <div className="custom-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="custom-modal-container" style={{ maxWidth: 680, maxHeight: "90dvh" }}>
         {/* Header */}
@@ -141,7 +142,8 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -531,7 +533,7 @@ const PaymentPage = () => {
             </div>
 
             {/* Voucher Selection Modal */}
-            {showVoucherModal && (
+            {showVoucherModal && createPortal(
               <div className="custom-modal-overlay" onClick={() => setShowVoucherModal(false)}>
                 <div className="custom-modal-container" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
                   <div className="custom-modal-header">
@@ -564,53 +566,54 @@ const PaymentPage = () => {
                           <div key={v.user_voucher_id || v.id}
                             onClick={() => {
                               if (!isDisabled) {
-                                setSelectedVoucher(v);
-                                setShowVoucherModal(false);
-                              }
-                            }}
-                            style={{
-                              border: isDisabled ? "1px solid var(--color-border)" : "2px dashed var(--color-brand)",
-                              borderRadius: "var(--radius-md)", padding: "var(--space-4)",
-                              background: isDisabled ? "var(--color-bg-alt)" : "var(--color-brand-pale)",
-                              opacity: isDisabled ? 0.6 : 1,
-                              cursor: isDisabled ? "not-allowed" : "pointer",
-                              display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
-                              transition: "transform 0.15s ease",
-                            }}
-                          >
-                            <div style={{ flex: 1, textAlign: "left" }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ fontFamily: "monospace", fontWeight: 800, color: isDisabled ? "var(--color-text-muted)" : "var(--color-brand-dark)", fontSize: "0.95rem" }}>
-                                  {v.code}
-                                </span>
-                                <span className={`dashboard-badge ${v.discount_type === "percent" ? "dashboard-badge-success" : "dashboard-badge-primary"}`} style={{ fontSize: "0.68rem", padding: "2px 6px" }}>
-                                  {v.discount_type === "percent" ? `Giảm ${parseFloat(v.discount_value)}%` : `Giảm ${fmt(v.discount_value)}`}
-                                </span>
-                              </div>
-                              <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: 4 }}>
-                                Đơn tối thiểu: {fmt(v.min_order)} | Hạn dùng: {new Date(v.expired_at).toLocaleDateString("vi-VN")}
-                              </div>
-                              {isDisabled && (
-                                <div style={{ fontSize: "0.75rem", color: "var(--color-danger)", fontWeight: 600, marginTop: 4 }}>
-                                  ⚠️ {errMsg}
+                                  setSelectedVoucher(v);
+                                  setShowVoucherModal(false);
+                                }
+                              }}
+                              style={{
+                                border: isDisabled ? "1px solid var(--color-border)" : "2px dashed var(--color-brand)",
+                                borderRadius: "var(--radius-md)", padding: "var(--space-4)",
+                                background: isDisabled ? "var(--color-bg-alt)" : "var(--color-brand-pale)",
+                                opacity: isDisabled ? 0.6 : 1,
+                                cursor: isDisabled ? "not-allowed" : "pointer",
+                                display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+                                transition: "transform 0.15s ease",
+                              }}
+                            >
+                              <div style={{ flex: 1, textAlign: "left" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <span style={{ fontFamily: "monospace", fontWeight: 800, color: isDisabled ? "var(--color-text-muted)" : "var(--color-brand-dark)", fontSize: "0.95rem" }}>
+                                    {v.code}
+                                  </span>
+                                  <span className={`dashboard-badge ${v.discount_type === "percent" ? "dashboard-badge-success" : "dashboard-badge-primary"}`} style={{ fontSize: "0.68rem", padding: "2px 6px" }}>
+                                    {v.discount_type === "percent" ? `Giảm ${parseFloat(v.discount_value)}%` : `Giảm ${fmt(v.discount_value)}`}
+                                  </span>
                                 </div>
+                                <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: 4 }}>
+                                  Đơn tối thiểu: {fmt(v.min_order)} | Hạn dùng: {new Date(v.expired_at).toLocaleDateString("vi-VN")}
+                                </div>
+                                {isDisabled && (
+                                  <div style={{ fontSize: "0.75rem", color: "var(--color-danger)", fontWeight: 600, marginTop: 4 }}>
+                                    ⚠️ {errMsg}
+                                  </div>
+                                )}
+                              </div>
+                              {!isDisabled && (
+                                <div style={{
+                                  width: 20, height: 20, borderRadius: "50%",
+                                  border: selectedVoucher?.user_voucher_id === v.user_voucher_id ? "6px solid var(--color-brand)" : "2px solid var(--color-border)",
+                                  background: "white", transition: "all 0.15s",
+                                }} />
                               )}
                             </div>
-                            {!isDisabled && (
-                              <div style={{
-                                width: 20, height: 20, borderRadius: "50%",
-                                border: selectedVoucher?.user_voucher_id === v.user_voucher_id ? "6px solid var(--color-brand)" : "2px solid var(--color-border)",
-                                background: "white", transition: "all 0.15s",
-                              }} />
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                </div>,
+                document.body
+              )}
           </>
         )}
 
