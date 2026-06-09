@@ -71,7 +71,14 @@ export const decodeTokenPayload = (token = getToken()) => {
       return null;
     }
 
-    return JSON.parse(atob(payload));
+    // Decode base64url safely and support non-ASCII UTF-8 characters (Vietnamese)
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return JSON.parse(new TextDecoder().decode(bytes));
   } catch (error) {
     console.error("Failed to decode token payload:", error);
     return null;
