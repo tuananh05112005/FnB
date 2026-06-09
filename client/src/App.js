@@ -98,6 +98,7 @@ const AppContent = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 992);
   const [chatOpen, setChatOpen] = useState(false);
   const [isNotifyOpen, setIsNotifyOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isDark, toggleDark] = useDarkMode();
   const location = useLocation();
   const navigate = useNavigate();
@@ -128,6 +129,18 @@ const AppContent = () => {
     document.addEventListener("click", handleOutsideClick);
     return () => document.removeEventListener("click", handleOutsideClick);
   }, [isNotifyOpen]);
+
+  // Click outside to close user menu dropdown
+  useEffect(() => {
+    if (!isUserMenuOpen) return;
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest(".app-user-profile-container")) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("click", handleOutsideClick);
+    return () => document.removeEventListener("click", handleOutsideClick);
+  }, [isUserMenuOpen]);
 
   const isAuthPage = AUTH_ROUTES.has(location.pathname);
   const menuSettings = useMenuSettings();
@@ -301,9 +314,49 @@ const AppContent = () => {
                 )}
               </div>
 
-              {/* Avatar */}
-              <div className="app-user-pill" title={currentUser.name}>
-                {currentUser.initial}
+              {/* Avatar & User Dropdown */}
+              <div className="app-user-profile-container">
+                {currentUser.loggedIn && (
+                  <span className="app-user-name-label" onClick={() => setIsUserMenuOpen(prev => !prev)}>
+                    Chào, {currentUser.name}
+                  </span>
+                )}
+                <div className="app-user-pill" title={currentUser.name} onClick={() => setIsUserMenuOpen(prev => !prev)}>
+                  {currentUser.initial}
+                </div>
+
+                {isUserMenuOpen && (
+                  <div className="app-user-dropdown animate-fadeInDown">
+                    {currentUser.loggedIn ? (
+                      <>
+                        <div className="app-user-dropdown-header">
+                          Tài khoản: {currentUser.name}
+                        </div>
+                        <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/loyalty-wallet"); }}>
+                          🎫 Ví Voucher & Điểm
+                        </button>
+                        <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/history"); }}>
+                          📦 Lịch sử đơn hàng
+                        </button>
+                        <button type="button" className="app-user-dropdown-item danger" onClick={() => { setIsUserMenuOpen(false); navigate("/logout"); }} style={{ borderTop: "1px solid var(--color-border-light)", marginTop: "4px", paddingTop: "8px", color: "var(--color-danger)" }}>
+                          🚪 Đăng xuất
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="app-user-dropdown-header">
+                          Khách hàng
+                        </div>
+                        <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/login"); }}>
+                          🔑 Đăng nhập
+                        </button>
+                        <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/register"); }}>
+                          📝 Đăng ký
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
