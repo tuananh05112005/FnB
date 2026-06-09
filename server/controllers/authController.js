@@ -39,8 +39,8 @@ exports.googleLogin = async (req, res) => {
     }
 
     // Ký và cấp mã thông báo JWT Token
-    const token = jwt.sign({ id: userId, role }, jwtSecret, { expiresIn: +jwtExpiresIn });
-    res.status(200).json({ token, user_id: userId, role });
+    const token = jwt.sign({ id: userId, role, name: name || email.split("@")[0] }, jwtSecret, { expiresIn: +jwtExpiresIn });
+    res.status(200).json({ token, user_id: userId, role, name: name || email.split("@")[0] });
   } catch (error) {
     console.error("Lỗi xác thực Google:", error);
     res.status(401).json({ message: "Xác thực Google thất bại" });
@@ -83,10 +83,10 @@ exports.login = (req, res) => {
     if (!passwordIsValid) return res.status(401).send("Mật khẩu không đúng");
 
     // Ký token chứa thông tin ID người dùng và Vai trò tài khoản
-    const token = jwt.sign({ id: user.id, role: user.role }, jwtSecret, {
+    const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, jwtSecret, {
       expiresIn: +jwtExpiresIn,
     });
 
-    res.status(200).send({ auth: true, token, role: user.role, user_id: user.id });
+    res.status(200).send({ auth: true, token, role: user.role, user_id: user.id, name: user.name });
   });
 };

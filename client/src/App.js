@@ -13,7 +13,8 @@ import { Bell, Menu, Moon, Search, Sun, X } from "lucide-react";
 import "./App.css";
 import Sidebar from "./components/common/Sidebar";
 import { useMenuSettings } from "./hooks/useMenuSettings";
-import { decodeTokenPayload, getSession } from "./lib/session";
+import { decodeTokenPayload, getSession, clearSession } from "./lib/session";
+import { auth } from "./config/firebase";
 import { GlobalStyle } from "./styles/theme";
 import AddProductForm from "./pages/admin/AddProductForm";
 import AdminStatistics from "./pages/admin/AdminStatistics";
@@ -146,6 +147,9 @@ const AppContent = () => {
   const menuSettings = useMenuSettings();
 
   const currentUser = useMemo(() => {
+    // Access location.pathname to trigger re-evaluation on navigation (e.g., after login/logout)
+    // eslint-disable-next-line no-unused-vars
+    const _path = location.pathname;
     const session = getSession();
     const payload = decodeTokenPayload(session.token);
     const name = payload?.name || session.name || payload?.email || "User";
@@ -339,7 +343,16 @@ const AppContent = () => {
                         <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/history"); }}>
                           📦 Lịch sử đơn hàng
                         </button>
-                        <button type="button" className="app-user-dropdown-item danger" onClick={() => { setIsUserMenuOpen(false); navigate("/logout"); }} style={{ borderTop: "1px solid var(--color-border-light)", marginTop: "4px", paddingTop: "8px", color: "var(--color-danger)" }}>
+                        <button type="button" className="app-user-dropdown-item danger" onClick={() => {
+                          setIsUserMenuOpen(false);
+                          const confirmLogout = window.confirm("Bạn có chắc chắn muốn đăng xuất?");
+                          if (confirmLogout) {
+                            clearSession();
+                            auth.signOut().catch(console.error);
+                            alert("Đăng xuất thành công!");
+                            navigate("/login");
+                          }
+                        }} style={{ borderTop: "1px solid var(--color-border-light)", marginTop: "4px", paddingTop: "8px", color: "var(--color-danger)" }}>
                           🚪 Đăng xuất
                         </button>
                       </>

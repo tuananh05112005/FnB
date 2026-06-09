@@ -1,26 +1,36 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { clearSession } from "../../lib/session";
 import { auth } from "../../config/firebase";
 
 const Logout = () => {
   const navigate = useNavigate();
+  const hasLoggedOut = useRef(false);
 
   useEffect(() => {
-    // 1. Clear local storage session (token, role, user_id, name)
-    clearSession();
+    if (hasLoggedOut.current) return;
+    hasLoggedOut.current = true;
 
-    // 2. Sign out from Firebase Authentication if active
-    auth.signOut()
-      .then(() => {
-        alert("Đăng xuất thành công!");
-        navigate("/login");
-      })
-      .catch((err) => {
-        console.error("Firebase sign out error:", err);
-        alert("Đăng xuất thành công!");
-        navigate("/login");
-      });
+    const confirmLogout = window.confirm("Bạn có chắc chắn muốn đăng xuất?");
+    if (confirmLogout) {
+      // 1. Clear local storage session (token, role, user_id, name)
+      clearSession();
+
+      // 2. Sign out from Firebase Authentication if active
+      auth.signOut()
+        .then(() => {
+          alert("Đăng xuất thành công!");
+          navigate("/login");
+        })
+        .catch((err) => {
+          console.error("Firebase sign out error:", err);
+          alert("Đăng xuất thành công!");
+          navigate("/login");
+        });
+    } else {
+      // If cancelled, navigate back to previous page
+      navigate(-1);
+    }
   }, [navigate]);
 
   return (
@@ -34,7 +44,7 @@ const Logout = () => {
       fontFamily: "var(--app-font-sans)",
       fontWeight: 600,
     }}>
-      <p>⏳ Đang đăng xuất...</p>
+      <p>⏳ Đang xử lý đăng xuất...</p>
     </div>
   );
 };

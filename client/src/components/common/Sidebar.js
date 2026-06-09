@@ -33,6 +33,7 @@ import { useMenuSettings } from "../../hooks/useMenuSettings";
 import { applyCategorySettings } from "../../lib/categorySettings";
 import { api } from "../../lib/api";
 import { clearSession, decodeTokenPayload, getSession } from "../../lib/session";
+import { auth } from "../../config/firebase";
 
 // Component Sidebar chính nhận trạng thái đóng/mở làm thuộc tính
 const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
@@ -117,11 +118,16 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
 
   // Xử lý sự kiện đăng xuất: xóa phiên, chuyển hướng về trang Đăng nhập
   const handleLogout = () => {
-    clearSession();
-    setIsLoggedIn(false);
-    setUserRole("");
-    closeMobileSidebar();
-    navigate("/login");
+    const confirmLogout = window.confirm("Bạn có chắc chắn muốn đăng xuất?");
+    if (confirmLogout) {
+      clearSession();
+      setIsLoggedIn(false);
+      setUserRole("");
+      auth.signOut().catch((err) => console.error("Firebase sign out error:", err));
+      closeMobileSidebar();
+      alert("Đăng xuất thành công!");
+      navigate("/login");
+    }
   };
 
   const baseItems = useMemo(
