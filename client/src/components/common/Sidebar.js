@@ -134,9 +134,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
     () =>
       [
         { to: "/", label: "Trang chủ", icon: Home, accent: "purple" },
-        userRole === "user"
-          ? { to: "/carts", label: "Đơn mua", icon: ShoppingCart, accent: "green" }
-          : { to: "/carts", label: "Giỏ hàng", icon: ShoppingCart, accent: "green" },
+        { to: "/carts", label: "Giỏ hàng", icon: ShoppingCart, accent: "green" },
         userRole === "admin"
           ? { to: "/admin/statistics", label: "Thống kê", icon: BarChart3, accent: "amber" }
           : null,
@@ -145,6 +143,18 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
           : null,
         userRole === "admin" || userRole === "staff"
           ? { to: "/orders", label: "Lịch sử giao dịch", icon: History, accent: "violet" }
+          : null,
+        userRole === "user"
+          ? { to: "/history", label: "Lịch sử giao dịch", icon: History, accent: "violet" }
+          : null,
+        userRole === "user"
+          ? { to: "/favorite-products", label: "Yêu thích", icon: FaHeart, accent: "rose" }
+          : null,
+        userRole === "user" || userRole === "admin"
+          ? { to: "/wallet", label: "Ưu đãi", icon: Gift, accent: "gold" }
+          : null,
+        userRole === "admin" || userRole === "staff" || userRole === "user"
+          ? { to: "/admin/settings", label: "Cài đặt", icon: Settings, accent: "slate" }
           : null,
       ].filter(Boolean),
     [userRole]
@@ -157,23 +167,8 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
         { to: "/register", label: "Đăng ký", icon: UserPlus },
       ];
     }
-
-    if (userRole === "user") {
-      return [
-        { to: "/admin/settings", label: "Hồ sơ & Cài đặt", icon: Settings },
-        { to: "/wallet", label: "Ví & Ưu đãi", icon: Gift },
-        { to: "/favorite-products", label: "Yêu thích", icon: FaHeart },
-        { to: "/history", label: "Lịch sử thanh toán", icon: History },
-        { type: "action", label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
-      ];
-    }
-
-    // Admin or Staff
-    return [
-      { to: "/admin/settings", label: "Cài đặt", icon: Settings },
-      { type: "action", label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
-    ];
-  }, [isLoggedIn, userRole, handleLogout]);
+    return [{ type: "action", label: "Đăng xuất", icon: LogOut, onClick: handleLogout }];
+  }, [isLoggedIn, handleLogout]);
 
   const visibleCategories = useMemo(
     () => applyCategorySettings(categories, categorySettings),
@@ -277,7 +272,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
                 <span className="sidebar-nav-icon sidebar-accent-cyan">
                   <User size={16} />
                 </span>
-                <span>{isLoggedIn && userRole === "user" ? "Tôi" : "Tài khoản"}</span>
+                <span>Tài khoản</span>
               </div>
               <ChevronDown size={16} className={isAccountOpen ? "rotated" : ""} />
             </button>
