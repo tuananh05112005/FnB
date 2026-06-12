@@ -6,7 +6,7 @@
 //        - Hỗ trợ giao diện Responsive trên Desktop và Mobile.
 // ==============================================================
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   ChevronDown,
@@ -110,14 +110,14 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
   }, [isDesktop, isSidebarOpen, setIsSidebarOpen]);
 
   // Đóng Sidebar dành cho thiết bị di động
-  const closeMobileSidebar = () => {
+  const closeMobileSidebar = useCallback(() => {
     if (!isDesktop) {
       setIsSidebarOpen(false);
     }
-  };
+  }, [isDesktop, setIsSidebarOpen]);
 
   // Xử lý sự kiện đăng xuất: xóa phiên, chuyển hướng về trang Đăng nhập
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     const confirmLogout = window.confirm("Bạn có chắc chắn muốn đăng xuất?");
     if (confirmLogout) {
       clearSession();
@@ -128,13 +128,15 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
       alert("Đăng xuất thành công!");
       navigate("/login");
     }
-  };
+  }, [navigate, closeMobileSidebar]);
 
   const baseItems = useMemo(
     () =>
       [
         { to: "/", label: "Trang chủ", icon: Home, accent: "purple" },
-        { to: "/carts", label: "Giỏ hàng", icon: ShoppingCart, accent: "green" },
+        userRole === "user"
+          ? { to: "/carts", label: "Đơn mua", icon: ShoppingCart, accent: "green" }
+          : { to: "/carts", label: "Giỏ hàng", icon: ShoppingCart, accent: "green" },
         userRole === "admin"
           ? { to: "/admin/statistics", label: "Thống kê", icon: BarChart3, accent: "amber" }
           : null,
@@ -144,28 +146,34 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
         userRole === "admin" || userRole === "staff"
           ? { to: "/orders", label: "Lịch sử giao dịch", icon: History, accent: "violet" }
           : null,
-        userRole === "user"
-          ? { to: "/history", label: "Lịch sử giao dịch", icon: History, accent: "violet" }
-          : null,
-        userRole === "user"
-          ? { to: "/favorite-products", label: "Yêu thích", icon: FaHeart, accent: "rose" }
-          : null,
-        userRole === "user" || userRole === "admin"
-          ? { to: "/wallet", label: "Ưu đãi", icon: Gift, accent: "gold" }
-          : null,
-        userRole === "admin" || userRole === "staff" || userRole === "user"
-          ? { to: "/admin/settings", label: "Cài đặt", icon: Settings, accent: "slate" }
-          : null,
       ].filter(Boolean),
     [userRole]
   );
 
-  const accountItems = isLoggedIn
-    ? [{ type: "action", label: "Đăng xuất", icon: LogOut, onClick: handleLogout }]
-    : [
+  const accountItems = useMemo(() => {
+    if (!isLoggedIn) {
+      return [
         { to: "/login", label: "Đăng nhập", icon: LogIn },
         { to: "/register", label: "Đăng ký", icon: UserPlus },
       ];
+    }
+
+    if (userRole === "user") {
+      return [
+        { to: "/admin/settings", label: "Hồ sơ & Cài đặt", icon: Settings },
+        { to: "/wallet", label: "Ví & Ưu đãi", icon: Gift },
+        { to: "/favorite-products", label: "Yêu thích", icon: FaHeart },
+        { to: "/history", label: "Lịch sử thanh toán", icon: History },
+        { type: "action", label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
+      ];
+    }
+
+    // Admin or Staff
+    return [
+      { to: "/admin/settings", label: "Cài đặt", icon: Settings },
+      { type: "action", label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
+    ];
+  }, [isLoggedIn, userRole, handleLogout]);
 
   const visibleCategories = useMemo(
     () => applyCategorySettings(categories, categorySettings),
@@ -269,7 +277,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
                 <span className="sidebar-nav-icon sidebar-accent-cyan">
                   <User size={16} />
                 </span>
-                <span>Tài khoản</span>
+                <span>{isLoggedIn && userRole === "user" ? "Tôi" : "Tài khoản"}</span>
               </div>
               <ChevronDown size={16} className={isAccountOpen ? "rotated" : ""} />
             </button>

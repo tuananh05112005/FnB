@@ -26,6 +26,26 @@ const OrderDetail = () => {
       : "N/A";
   };
 
+  const getBadgeVariant = (status) => {
+    const map = {
+      pending: "warning",
+      completed: "info",
+      received: "success",
+      cancelled: "danger"
+    };
+    return map[status] || "secondary";
+  };
+
+  const getStatusLabel = (status) => {
+    const map = {
+      pending: "Đang xử lý",
+      completed: "Đang giao",
+      received: "Đã giao",
+      cancelled: "Đã hủy"
+    };
+    return map[status] || status;
+  };
+
   // Nếu người dùng truy cập trực tiếp mà không qua chuyển hướng (không có order trong state)
   if (!order) {
     return (
@@ -47,11 +67,11 @@ const OrderDetail = () => {
   return (
     <div className="container py-4">
       {/* Header */}
-      <div className="d-flex align-items-center justify-content-between mb-4">
-        <div className="d-flex align-items-center">
+      <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
+        <div className="d-flex align-items-center flex-wrap gap-2">
           <Button 
             variant="outline-secondary" 
-            className="me-3 rounded-pill" 
+            className="me-2 rounded-pill" 
             onClick={() => navigate(-1)}
           >
             <FaArrowLeft className="me-2" /> Quay lại
@@ -63,10 +83,10 @@ const OrderDetail = () => {
         </div>
         {order.status && (
           <Badge 
-            bg={(order.status)} 
-            className="fs-6 px-3 py-2 rounded-pill"
+            bg={getBadgeVariant(order.status)} 
+            className="fs-6 px-3 py-2 rounded-pill align-self-start align-self-md-center"
           >
-            {order.status}
+            {getStatusLabel(order.status)}
           </Badge>
         )}
       </div>
@@ -92,7 +112,6 @@ const OrderDetail = () => {
                   />
                 </div>
                 <h5 className="mt-3 mb-0 text-dark">{order.product_name}</h5>
-          
               </div>
             </Card.Body>
           </Card>
@@ -134,7 +153,7 @@ const OrderDetail = () => {
                       <FaCreditCard className="text-primary me-2" />
                       <strong className="text-dark">Phương thức thanh toán</strong>
                     </div>
-                    <p className="mb-0 text-muted">{order.payment_method}</p>
+                    <p className="mb-0 text-muted">{order.payment_method === "cash" ? "Tiền mặt" : "Chuyển khoản"}</p>
                   </div>
                 </Col>
                 
@@ -188,19 +207,19 @@ const OrderDetail = () => {
       </Row>
 
       {/* Action Buttons */}
-      <div className="text-center mt-4">
+      <div className="d-flex flex-column flex-sm-row justify-content-center align-items-center gap-3 mt-4">
         <Button 
           variant="primary" 
           size="lg" 
-          className="me-3 rounded-pill px-4"
-          onClick={() => navigate('/history')}
+          className="rounded-pill px-4 w-100 w-sm-auto"
+          onClick={() => navigate('/carts')}
         >
           Xem tất cả đơn hàng
         </Button>
         <Button 
           variant="outline-primary" 
           size="lg" 
-          className="rounded-pill px-4"
+          className="rounded-pill px-4 w-100 w-sm-auto"
           onClick={() => navigate('/products')}
         >
           Tiếp tục mua sắm

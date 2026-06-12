@@ -106,6 +106,14 @@ const Cart = () => {
   // error: Lưu trữ và hiển thị các thông điệp lỗi trong quá trình thực thi API
   const [error, setError] = useState("");
 
+  // activeTab: Tab lọc trạng thái đơn hàng hiện tại (all, pending, completed, received, cancelled)
+  const [activeTab, setActiveTab] = useState("all");
+
+  // Reset page về 1 khi chuyển đổi Tab lọc
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
   // Kiểm tra quyền truy cập: Nếu chưa đăng nhập (không có userId/token), chuyển hướng về trang đăng nhập
   useEffect(() => {
     if (!userId || !token) navigate("/login");
@@ -167,9 +175,24 @@ const Cart = () => {
     return Object.values(groups);
   }, [cartItems]);
 
+  // Lọc đơn hàng theo Tab được chọn
+  const filteredOrders = useMemo(() => {
+    if (activeTab === "all") return groupedOrders;
+    return groupedOrders.filter((order) => order.status === activeTab);
+  }, [groupedOrders, activeTab]);
+
+  // Đếm số lượng đơn hàng theo từng trạng thái cho các Tab
+  const tabCounts = useMemo(() => {
+    const counts = { all: groupedOrders.length, pending: 0, completed: 0, received: 0, cancelled: 0 };
+    groupedOrders.forEach((o) => {
+      if (counts[o.status] !== undefined) counts[o.status]++;
+    });
+    return counts;
+  }, [groupedOrders]);
+
   // Sắp xếp danh sách đơn hàng dựa trên sortField và sortOrder hiện tại
   const sortedOrders = useMemo(() => {
-    const orders = [...groupedOrders];
+    const orders = [...filteredOrders];
     orders.sort((a, b) => {
       let l = a[sortField], r = b[sortField];
       if (sortField === "name") {
@@ -185,7 +208,7 @@ const Cart = () => {
       return sortOrder === "asc" ? String(l).localeCompare(String(r)) : String(r).localeCompare(String(l));
     });
     return orders;
-  }, [groupedOrders, sortField, sortOrder]);
+  }, [filteredOrders, sortField, sortOrder]);
 
   // Chia danh sách đã sắp xếp thành các trang nhỏ (phân trang)
   const pagedOrders = sortedOrders.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -300,23 +323,45 @@ const Cart = () => {
           </div>
         )}
 
-        {/* Stats */}
-        <div className="dashboard-stats-grid animate-fadeInUp animate-delay-1">
-          {[
-            { icon: <FaShoppingCart />, label: "Tổng đơn",   value: groupedOrders.length,  bg: "var(--color-brand-pale)",    color: "var(--color-brand-dark)", accent: "var(--color-brand)" },
-            { icon: <FaCreditCard />,   label: "Đang xử lý", value: statusGroups.pending,   bg: "var(--color-warning-light)", color: "var(--color-warning)",     accent: "var(--color-warning)" },
-            { icon: <FaTruck />,        label: "Đang giao",  value: statusGroups.completed, bg: "var(--color-info-light)",    color: "var(--color-info)",        accent: "var(--color-info)" },
-            { icon: <FaTimes />,        label: "Đã hủy",     value: statusGroups.cancelled, bg: "var(--color-danger-light)",  color: "var(--color-danger)",      accent: "var(--color-danger)" },
-          ].map((s) => (
-            <article key={s.label} className="dashboard-stat dashboard-stat-accent" style={{ "--stat-accent": s.accent }}>
-              <div className="dashboard-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
-              <div>
-                <p className="dashboard-stat-value">{s.value}</p>
-                <p className="dashboard-stat-label">{s.label}</p>
-              </div>
-            </article>
-          ))}
-        </div>
+        {/* Stats / Tabs */}
+        {role === "admin" ? (
+          <div className="dashboard-stats-grid animate-fadeInUp animate-delay-1">
+            {[
+              { icon: <FaShoppingCart />, label: "Tổng đơn",   value: groupedOrders.length,  bg: "var(--color-brand-pale)",    color: "var(--color-brand-dark)", accent: "var(--color-brand)" },
+              { icon: <FaCreditCard />,   label: "Đang xử lý", value: statusGroups.pending,   bg: "var(--color-warning-light)", color: "var(--color-warning)",     accent: "var(--color-warning)" },
+              { icon: <FaTruck />,        label: "Đang giao",  value: statusGroups.completed, bg: "var(--color-info-light)",    color: "var(--color-info)",        accent: "var(--color-info)" },
+              { icon: <FaTimes />,        label: "Đã hủy",     value: statusGroups.cancelled, bg: "var(--color-danger-light)",  color: "var(--color-danger)",      accent: "var(--color-danger)" },
+            ].map((s) => (
+              <article key={s.label} className="dashboard-stat dashboard-stat-accent" style={{ "--stat-accent": s.accent }}>
+                <div className="dashboard-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
+                <div>
+                  <p className="dashboard-stat-value">{s.value}</p>
+                  <p className="dashboard-stat-label">{s.label}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="shopee-tabs animate-fadeInUp animate-delay-1">
+            {[
+              { key: "all",       label: "Tất cả" },
+              { key: "pending",   label: "Chờ thanh toán" },
+              { key: "completed", label: "Đang vận chuyển" },
+              { key: "received",  label: "Đã nhận hàng" },
+              { key: "cancelled", label: "Đã hủy" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                className={`shopee-tab-btn ${activeTab === tab.key ? "active" : ""}`}
+                onClick={() => setActiveTab(tab.key)}
+              >
+                <span>{tab.label}</span>
+                <span className="shopee-tab-badge">({tabCounts[tab.key]})</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {error && <div className="commerce-alert commerce-alert-danger animate-fadeIn">{error}</div>}
 
@@ -353,9 +398,9 @@ const Cart = () => {
             pagedOrders.map((order) => {
               const st = STATUS_MAP[order.status] || { cls: "dashboard-badge-neutral", label: "N/A" };
               return (
-                <div key={order.order_code} className="dashboard-panel" style={{ padding: "var(--space-5) var(--space-6)" }}>
+                <div key={order.order_code} className="dashboard-panel commerce-order-panel" style={{ padding: "var(--space-5) var(--space-6)" }}>
                   {/* Card Header */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1.5px solid var(--color-border)", paddingBottom: "var(--space-3)", marginBottom: "var(--space-4)", flexWrap: "wrap", gap: "12px" }}>
+                  <div className="commerce-order-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1.5px solid var(--color-border)", paddingBottom: "var(--space-3)", marginBottom: "var(--space-4)", flexWrap: "wrap", gap: "12px" }}>
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                         <span style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--color-text)" }}>Đơn hàng #{order.order_code}</span>
@@ -372,7 +417,7 @@ const Cart = () => {
                     </div>
                     
                     {/* Action buttons on Header for desktop */}
-                    <div style={{ display: "flex", gap: "8px" }}>
+                    <div className="commerce-order-actions" style={{ display: "flex", gap: "8px" }}>
                       {role === "user" && order.status === "pending" && (
                         <>
                           <button className="dashboard-btn dashboard-btn-primary" onClick={() => handleCheckout(order)}>
@@ -407,25 +452,25 @@ const Cart = () => {
                   </div>
 
                   {/* Card Body (Products list) */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <div className="commerce-order-body" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                     {order.items.map((item) => (
-                      <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                      <div key={item.id} className="commerce-order-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+                        <div className="commerce-order-item-left" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                           <ProductImage src={item.image} alt={item.name} style={{ width: 56, height: 56, borderRadius: "var(--radius-md)", objectFit: "cover" }} />
                           <div>
-                            <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--color-text)" }}>{item.name}</div>
+                            <div className="commerce-order-item-name" style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--color-text)" }}>{item.name}</div>
                             <span className="dashboard-code" style={{ marginRight: 8 }}>{item.code || "SP"}</span>
                             <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--color-text-faint)", background: "var(--color-bg-alt)", padding: "2px 8px", borderRadius: 4 }}>Size: {item.size}</span>
                           </div>
                         </div>
                         
-                        <div style={{ display: "flex", alignItems: "center", gap: "32px", marginLeft: "auto", flexWrap: "wrap" }}>
-                          <div style={{ textAlign: "right" }}>
+                        <div className="commerce-order-item-right" style={{ display: "flex", alignItems: "center", gap: "32px", marginLeft: "auto", flexWrap: "wrap" }}>
+                          <div className="commerce-order-stat-block price-block" style={{ textAlign: "right" }}>
                             <span style={{ display: "block", fontSize: "0.75rem", color: "var(--color-text-faint)", fontWeight: 700, textTransform: "uppercase" }}>Đơn giá</span>
                             <span style={{ fontSize: "0.92rem", fontWeight: 600 }}>{fmt(item.price)}</span>
                           </div>
 
-                          <div style={{ textAlign: "center" }}>
+                          <div className="commerce-order-stat-block qty-block" style={{ textAlign: "center" }}>
                             <span style={{ display: "block", fontSize: "0.75rem", color: "var(--color-text-faint)", fontWeight: 700, textTransform: "uppercase" }}>Số lượng</span>
                             {order.status === "pending" && role === "user" ? (
                               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
@@ -464,7 +509,7 @@ const Cart = () => {
                             )}
                           </div>
 
-                          <div style={{ textAlign: "right", minWidth: 120, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px" }}>
+                          <div className="commerce-order-stat-block subtotal-block" style={{ textAlign: "right", minWidth: 120, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px" }}>
                             <div style={{ textAlign: "right" }}>
                               <span style={{ display: "block", fontSize: "0.75rem", color: "var(--color-text-faint)", fontWeight: 700, textTransform: "uppercase" }}>Thành tiền</span>
                               <span style={{ fontSize: "0.95rem", fontWeight: 800, color: "var(--color-brand-dark)" }}>{fmt(Number(item.price) * Number(item.quantity))}</span>
@@ -489,7 +534,7 @@ const Cart = () => {
                   </div>
 
                   {/* Card Footer */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1.5px dashed var(--color-border)", marginTop: "var(--space-4)", paddingTop: "var(--space-3)", flexWrap: "wrap", gap: "12px" }}>
+                  <div className="commerce-order-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1.5px dashed var(--color-border)", marginTop: "var(--space-4)", paddingTop: "var(--space-3)", flexWrap: "wrap", gap: "12px" }}>
                     <div>
                       <span style={{ fontSize: "0.85rem", color: "var(--color-text-faint)", fontWeight: 700 }}>TỔNG ĐƠN HÀNG:</span>
                       <span style={{ marginLeft: 8, fontSize: "1.35rem", fontWeight: 900, color: "var(--color-brand-dark)" }}>{fmt(order.totalAmount)}</span>

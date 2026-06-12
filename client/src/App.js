@@ -337,11 +337,17 @@ const AppContent = () => {
                         <div className="app-user-dropdown-header">
                           Tài khoản: {currentUser.name}
                         </div>
+                        <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/admin/settings"); }}>
+                          👤 Hồ sơ & Cài đặt
+                        </button>
+                        <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/carts"); }}>
+                          📦 Đơn mua
+                        </button>
                         <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/wallet"); }}>
                           🎫 Ví Voucher & Điểm
                         </button>
                         <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/history"); }}>
-                          📦 Lịch sử đơn hàng
+                          💳 Lịch sử thanh toán
                         </button>
                         <button type="button" className="app-user-dropdown-item danger" onClick={() => {
                           setIsUserMenuOpen(false);
