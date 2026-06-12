@@ -19,7 +19,7 @@ import {
 
 import ProductImage from "../components/common/ProductImage";
 import { api } from "../lib/api";
-import { getUserId } from "../lib/session";
+import { getUserId, getRole } from "../lib/session";
 import { addToCart } from "../services/cartService";
 import { useNotifications } from "../components/common/NotificationContext";
 import "../styles/dashboard.css";
@@ -52,6 +52,8 @@ function SkeletonCard() {
 const FavoriteProducts = () => {
   const navigate = useNavigate();
   const userId = getUserId();
+  const role = getRole();
+  const isManager = role === "admin" || role === "staff";
   const { addNotification } = useNotifications();
 
   // --- Các Hook State quản lý danh sách yêu thích ---
@@ -134,7 +136,7 @@ const FavoriteProducts = () => {
         </div>
 
         {/* ── Stats bar ── */}
-        {!loading && products.length > 0 && (
+        {isManager && !loading && products.length > 0 && (
           <div className="animate-fadeInUp animate-delay-1" style={{
             display: "flex", gap: "var(--space-4)", flexWrap: "wrap",
           }}>

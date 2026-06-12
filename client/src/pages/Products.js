@@ -106,22 +106,24 @@ const Products = () => {
         )}
 
         {/* ── Stats ── */}
-        <div className="dashboard-stats-grid animate-fadeInUp animate-delay-1">
-          {[
-            { label: "Tổng sản phẩm",  value: products.length,        icon: <FaBoxOpen />,   accent: "var(--color-brand)",    bg: "var(--color-brand-pale)",    color: "var(--color-brand-dark)" },
-            { label: "Đang hiển thị",  value: filteredProducts.length, icon: <FaSearch />,    accent: "#3b82f6", bg: "var(--color-info-light)",    color: "#3b82f6" },
-            { label: "Mục yêu thích",  value: favoriteCount,           icon: favoriteCount > 0 ? <FaHeart /> : <FaRegHeart />, accent: "#ec4899", bg: "var(--color-rose-light)", color: "var(--color-rose)" },
-            { label: "Trong giỏ hàng", value: cartItems.length,        icon: <FaCartPlus />,  accent: "var(--color-matcha)", bg: "var(--color-matcha-light)", color: "var(--color-matcha)" },
-          ].map((s) => (
-            <article key={s.label} className="dashboard-stat dashboard-stat-accent" style={{ "--stat-accent": s.accent }}>
-              <div className="dashboard-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
-              <div>
-                <p className="dashboard-stat-value">{s.value}</p>
-                <p className="dashboard-stat-label">{s.label}</p>
-              </div>
-            </article>
-          ))}
-        </div>
+        {isManager && (
+          <div className="dashboard-stats-grid animate-fadeInUp animate-delay-1">
+            {[
+              { label: "Tổng sản phẩm",  value: products.length,        icon: <FaBoxOpen />,   accent: "var(--color-brand)",    bg: "var(--color-brand-pale)",    color: "var(--color-brand-dark)" },
+              { label: "Đang hiển thị",  value: filteredProducts.length, icon: <FaSearch />,    accent: "#3b82f6", bg: "var(--color-info-light)",    color: "#3b82f6" },
+              { label: "Mục yêu thích",  value: favoriteCount,           icon: favoriteCount > 0 ? <FaHeart /> : <FaRegHeart />, accent: "#ec4899", bg: "var(--color-rose-light)", color: "var(--color-rose)" },
+              { label: "Trong giỏ hàng", value: cartItems.length,        icon: <FaCartPlus />,  accent: "var(--color-matcha)", bg: "var(--color-matcha-light)", color: "var(--color-matcha)" },
+            ].map((s) => (
+              <article key={s.label} className="dashboard-stat dashboard-stat-accent" style={{ "--stat-accent": s.accent }}>
+                <div className="dashboard-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
+                <div>
+                  <p className="dashboard-stat-value">{s.value}</p>
+                  <p className="dashboard-stat-label">{s.label}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
 
         {/* ── Filter bar ── */}
         <div className="commerce-filter-bar animate-fadeIn animate-delay-2">
