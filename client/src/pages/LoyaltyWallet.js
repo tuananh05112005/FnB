@@ -231,7 +231,7 @@ const LoyaltyWallet = () => {
                   </p>
                 </div>
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "var(--space-4)", padding: "var(--space-5)" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "var(--space-3)", padding: "var(--space-4)" }}>
                   {displayedVouchers.map((v) => {
                     const b = discountBadge(v.discount_type);
                     const isExpired = new Date(v.expired_at) < new Date();
@@ -241,29 +241,38 @@ const LoyaltyWallet = () => {
                       <div key={v.user_voucher_id || v.id} 
                         onClick={() => setSelectedVoucherDetails(v)}
                         style={{
-                          border: isDisabled ? "2px dashed var(--color-text-faint)" : "2px dashed var(--color-brand)",
-                          borderRadius: "var(--radius-lg)", padding: "var(--space-5)",
+                          border: isDisabled ? "1.5px dashed var(--color-text-faint)" : "1.5px dashed var(--color-brand)",
+                          borderRadius: "16px", padding: "14px 16px",
                           background: isDisabled ? "var(--color-bg-alt)" : "var(--color-brand-pale)", 
                           position: "relative", overflow: "hidden",
                           opacity: isDisabled ? 0.65 : 1,
                           filter: isDisabled ? "grayscale(40%)" : "none",
                           cursor: "pointer",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "6px",
                           transition: "transform 0.2s ease, box-shadow 0.2s ease",
                         }}
-                        onMouseEnter={(e) => { if (!isDisabled) { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "var(--shadow-md)"; } }}
+                        onMouseEnter={(e) => { if (!isDisabled) { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "var(--shadow-sm)"; } }}
                         onMouseLeave={(e) => { if (!isDisabled) { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; } }}
                       >
-                        <div style={{ fontSize: "1.5rem", marginBottom: 8 }}>🎫</div>
-                        <div style={{ fontFamily: "var(--app-font-display)", fontSize: "1.1rem", fontWeight: 800, color: isDisabled ? "var(--color-text-muted)" : "var(--color-brand-dark)", letterSpacing: "0.05em", marginBottom: 6 }}>
-                          {v.code}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontFamily: "var(--app-font-display)", fontSize: "0.95rem", fontWeight: 800, color: isDisabled ? "var(--color-text-muted)" : "var(--color-brand-dark)", letterSpacing: "0.05em" }}>
+                            {v.code}
+                          </span>
+                          <span style={{ fontSize: "1.1rem" }}>🎫</span>
                         </div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
-                          <span className={`dashboard-badge ${b.cls}`} style={{ display: "inline-flex" }}>{b.label}</span>
-                          {isUsed && <span className="dashboard-badge" style={{ display: "inline-flex", background: "#e0dcd3", color: "#5c503e" }}>Đã dùng</span>}
-                          {isExpired && <span className="dashboard-badge" style={{ display: "inline-flex", background: "#f8d7da", color: "#842029" }}>Hết hạn</span>}
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                          <span className={`dashboard-badge ${b.cls}`} style={{ display: "inline-flex", fontSize: "0.65rem", padding: "2px 6px" }}>{b.label}</span>
+                          {isUsed && <span className="dashboard-badge" style={{ display: "inline-flex", background: "#e0dcd3", color: "#5c503e", fontSize: "0.65rem", padding: "2px 6px" }}>Đã dùng</span>}
+                          {isExpired && <span className="dashboard-badge" style={{ display: "inline-flex", background: "#f8d7da", color: "#842029", fontSize: "0.65rem", padding: "2px 6px" }}>Hết hạn</span>}
                         </div>
-                        <div style={{ fontWeight: 700, color: "var(--color-text)", fontSize: "0.95rem" }}>
-                          {v.discount_type === "percent" ? `Giảm ${v.discount_value}%` : `Giảm ${fmt(v.discount_value)}`}
+                        <div style={{ fontWeight: 800, color: "var(--color-text)", fontSize: "1.1rem", marginTop: "2px" }}>
+                          {v.discount_type === "percent" ? `Giảm ${parseFloat(v.discount_value)}%` : `Giảm ${fmt(v.discount_value)}`}
+                        </div>
+                        <div style={{ fontSize: "0.7rem", color: "var(--color-text-faint)", marginTop: "auto", borderTop: "1px dashed rgba(0,0,0,0.06)", paddingTop: "6px", display: "flex", justifyContent: "space-between" }}>
+                          <span>Hạn dùng:</span>
+                          <strong>{new Date(v.expired_at).toLocaleDateString("vi-VN")}</strong>
                         </div>
                       </div>
                     );
