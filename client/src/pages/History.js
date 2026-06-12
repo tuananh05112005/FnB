@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   FaCalendarAlt, FaCreditCard, FaEye, FaHistory,
   FaMoneyBill, FaShoppingBag, FaTrash, FaSearch,
-  FaFilter, FaTimes, FaReceipt, FaChartLine,
+  FaTimes, FaReceipt, FaChartLine,
 } from "react-icons/fa";
 
 import { api } from "../lib/api";
@@ -55,6 +55,12 @@ const History = () => {
   const [filter,   setFilter]   = useState("all"); // Bộ lọc hình thức thanh toán (all, cash, banking)
   const [viewMode, setViewMode] = useState("card"); // Chế độ hiển thị: dạng thẻ (card) hoặc dạng bảng (table)
   const [page,     setPage]     = useState(1); // Trang hiện tại khi phân trang
+  const [activeTab, setActiveTab] = useState("all"); // Tab lọc trạng thái đơn hàng (all, pending, completed, received, cancelled)
+
+  // Reset page về 1 khi đổi tab lọc trạng thái
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab]);
 
   // Effect 1: Tải lịch sử mua hàng của khách hàng từ API khi mở trang
   useEffect(() => {
@@ -103,16 +109,26 @@ const History = () => {
   const cashOrders   = useMemo(() => history.filter((i) => i.payment_method === "cash"), [history]); // Số lượng đơn thanh toán tiền mặt
   const bankOrders   = useMemo(() => history.filter((i) => i.payment_method !== "cash"), [history]); // Số lượng đơn thanh toán banking
 
+  // Đếm số lượng giao dịch theo trạng thái cho các Tab
+  const tabCounts = useMemo(() => {
+    const counts = { all: history.length, pending: 0, completed: 0, received: 0, cancelled: 0 };
+    history.forEach((item) => {
+      if (counts[item.status] !== undefined) counts[item.status]++;
+    });
+    return counts;
+  }, [history]);
+
   // useMemo: Lọc danh sách giao dịch dựa trên từ khóa tìm kiếm và bộ lọc hình thức thanh toán
   const displayed = useMemo(() => {
     let list = [...history];
+    if (activeTab !== "all") list = list.filter((i) => i.status === activeTab);
     if (filter !== "all") list = list.filter((i) => i.payment_method === filter);
     if (search.trim())    list = list.filter((i) =>
       (i.product_name || "").toLowerCase().includes(search.toLowerCase()) ||
       String(i.payment_id).includes(search)
     );
     return list;
-  }, [history, filter, search]);
+  }, [history, filter, search, activeTab]);
 
   // useMemo: Phân trang danh sách giao dịch
   const pagedDisplayed = useMemo(() => {
@@ -166,58 +182,78 @@ const History = () => {
           </button>
         </div>
 
-        {/* ── Stat cards ── */}
-        {role !== "user" && (
-          <div className="dashboard-stats-grid">
-            {statCards.map((s) => (
-              <article key={s.label} className="dashboard-stat dashboard-stat-accent" style={{ "--stat-accent": s.accent }}>
-                <div className="dashboard-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
-                <div>
-                  <p className="dashboard-stat-value" style={{ fontSize: "1.5rem" }}>{s.value}</p>
-                  <p className="dashboard-stat-label">{s.label}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
+        {/* ── Stat cards / Tabs ── */}
+        {role !== "user" ? (
+          <>
+            <div className="dashboard-stats-grid">
+              {statCards.map((s) => (
+                <article key={s.label} className="dashboard-stat dashboard-stat-accent" style={{ "--stat-accent": s.accent }}>
+                  <div className="dashboard-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
+                  <div>
+                    <p className="dashboard-stat-value" style={{ fontSize: "1.5rem" }}>{s.value}</p>
+                    <p className="dashboard-stat-label">{s.label}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
 
-        {/* ── Total banner ── */}
-        {role !== "user" && (
-          <section className="dashboard-panel">
-            <div className="dashboard-panel-body">
-              <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-                {/* Icon */}
-                <div className="dashboard-stat-icon" style={{
-                  background: "var(--color-brand-pale)",
-                  color: "var(--color-brand-dark)",
-                  width: 52, height: 52, fontSize: "1.2rem",
-                  borderRadius: "var(--radius-md)",
-                }}>
-                  <FaReceipt />
-                </div>
+            {/* ── Total banner ── */}
+            <section className="dashboard-panel">
+              <div className="dashboard-panel-body">
+                <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+                  {/* Icon */}
+                  <div className="dashboard-stat-icon" style={{
+                    background: "var(--color-brand-pale)",
+                    color: "var(--color-brand-dark)",
+                    width: 52, height: 52, fontSize: "1.2rem",
+                    borderRadius: "var(--radius-md)",
+                  }}>
+                    <FaReceipt />
+                  </div>
 
-                {/* Amount */}
-                <div>
-                  <p className="dashboard-stat-label" style={{ margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: "0.7rem" }}>
-                    Tổng chi tiêu
-                  </p>
-                  <p className="dashboard-money-primary" style={{ margin: 0, fontSize: "1.8rem" }}>
-                    {fmt(totalAmount)}
-                  </p>
-                </div>
+                  {/* Amount */}
+                  <div>
+                    <p className="dashboard-stat-label" style={{ margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: "0.7rem" }}>
+                      Tổng chi tiêu
+                    </p>
+                    <p className="dashboard-money-primary" style={{ margin: 0, fontSize: "1.8rem" }}>
+                      {fmt(totalAmount)}
+                    </p>
+                  </div>
 
-                {/* Right meta */}
-                <div style={{ marginLeft: "auto", textAlign: "right" }}>
-                  <p style={{ color: "var(--color-text-faint)", fontSize: "0.8rem", margin: 0, fontWeight: 500 }}>
-                    Từ {history.length} giao dịch
-                  </p>
-                  <p style={{ color: "var(--color-brand-dark)", fontWeight: 700, fontSize: "0.875rem", margin: "4px 0 0" }}>
-                    TB {history.length ? fmt(Math.round(totalAmount / history.length)) : "—"} / đơn
-                  </p>
+                  {/* Right meta */}
+                  <div style={{ marginLeft: "auto", textAlign: "right" }}>
+                    <p style={{ color: "var(--color-text-faint)", fontSize: "0.8rem", margin: 0, fontWeight: 500 }}>
+                      Từ {history.length} giao dịch
+                    </p>
+                    <p style={{ color: "var(--color-brand-dark)", fontWeight: 700, fontSize: "0.875rem", margin: "4px 0 0" }}>
+                      TB {history.length ? fmt(Math.round(totalAmount / history.length)) : "—"} / đơn
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
+          </>
+        ) : (
+          <div className="shopee-tabs animate-fadeInUp animate-delay-1">
+            {[
+              { key: "all",       label: "Tất cả" },
+              { key: "pending",   label: "Đang xử lý" },
+              { key: "completed", label: "Đang giao" },
+              { key: "received",  label: "Đã giao" },
+              { key: "cancelled", label: "Đã hủy" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                className={`shopee-tab-btn ${activeTab === tab.key ? "active" : ""}`}
+                onClick={() => setActiveTab(tab.key)}
+              >
+                <span>{tab.label}</span>
+                <span className="shopee-tab-badge">({tabCounts[tab.key]})</span>
+              </button>
+            ))}
+          </div>
         )}
 
 

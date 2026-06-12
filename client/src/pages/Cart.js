@@ -280,11 +280,11 @@ const Cart = () => {
     catch (e) { console.error(e); setError("Không thể cập nhật trạng thái nhận hàng."); }
   };
 
-  // Ánh xạ các trạng thái đơn hàng trong DB sang nhãn tiếng Việt và Class CSS tương ứng tùy theo quyền người dùng
+  // Ánh xạ các trạng thái đơn hàng trong DB sang nhãn tiếng Việt và Class CSS tương ứng
   const STATUS_MAP = {
-    pending:   { cls: "dashboard-badge-warning", label: role === "admin" ? "Đang xử lý" : "Chưa thanh toán" },
-    completed: { cls: "dashboard-badge-info",    label: role === "admin" ? "Đang giao"  : "Đã thanh toán"  },
-    received:  { cls: "dashboard-badge-success", label: role === "admin" ? "Đã giao"    : "Đã nhận hàng"  },
+    pending:   { cls: "dashboard-badge-warning", label: "Đang xử lý" },
+    completed: { cls: "dashboard-badge-info",    label: "Đang giao"  },
+    received:  { cls: "dashboard-badge-success", label: "Đã giao"    },
     cancelled: { cls: "dashboard-badge-danger",  label: "Đã hủy" },
   };
 
@@ -345,9 +345,9 @@ const Cart = () => {
           <div className="shopee-tabs animate-fadeInUp animate-delay-1">
             {[
               { key: "all",       label: "Tất cả" },
-              { key: "pending",   label: "Chờ thanh toán" },
-              { key: "completed", label: "Đang vận chuyển" },
-              { key: "received",  label: "Đã nhận hàng" },
+              { key: "pending",   label: "Đang xử lý" },
+              { key: "completed", label: "Đang giao" },
+              { key: "received",  label: "Đã giao" },
               { key: "cancelled", label: "Đã hủy" },
             ].map((tab) => (
               <button
