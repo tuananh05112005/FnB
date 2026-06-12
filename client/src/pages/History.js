@@ -8,7 +8,7 @@ import {
 
 import { api } from "../lib/api";
 import socket from "../lib/socket";
-import { getUserId } from "../lib/session";
+import { getRole, getUserId } from "../lib/session";
 import Pagination from "../components/common/Pagination";
 import "../styles/dashboard.css";
 import "../styles/commerce.css";
@@ -45,6 +45,7 @@ const getStatus = (s) => STATUS_CFG[s] || STATUS_CFG.pending;
 const History = () => {
   const navigate = useNavigate();
   const userId   = getUserId(); // Lấy ID của user hiện tại từ session
+  const role     = getRole();
 
   // Khai báo các State
   const [history,  setHistory]  = useState([]); // Danh sách lịch sử mua hàng tải về từ API
@@ -166,54 +167,58 @@ const History = () => {
         </div>
 
         {/* ── Stat cards ── */}
-        <div className="dashboard-stats-grid">
-          {statCards.map((s) => (
-            <article key={s.label} className="dashboard-stat dashboard-stat-accent" style={{ "--stat-accent": s.accent }}>
-              <div className="dashboard-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
-              <div>
-                <p className="dashboard-stat-value" style={{ fontSize: "1.5rem" }}>{s.value}</p>
-                <p className="dashboard-stat-label">{s.label}</p>
-              </div>
-            </article>
-          ))}
-        </div>
+        {role !== "user" && (
+          <div className="dashboard-stats-grid">
+            {statCards.map((s) => (
+              <article key={s.label} className="dashboard-stat dashboard-stat-accent" style={{ "--stat-accent": s.accent }}>
+                <div className="dashboard-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
+                <div>
+                  <p className="dashboard-stat-value" style={{ fontSize: "1.5rem" }}>{s.value}</p>
+                  <p className="dashboard-stat-label">{s.label}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
 
         {/* ── Total banner ── */}
-        <section className="dashboard-panel">
-          <div className="dashboard-panel-body">
-            <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-              {/* Icon */}
-              <div className="dashboard-stat-icon" style={{
-                background: "var(--color-brand-pale)",
-                color: "var(--color-brand-dark)",
-                width: 52, height: 52, fontSize: "1.2rem",
-                borderRadius: "var(--radius-md)",
-              }}>
-                <FaReceipt />
-              </div>
+        {role !== "user" && (
+          <section className="dashboard-panel">
+            <div className="dashboard-panel-body">
+              <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+                {/* Icon */}
+                <div className="dashboard-stat-icon" style={{
+                  background: "var(--color-brand-pale)",
+                  color: "var(--color-brand-dark)",
+                  width: 52, height: 52, fontSize: "1.2rem",
+                  borderRadius: "var(--radius-md)",
+                }}>
+                  <FaReceipt />
+                </div>
 
-              {/* Amount */}
-              <div>
-                <p className="dashboard-stat-label" style={{ margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: "0.7rem" }}>
-                  Tổng chi tiêu
-                </p>
-                <p className="dashboard-money-primary" style={{ margin: 0, fontSize: "1.8rem" }}>
-                  {fmt(totalAmount)}
-                </p>
-              </div>
+                {/* Amount */}
+                <div>
+                  <p className="dashboard-stat-label" style={{ margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: "0.7rem" }}>
+                    Tổng chi tiêu
+                  </p>
+                  <p className="dashboard-money-primary" style={{ margin: 0, fontSize: "1.8rem" }}>
+                    {fmt(totalAmount)}
+                  </p>
+                </div>
 
-              {/* Right meta */}
-              <div style={{ marginLeft: "auto", textAlign: "right" }}>
-                <p style={{ color: "var(--color-text-faint)", fontSize: "0.8rem", margin: 0, fontWeight: 500 }}>
-                  Từ {history.length} giao dịch
-                </p>
-                <p style={{ color: "var(--color-brand-dark)", fontWeight: 700, fontSize: "0.875rem", margin: "4px 0 0" }}>
-                  TB {history.length ? fmt(Math.round(totalAmount / history.length)) : "—"} / đơn
-                </p>
+                {/* Right meta */}
+                <div style={{ marginLeft: "auto", textAlign: "right" }}>
+                  <p style={{ color: "var(--color-text-faint)", fontSize: "0.8rem", margin: 0, fontWeight: 500 }}>
+                    Từ {history.length} giao dịch
+                  </p>
+                  <p style={{ color: "var(--color-brand-dark)", fontWeight: 700, fontSize: "0.875rem", margin: "4px 0 0" }}>
+                    TB {history.length ? fmt(Math.round(totalAmount / history.length)) : "—"} / đơn
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
 
         {/* ── Toolbar: search + filter + view toggle ── */}
