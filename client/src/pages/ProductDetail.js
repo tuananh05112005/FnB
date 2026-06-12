@@ -106,6 +106,7 @@ const ProductDetail = () => {
    - Cuối cùng đặt `loading` thành false.
    -------------------------------------------------------------- */
   useEffect(() => {
+    window.scrollTo(0, 0);
     const fetchDetail = async () => {
       try {
         const [productData, favorites] = await Promise.all([
