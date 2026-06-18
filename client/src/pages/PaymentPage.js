@@ -79,11 +79,23 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
   const mapRef = useRef(null);
   const markerRef = useRef(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Đồng bộ ô tìm kiếm khi địa chỉ bên ngoài thay đổi
+  useEffect(() => {
+    if (show) {
+      setSearchQuery(address || "");
+      setSuggestions([]);
+      setErrorMessage("");
+    }
+  }, [show, address]);
 
   useEffect(() => {
     if (!show || !mapContainerRef.current) return;
 
-    // Reset thông báo lỗi khi mở modal
+    // Reset thông báo lỗi khi mở bản đồ
     setErrorMessage("");
 
     // Kinh độ và vĩ độ mặc định của TP.HCM (Quận 1)
@@ -118,6 +130,7 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
     map.on("click", (e) => {
       const { lng, lat } = e.lngLat;
       setErrorMessage("");
+      setSuggestions([]);
 
       // Cập nhật hoặc tạo mới Marker
       if (markerRef.current) {
@@ -146,6 +159,7 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
           }
 
           onPositionSelect([lat, lng], formattedAddress);
+          setSearchQuery(formattedAddress);
         })
         .catch(() => {
           onPositionSelect([lat, lng], `${lat.toFixed(6)}, ${lng.toFixed(6)}`);
@@ -159,11 +173,66 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show]);
 
+  const handleSearchAddress = () => {
+    if (!searchQuery.trim()) return;
+    setIsSearching(true);
+    setErrorMessage("");
+    setSuggestions([]);
+
+    const token = mapboxgl.accessToken;
+    // Tìm kiếm trong VN và giới hạn trong khu vực HCMC Bounds
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?access_token=${token}&country=VN&bbox=106.35,10.35,107.05,11.16&limit=5`;
+
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.features && data.features.length > 0) {
+          setSuggestions(data.features);
+        } else {
+          setSuggestions([]);
+          setErrorMessage("Không tìm thấy địa chỉ này trong khu vực TP. Hồ Chí Minh.");
+        }
+      })
+      .catch((err) => {
+        console.error("Geocoding search error:", err);
+        setErrorMessage("Lỗi kết nối khi tìm kiếm địa chỉ.");
+      })
+      .finally(() => {
+        setIsSearching(false);
+      });
+  };
+
+  const handleSelectSuggestion = (item) => {
+    const [lng, lat] = item.center;
+    setSuggestions([]);
+    setSearchQuery(item.place_name || item.text || "");
+    setErrorMessage("");
+
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [lng, lat],
+        zoom: 16,
+        essential: true
+      });
+    }
+
+    if (markerRef.current) {
+      markerRef.current.setLngLat([lng, lat]);
+    } else {
+      const marker = new mapboxgl.Marker({ color: "#d97706" })
+        .setLngLat([lng, lat])
+        .addTo(mapRef.current);
+      markerRef.current = marker;
+    }
+
+    onPositionSelect([lat, lng], item.place_name || item.text || "");
+  };
+
   if (!show) return null;
 
   return createPortal(
     <div className="custom-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="custom-modal-container" style={{ maxWidth: 680, maxHeight: "90dvh" }}>
+      <div className="custom-modal-container" style={{ maxWidth: 680, maxHeight: "95dvh", display: "flex", flexDirection: "column" }}>
         {/* Header */}
         <div className="custom-modal-header">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", color: "var(--color-brand-dark)" }}>
@@ -173,9 +242,76 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
           <button className="custom-modal-close-btn" onClick={onClose}><FaTimes /></button>
         </div>
 
+        {/* Ô Tìm Kiếm Địa Chỉ */}
+        <div style={{ padding: "var(--space-3) var(--space-5)", borderBottom: "1px solid var(--color-border-light)", background: "var(--color-bg)", position: "relative" }}>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <input 
+              type="text" 
+              className="dashboard-input" 
+              placeholder="Nhập tên đường, phường, quận tại TP.HCM..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (suggestions.length > 0) setSuggestions([]);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && handleSearchAddress()}
+              style={{ flex: 1, height: "40px" }}
+            />
+            <button 
+              type="button" 
+              className="dashboard-btn dashboard-btn-primary" 
+              onClick={handleSearchAddress}
+              style={{ width: "auto", height: "40px", padding: "0 16px", borderRadius: "var(--radius-pill)" }}
+              disabled={isSearching}
+            >
+              {isSearching ? "Đang tìm..." : "Tìm kiếm"}
+            </button>
+          </div>
+
+          {/* Danh sách kết quả gợi ý địa chỉ */}
+          {suggestions.length > 0 && (
+            <ul style={{ 
+              position: "absolute", 
+              top: "52px", 
+              left: "var(--space-5)", 
+              right: "var(--space-5)", 
+              zIndex: 9999, 
+              background: "var(--color-bg)", 
+              border: "1px solid var(--color-border)", 
+              borderRadius: "var(--radius-lg)", 
+              listStyle: "none", 
+              padding: "0", 
+              margin: "0", 
+              maxHeight: "180px", 
+              overflowY: "auto", 
+              boxShadow: "var(--shadow-lg)" 
+            }}>
+              {suggestions.map((item) => (
+                <li 
+                  key={item.id} 
+                  onClick={() => handleSelectSuggestion(item)}
+                  style={{ 
+                    padding: "10px 14px", 
+                    cursor: "pointer", 
+                    borderBottom: "1px solid var(--color-border-light)", 
+                    fontSize: "0.82rem",
+                    color: "var(--color-text)",
+                    textAlign: "left",
+                    transition: "background 0.2s"
+                  }}
+                  onMouseEnter={(e) => e.target.style.background = "var(--color-bg-alt)"}
+                  onMouseLeave={(e) => e.target.style.background = "transparent"}
+                >
+                  📍 {item.place_name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         {/* Map Container */}
-        <div style={{ flex: 1, minHeight: "350px", position: "relative" }}>
-          <div ref={mapContainerRef} style={{ height: "100%", minHeight: "350px", width: "100%" }} />
+        <div style={{ flex: 1, minHeight: "320px", position: "relative" }}>
+          <div ref={mapContainerRef} style={{ height: "100%", minHeight: "320px", width: "100%" }} />
         </div>
 
         {/* Alert / Address preview */}
