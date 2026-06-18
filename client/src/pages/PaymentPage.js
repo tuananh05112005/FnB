@@ -70,6 +70,16 @@ const clearPaymentSession = (userId) => {
 };
 
 /* ── Map Modal (Mapbox GL JS) ──────────────────────────── */
+// Hàm trích xuất tiền tố số nhà từ ô tìm kiếm (ví dụ: "56", "56/12", "56A", "số 56", "hẻm 56/12")
+const getHouseNumberPrefix = (query) => {
+  if (!query) return "";
+  const trimmed = query.trim();
+  // eslint-disable-next-line no-useless-escape
+  const regex = /^(?:số\s+|hẻm\s+|ngõ\s+|kiệt\s+)?(\d+[a-zA-Z0-9\-\/]*)/i;
+  const match = trimmed.match(regex);
+  return match ? match[0] : "";
+};
+
 /**
  * MapModal: Hiển thị bản đồ Mapbox trong một modal.
  * Khóa bản đồ trong khu vực TP.HCM và tích hợp geofencing để chỉ chấp nhận địa chỉ thuộc TP.HCM.
@@ -82,6 +92,17 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Lưu trữ giá trị mới nhất qua Ref để tránh stale closures trong sự kiện map click
+  const searchQueryRef = useRef(searchQuery);
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
+
+  const onPositionSelectRef = useRef(onPositionSelect);
+  useEffect(() => {
+    onPositionSelectRef.current = onPositionSelect;
+  }, [onPositionSelect]);
 
   // Đồng bộ ô tìm kiếm khi địa chỉ bên ngoài thay đổi
   useEffect(() => {
@@ -154,15 +175,27 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
                          
           if (!isHCMC) {
             setErrorMessage("Rất tiếc! Cửa hàng chỉ hỗ trợ giao hàng trong khu vực TP. Hồ Chí Minh.");
-            onPositionSelect([lat, lng], ""); // Xóa địa chỉ ở form để chặn lưu
+            onPositionSelectRef.current([lat, lng], ""); // Xóa địa chỉ ở form để chặn lưu
             return;
           }
 
-          onPositionSelect([lat, lng], formattedAddress);
-          setSearchQuery(formattedAddress);
+          // Bảo toàn tiền tố số nhà (nếu có trong ô tìm kiếm) khi click chọn trên bản đồ
+          let finalAddress = formattedAddress;
+          const prefix = getHouseNumberPrefix(searchQueryRef.current);
+          if (prefix) {
+            const cleanDisplay = formattedAddress.trim();
+            const hasDigitPrefix = /^\d+/.test(cleanDisplay) || 
+                                   cleanDisplay.toLowerCase().startsWith(prefix.toLowerCase());
+            if (!hasDigitPrefix) {
+              finalAddress = `${prefix}, ${formattedAddress}`;
+            }
+          }
+
+          onPositionSelectRef.current([lat, lng], finalAddress);
+          setSearchQuery(finalAddress);
         })
         .catch(() => {
-          onPositionSelect([lat, lng], `${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+          onPositionSelectRef.current([lat, lng], `${lat.toFixed(6)}, ${lng.toFixed(6)}`);
         });
     });
 
@@ -186,7 +219,26 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
       .then((res) => res.json())
       .then((data) => {
         if (data && data.length > 0) {
-          setSuggestions(data);
+          // Bảo toàn số nhà từ ô tìm kiếm bằng cách thêm vào kết quả hiển thị của Nominatim
+          const prefix = getHouseNumberPrefix(searchQuery);
+          if (prefix) {
+            const processedData = data.map((item) => {
+              const displayName = item.display_name || "";
+              const cleanDisplay = displayName.trim();
+              const hasDigitPrefix = /^\d+/.test(cleanDisplay) || 
+                                     cleanDisplay.toLowerCase().startsWith(prefix.toLowerCase());
+              if (!hasDigitPrefix) {
+                return {
+                  ...item,
+                  display_name: `${prefix}, ${displayName}`
+                };
+              }
+              return item;
+            });
+            setSuggestions(processedData);
+          } else {
+            setSuggestions(data);
+          }
         } else {
           setSuggestions([]);
           setErrorMessage("Không tìm thấy địa chỉ có số nhà này trong khu vực TP. Hồ Chí Minh.");
