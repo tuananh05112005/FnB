@@ -8,10 +8,11 @@
 // ==============================================================
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import {
   FaTicketAlt, FaStar, FaBell, FaPaperPlane,
-  FaSave, FaGift, FaInfinity,
+  FaSave, FaGift, FaInfinity, FaArrowLeft,
 } from "react-icons/fa";
 import "../styles/dashboard.css";
 
@@ -21,6 +22,7 @@ const fmt = (v) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(v || 0);
 
 const LoyaltyWallet = () => {
+  const navigate = useNavigate();
   // --- Các Hook State quản lý điểm thưởng và Voucher ---
   // points: Số điểm tích lũy của khách hàng hiện tại
   const [points,        setPoints]        = useState(0);
@@ -90,6 +92,30 @@ const LoyaltyWallet = () => {
   // Cập nhật giá trị thuộc tính cụ thể trong object newVoucher
   const patch = (field, val) => setNewVoucher((p) => ({ ...p, [field]: val }));
 
+  const handleNotificationClick = (n) => {
+    // 1. Check if the message contains a voucher code (e.g. "Ban vua nhan duoc voucher UONGTHAGA")
+    const match = n.message.match(/voucher\s+([A-Za-z0-9_-]+)/i);
+    if (match && match[1]) {
+      const code = match[1];
+      let found = vouchers.find(v => v.code.toUpperCase() === code.toUpperCase());
+      if (!found) {
+        found = allVouchers.find(v => v.code.toUpperCase() === code.toUpperCase());
+      }
+      if (found) {
+        setSelectedVoucherDetails(found);
+        showToast(`Hiển thị chi tiết Voucher: ${found.code} 🎫`);
+        return;
+      }
+    }
+
+    // 2. Check if the message contains an order code (e.g. "Đơn hàng #DH1780865266780...")
+    const orderMatch = n.message.match(/#(DH\d+)/i) || n.message.match(/(DH\d+)/i);
+    if (orderMatch && orderMatch[1]) {
+      navigate("/carts");
+      return;
+    }
+  };
+
   // Nhận dạng nhãn và class CSS hiển thị loại giảm giá (phần trăm % hay số tiền)
   const discountBadge = (type) => type === "percent"
     ? { label: "Giảm %",    cls: "dashboard-badge-info" }
@@ -110,6 +136,151 @@ const LoyaltyWallet = () => {
     return [];
   };
   const displayedVouchers = getDisplayedVouchers();
+
+  if (selectedVoucherDetails) {
+    const v = selectedVoucherDetails;
+    const isExpired = new Date(v.expired_at) < new Date();
+    const isUsed = v.is_used === 1;
+    const isDisabled = isExpired || isUsed;
+
+    return (
+      <div className="dashboard-page">
+        {/* Toast */}
+        {toast && (
+          <div style={{
+            position: "fixed", top: 80, right: 24, zIndex: 9999,
+            background: "var(--color-surface)", border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-md)", padding: "12px 20px",
+            boxShadow: "var(--shadow-lg)", fontSize: "0.9rem", fontWeight: 600,
+            color: "var(--color-success)", animation: "fadeInDown 0.3s ease",
+          }}>
+            {toast}
+          </div>
+        )}
+
+        <div className="dashboard-shell">
+          {/* Header */}
+          <div className="dashboard-header animate-fadeInUp">
+            <div className="dashboard-title-wrap">
+              <div className="dashboard-icon"><FaTicketAlt /></div>
+              <div>
+                <h1 className="dashboard-title">Chi tiết Voucher</h1>
+                <p className="dashboard-subtitle">Thông tin chi tiết và điều kiện sử dụng mã</p>
+              </div>
+            </div>
+            <button 
+              className="dashboard-back-btn" 
+              onClick={() => setSelectedVoucherDetails(null)}
+              style={{
+                display: "flex", alignItems: "center", gap: "8px",
+                background: "var(--color-bg-alt)", border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-pill)", padding: "8px 16px",
+                fontSize: "0.85rem", fontWeight: 600, color: "var(--color-text)",
+                cursor: "pointer", transition: "all 0.2s ease"
+              }}
+            >
+              <FaArrowLeft /> Quay lại ví
+            </button>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "var(--space-6)" }} className="animate-fadeInUp">
+            {/* Visual Ticket Header Card */}
+            <div style={{
+              background: isDisabled ? "var(--color-text-faint)" : "linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-dark) 100%)",
+              borderRadius: "var(--radius-xl)",
+              padding: "var(--space-8) var(--space-6)",
+              textAlign: "center",
+              color: "white",
+              position: "relative",
+              overflow: "hidden",
+              boxShadow: "var(--shadow-md)"
+            }}>
+              {/* Notches on the sides of the ticket */}
+              <div style={{ position: "absolute", left: -15, top: "50%", transform: "translateY(-50%)", width: 30, height: 30, borderRadius: "50%", background: "var(--color-bg)" }} />
+              <div style={{ position: "absolute", right: -15, top: "50%", transform: "translateY(-50%)", width: 30, height: 30, borderRadius: "50%", background: "var(--color-bg)" }} />
+
+              <span style={{ fontSize: "3rem", display: "block", marginBottom: "8px" }}>🎫</span>
+              <h2 style={{ fontFamily: "var(--app-font-display)", fontSize: "2rem", fontWeight: 900, margin: "0 0 8px", letterSpacing: "0.05em" }}>
+                {v.code}
+              </h2>
+              <p style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0, opacity: 0.95 }}>
+                {v.discount_type === "percent" ? `Giảm ${parseFloat(v.discount_value)}%` : `Giảm ${fmt(v.discount_value)}`}
+              </p>
+            </div>
+
+            {/* Voucher Details List */}
+            <div className="dashboard-panel" style={{ padding: "var(--space-6)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+                
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--color-border-light)", paddingBottom: "var(--space-3)" }}>
+                  <span style={{ fontWeight: 600, color: "var(--color-text-muted)" }}>Trạng thái:</span>
+                  <div>
+                    {isExpired ? (
+                      <span className="dashboard-badge" style={{ background: "#f8d7da", color: "#842029", fontSize: "0.78rem", padding: "4px 12px" }}>Hết hạn sử dụng</span>
+                    ) : isUsed ? (
+                      <span className="dashboard-badge" style={{ background: "#e0dcd3", color: "#5c503e", fontSize: "0.78rem", padding: "4px 12px" }}>Đã sử dụng</span>
+                    ) : (
+                      <span className="dashboard-badge dashboard-badge-success" style={{ fontSize: "0.78rem", padding: "4px 12px" }}>Sẵn sàng sử dụng</span>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--color-border-light)", paddingBottom: "var(--space-3)" }}>
+                  <span style={{ fontWeight: 600, color: "var(--color-text-muted)" }}>Điều kiện sử dụng:</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-text)" }}>Đơn hàng tối thiểu từ {fmt(v.min_order)}</span>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--color-border-light)", paddingBottom: "var(--space-3)" }}>
+                  <span style={{ fontWeight: 600, color: "var(--color-text-muted)" }}>Thời hạn sử dụng:</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-text)" }}>Đến {new Date(v.expired_at).toLocaleString("vi-VN")}</span>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--color-border-light)", paddingBottom: "var(--space-3)" }}>
+                  <span style={{ fontWeight: 600, color: "var(--color-text-muted)" }}>Hình thức áp dụng:</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-text)" }}>
+                    {v.applicable_payment_method === "all" ? "Tất cả hình thức thanh toán" :
+                     v.applicable_payment_method === "banking" ? "Chỉ áp dụng Chuyển khoản (banking)" :
+                     "Chỉ áp dụng Tiền mặt (cash)"}
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--color-border-light)", paddingBottom: "var(--space-3)" }}>
+                  <span style={{ fontWeight: 600, color: "var(--color-text-muted)" }}>Mã giảm giá:</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <code style={{ fontFamily: "monospace", fontSize: "1.1rem", fontWeight: 800, background: "var(--color-bg-alt)", padding: "4px 8px", borderRadius: "4px", border: "1px solid var(--color-border)" }}>
+                      {v.code}
+                    </code>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(v.code);
+                        showToast("Đã sao chép mã giảm giá! 📋");
+                      }}
+                      style={{
+                        background: "var(--color-brand-pale)", border: "none",
+                        color: "var(--color-brand-dark)", borderRadius: "6px",
+                        padding: "6px 12px", fontSize: "0.78rem", fontWeight: 700,
+                        cursor: "pointer"
+                      }}
+                    >
+                      Sao chép
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ padding: "var(--space-4)", background: "var(--color-bg-alt)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", marginTop: "var(--space-2)" }}>
+                  <h4 style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--color-text)", margin: "0 0 6px" }}>💡 Hướng dẫn sử dụng:</h4>
+                  <p style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", margin: 0, lineHeight: 1.5 }}>
+                    Mã này đã được liên kết với tài khoản của bạn. Để sử dụng, hãy thêm sản phẩm vào giỏ hàng, tiến hành thanh toán và chọn mã này tại phần chọn Voucher khuyến mãi ở bước xác nhận phương thức thanh toán.
+                  </p>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-page">
@@ -241,38 +412,75 @@ const LoyaltyWallet = () => {
                       <div key={v.user_voucher_id || v.id} 
                         onClick={() => setSelectedVoucherDetails(v)}
                         style={{
-                          border: isDisabled ? "1.5px dashed var(--color-text-faint)" : "1.5px dashed var(--color-brand)",
-                          borderRadius: "16px", padding: "14px 16px",
-                          background: isDisabled ? "var(--color-bg-alt)" : "var(--color-brand-pale)", 
+                          border: isDisabled ? "1px solid var(--color-border)" : "1.5px solid var(--color-brand)",
+                          borderRadius: "12px", padding: 0,
+                          background: isDisabled ? "var(--color-bg-alt)" : "var(--color-surface)", 
                           position: "relative", overflow: "hidden",
                           opacity: isDisabled ? 0.65 : 1,
                           filter: isDisabled ? "grayscale(40%)" : "none",
                           cursor: "pointer",
                           display: "flex",
-                          flexDirection: "column",
-                          gap: "6px",
+                          height: "72px",
                           transition: "transform 0.2s ease, box-shadow 0.2s ease",
                         }}
-                        onMouseEnter={(e) => { if (!isDisabled) { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "var(--shadow-sm)"; } }}
+                        onMouseEnter={(e) => { if (!isDisabled) { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-sm)"; } }}
                         onMouseLeave={(e) => { if (!isDisabled) { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; } }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontFamily: "var(--app-font-display)", fontSize: "0.95rem", fontWeight: 800, color: isDisabled ? "var(--color-text-muted)" : "var(--color-brand-dark)", letterSpacing: "0.05em" }}>
-                            {v.code}
+                        {/* Left part: Ticket accent */}
+                        <div style={{
+                          width: "60px",
+                          background: isDisabled ? "var(--color-text-faint)" : "linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-dark) 100%)",
+                          color: "white",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          textAlign: "center",
+                          padding: "4px",
+                          flexShrink: 0,
+                          position: "relative",
+                          borderRight: isDisabled ? "1px dashed var(--color-border)" : "1px dashed rgba(255,255,255,0.3)",
+                        }}>
+                          <span style={{ fontSize: "0.85rem", marginBottom: 2 }}>🎫</span>
+                          <span style={{ fontSize: "0.76rem", fontWeight: 900, fontFamily: "var(--app-font-display)" }}>
+                            {v.discount_type === "percent" ? `${parseFloat(v.discount_value)}%` : (v.discount_value >= 1000 && v.discount_value % 1000 === 0 ? `${v.discount_value / 1000}k` : fmt(v.discount_value).replace(/\s*₫/g, "đ"))}
                           </span>
-                          <span style={{ fontSize: "1.1rem" }}>🎫</span>
+
+                          {/* Inner curved notches */}
+                          <div style={{ position: "absolute", right: -5, top: -5, width: 10, height: 10, borderRadius: "50%", background: "var(--color-bg)" }} />
+                          <div style={{ position: "absolute", right: -5, bottom: -5, width: 10, height: 10, borderRadius: "50%", background: "var(--color-bg)" }} />
                         </div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                          <span className={`dashboard-badge ${b.cls}`} style={{ display: "inline-flex", fontSize: "0.65rem", padding: "2px 6px" }}>{b.label}</span>
-                          {isUsed && <span className="dashboard-badge" style={{ display: "inline-flex", background: "#e0dcd3", color: "#5c503e", fontSize: "0.65rem", padding: "2px 6px" }}>Đã dùng</span>}
-                          {isExpired && <span className="dashboard-badge" style={{ display: "inline-flex", background: "#f8d7da", color: "#842029", fontSize: "0.65rem", padding: "2px 6px" }}>Hết hạn</span>}
-                        </div>
-                        <div style={{ fontWeight: 800, color: "var(--color-text)", fontSize: "1.1rem", marginTop: "2px" }}>
-                          {v.discount_type === "percent" ? `Giảm ${parseFloat(v.discount_value)}%` : `Giảm ${fmt(v.discount_value)}`}
-                        </div>
-                        <div style={{ fontSize: "0.7rem", color: "var(--color-text-faint)", marginTop: "auto", borderTop: "1px dashed rgba(0,0,0,0.06)", paddingTop: "6px", display: "flex", justifyContent: "space-between" }}>
-                          <span>Hạn dùng:</span>
-                          <strong>{new Date(v.expired_at).toLocaleDateString("vi-VN")}</strong>
+
+                        {/* Right part: Coupon Info */}
+                        <div style={{
+                          flex: 1,
+                          padding: "6px 10px",
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "space-between",
+                          minWidth: 0,
+                        }}>
+                          {/* Code and Badges */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}>
+                            <span style={{ fontFamily: "var(--app-font-display)", fontSize: "0.78rem", fontWeight: 800, color: isDisabled ? "var(--color-text-muted)" : "var(--color-brand-dark)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {v.code}
+                            </span>
+                            <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                              {isUsed && <span className="dashboard-badge" style={{ background: "#e0dcd3", color: "#5c503e", fontSize: "0.52rem", padding: "1px 4px" }}>Đã dùng</span>}
+                              {isExpired && <span className="dashboard-badge" style={{ background: "#f8d7da", color: "#842029", fontSize: "0.52rem", padding: "1px 4px" }}>Hết hạn</span>}
+                              {!isDisabled && <span className={`dashboard-badge ${b.cls}`} style={{ fontSize: "0.52rem", padding: "1px 4px" }}>{b.label}</span>}
+                            </div>
+                          </div>
+
+                          {/* Conditions */}
+                          <div style={{ fontSize: "0.64rem", color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            Đơn từ: <strong>{v.min_order >= 1000 && v.min_order % 1000 === 0 ? `${v.min_order / 1000}k` : fmt(v.min_order).replace(/\s*₫/g, "đ")}</strong>
+                          </div>
+
+                          {/* Expiry Date */}
+                          <div style={{ fontSize: "0.60rem", color: "var(--color-text-faint)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span>HSD: {new Date(v.expired_at).toLocaleDateString("vi-VN")}</span>
+                          </div>
                         </div>
                       </div>
                     );
@@ -280,52 +488,7 @@ const LoyaltyWallet = () => {
                 </div>
               )}
 
-              {/* Modal chi tiết Voucher */}
-              {selectedVoucherDetails && (
-                <div className="custom-modal-overlay" onClick={() => setSelectedVoucherDetails(null)}>
-                  <div className="custom-modal-container" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
-                    <div className="custom-modal-header">
-                      <h3>Chi tiết Voucher</h3>
-                      <button className="custom-modal-close-btn" onClick={() => setSelectedVoucherDetails(null)}>✕</button>
-                    </div>
-                    <div className="custom-modal-body">
-                      <div style={{ textAlign: "center", padding: "var(--space-2) 0", borderBottom: "1.5px dashed var(--color-border)", marginBottom: "var(--space-4)" }}>
-                        <span style={{ fontSize: "3rem" }}>🎫</span>
-                        <div style={{ fontFamily: "var(--app-font-display)", fontSize: "1.5rem", fontWeight: 900, color: "var(--color-brand-dark)", margin: "8px 0" }}>
-                          {selectedVoucherDetails.code}
-                        </div>
-                        <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--color-text)" }}>
-                          {selectedVoucherDetails.discount_type === "percent" ? `Giảm ${parseFloat(selectedVoucherDetails.discount_value)}%` : `Giảm ${fmt(selectedVoucherDetails.discount_value)}`}
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", fontSize: "0.88rem", color: "var(--color-text)" }}>
-                        <div>
-                          <strong>⚙️ Điều kiện sử dụng:</strong> Đơn hàng tối thiểu từ <strong>{fmt(selectedVoucherDetails.min_order)}</strong>
-                        </div>
-                        <div>
-                          <strong>⏰ Thời hạn sử dụng:</strong> Hạn dùng đến <strong>{new Date(selectedVoucherDetails.expired_at).toLocaleString("vi-VN")}</strong>
-                        </div>
-                        <div>
-                          <strong>💳 Hình thức áp dụng:</strong> {
-                            selectedVoucherDetails.applicable_payment_method === "all" ? "Tất cả hình thức thanh toán" :
-                            selectedVoucherDetails.applicable_payment_method === "banking" ? "Chỉ áp dụng Chuyển khoản (banking)" :
-                            "Chỉ áp dụng Tiền mặt (cash)"
-                          }
-                        </div>
-                        <div style={{ marginTop: "var(--space-4)", display: "flex", justifyContent: "center" }}>
-                          {new Date(selectedVoucherDetails.expired_at) < new Date() ? (
-                            <span style={{ padding: "6px 16px", borderRadius: "var(--radius-pill)", background: "#ffebee", color: "#c62828", fontWeight: 700 }}>Đã hết hạn dùng</span>
-                          ) : selectedVoucherDetails.is_used === 1 ? (
-                            <span style={{ padding: "6px 16px", borderRadius: "var(--radius-pill)", background: "#efebe9", color: "#4e342e", fontWeight: 700 }}>Đã sử dụng</span>
-                          ) : (
-                            <span style={{ padding: "6px 16px", borderRadius: "var(--radius-pill)", background: "var(--color-brand-pale)", color: "var(--color-brand-dark)", fontWeight: 700 }}>Sẵn sàng sử dụng</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Modal chi tiết Voucher đã được chuyển thành trang thông tin chi tiết đầy đủ */}
             </section>
 
             {/* Notifications */}
@@ -340,20 +503,32 @@ const LoyaltyWallet = () => {
                 </div>
               ) : (
                 <div>
-                  {notifications.map((n) => (
-                    <div key={n.id} style={{
-                      display: "flex", justifyContent: "space-between", gap: "var(--space-3)",
-                      padding: "var(--space-4) var(--space-6)", borderBottom: "1px solid var(--color-border-light)",
-                      transition: "background var(--transition-fast)",
-                    }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-bg-alt)"}
-                      onMouseLeave={(e) => e.currentTarget.style.background = ""}>
-                      <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--color-text)" }}>{n.message}</div>
-                      <div style={{ fontSize: "0.72rem", color: "var(--color-text-faint)", whiteSpace: "nowrap" }}>
-                        {new Date(n.created_at).toLocaleString("vi-VN")}
+                  {notifications.map((n) => {
+                    const hasVoucher = n.message.match(/voucher\s+([A-Za-z0-9_-]+)/i);
+                    const hasOrder = n.message.match(/#(DH\d+)/i) || n.message.match(/(DH\d+)/i);
+                    const isClickable = hasVoucher || hasOrder;
+                    return (
+                      <div key={n.id} 
+                        onClick={() => isClickable && handleNotificationClick(n)}
+                        style={{
+                          display: "flex", justifyContent: "space-between", gap: "var(--space-3)",
+                          padding: "var(--space-4) var(--space-6)", borderBottom: "1px solid var(--color-border-light)",
+                          transition: "background var(--transition-fast)",
+                          cursor: isClickable ? "pointer" : "default",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "var(--color-bg-alt)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "";
+                        }}>
+                        <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--color-text)", textDecoration: isClickable ? "underline dotted var(--color-brand)" : "none" }}>{n.message}</div>
+                        <div style={{ fontSize: "0.72rem", color: "var(--color-text-faint)", whiteSpace: "nowrap" }}>
+                          {new Date(n.created_at).toLocaleString("vi-VN")}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>

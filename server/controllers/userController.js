@@ -129,3 +129,17 @@ exports.getStaffs = async (_req, res) => {
     res.status(500).json({ message: "Lỗi server" });
   }
 };
+
+// Lấy thông tin cá nhân của người dùng theo ID
+exports.getProfile = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const query = getQuery();
+    const [user] = await query("SELECT id, name, email, role, points FROM users WHERE id = ?", [id]);
+    if (!user) return res.status(404).json({ message: "Người dùng không tồn tại" });
+    res.json(user);
+  } catch (err) {
+    console.error("Lỗi khi lấy thông tin cá nhân:", err);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+};

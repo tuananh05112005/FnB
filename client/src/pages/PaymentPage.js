@@ -172,7 +172,12 @@ const PaymentPage = () => {
   const item = checkoutItem;
 
   // Các State quản lý thông tin thanh toán, tiến trình và dữ liệu trả về từ API QR Code
-  const [paymentInfo, setPaymentInfo] = useState(() => savedSession?.paymentInfo || { name: "", address: "", phone: "", paymentMethod: "cash" });
+  const [paymentInfo, setPaymentInfo] = useState(() => savedSession?.paymentInfo || {
+    name: localStorage.getItem("default_delivery_name") || "",
+    address: localStorage.getItem("default_delivery_address") || "",
+    phone: localStorage.getItem("default_delivery_phone") || "",
+    paymentMethod: "cash"
+  });
   const [currentStep,      setCurrentStep]      = useState(() => savedSession?.currentStep || 1);
   const [isSubmitting,     setIsSubmitting]      = useState(false);
   const [showMapModal,     setShowMapModal]      = useState(false);
@@ -562,6 +567,8 @@ const PaymentPage = () => {
                           errMsg = `Chỉ áp dụng cho thanh toán: ${reqMethod}`;
                         }
 
+                        const isSelected = selectedVoucher?.user_voucher_id === v.user_voucher_id;
+
                         return (
                           <div key={v.user_voucher_id || v.id}
                             onClick={() => {
@@ -571,40 +578,76 @@ const PaymentPage = () => {
                                 }
                               }}
                               style={{
-                                border: isDisabled ? "1px solid var(--color-border)" : "2px dashed var(--color-brand)",
-                                borderRadius: "var(--radius-md)", padding: "var(--space-4)",
-                                background: isDisabled ? "var(--color-bg-alt)" : "var(--color-brand-pale)",
-                                opacity: isDisabled ? 0.6 : 1,
+                                border: isDisabled ? "1px solid var(--color-border)" : (isSelected ? "2px solid var(--color-brand)" : "1.5px solid var(--color-border)"),
+                                borderRadius: "12px", padding: 0,
+                                background: isDisabled ? "var(--color-bg-alt)" : "var(--color-surface)",
+                                opacity: isDisabled ? 0.65 : 1,
                                 cursor: isDisabled ? "not-allowed" : "pointer",
-                                display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
-                                transition: "transform 0.15s ease",
+                                display: "flex",
+                                minHeight: "72px",
+                                position: "relative",
+                                overflow: "hidden",
+                                transition: "all 0.15s ease",
                               }}
                             >
-                              <div style={{ flex: 1, textAlign: "left" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                  <span style={{ fontFamily: "monospace", fontWeight: 800, color: isDisabled ? "var(--color-text-muted)" : "var(--color-brand-dark)", fontSize: "0.95rem" }}>
+                              {/* Left part: Ticket accent */}
+                              <div style={{
+                                width: "60px",
+                                background: isDisabled ? "var(--color-text-faint)" : "linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-dark) 100%)",
+                                color: "white",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                textAlign: "center",
+                                padding: "4px",
+                                flexShrink: 0,
+                                position: "relative",
+                                borderRight: isDisabled ? "1px dashed var(--color-border)" : "1px dashed rgba(255,255,255,0.3)",
+                              }}>
+                                <span style={{ fontSize: "0.85rem", marginBottom: 2 }}>🎫</span>
+                                <span style={{ fontSize: "0.76rem", fontWeight: 900, fontFamily: "var(--app-font-display)" }}>
+                                  {v.discount_type === "percent" ? `${parseFloat(v.discount_value)}%` : (v.discount_value >= 1000 && v.discount_value % 1000 === 0 ? `${v.discount_value / 1000}k` : fmt(v.discount_value).replace(/\s*₫/g, "đ"))}
+                                </span>
+
+                                {/* Inner curved notches */}
+                                <div style={{ position: "absolute", right: -5, top: -5, width: 10, height: 10, borderRadius: "50%", background: "var(--color-bg)" }} />
+                                <div style={{ position: "absolute", right: -5, bottom: -5, width: 10, height: 10, borderRadius: "50%", background: "var(--color-bg)" }} />
+                              </div>
+
+                              {/* Right part: Coupon Info */}
+                              <div style={{
+                                flex: 1,
+                                padding: "8px 12px",
+                                display: "flex",
+                                flexDirection: "column",
+                                justifyContent: "center",
+                                gap: 4,
+                                minWidth: 0,
+                              }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                                  <span style={{ fontFamily: "var(--app-font-display)", fontSize: "0.82rem", fontWeight: 800, color: isDisabled ? "var(--color-text-muted)" : "var(--color-brand-dark)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                     {v.code}
                                   </span>
-                                  <span className={`dashboard-badge ${v.discount_type === "percent" ? "dashboard-badge-success" : "dashboard-badge-primary"}`} style={{ fontSize: "0.68rem", padding: "2px 6px" }}>
-                                    {v.discount_type === "percent" ? `Giảm ${parseFloat(v.discount_value)}%` : `Giảm ${fmt(v.discount_value)}`}
-                                  </span>
+                                  {!isDisabled && (
+                                    <div style={{
+                                      width: 16, height: 16, borderRadius: "50%",
+                                      border: isSelected ? "5px solid var(--color-brand)" : "1.5px solid var(--color-border)",
+                                      background: "white", flexShrink: 0, transition: "all 0.15s",
+                                    }} />
+                                  )}
                                 </div>
-                                <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: 4 }}>
-                                  Đơn tối thiểu: {fmt(v.min_order)} | Hạn dùng: {new Date(v.expired_at).toLocaleDateString("vi-VN")}
+                                <div style={{ fontSize: "0.68rem", color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  Đơn từ: <strong>{v.min_order >= 1000 && v.min_order % 1000 === 0 ? `${v.min_order / 1000}k` : fmt(v.min_order).replace(/\s*₫/g, "đ")}</strong>
+                                  {" | "}
+                                  HSD: {new Date(v.expired_at).toLocaleDateString("vi-VN")}
                                 </div>
                                 {isDisabled && (
-                                  <div style={{ fontSize: "0.75rem", color: "var(--color-danger)", fontWeight: 600, marginTop: 4 }}>
+                                  <div style={{ fontSize: "0.68rem", color: "var(--color-danger)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                     ⚠️ {errMsg}
                                   </div>
                                 )}
                               </div>
-                              {!isDisabled && (
-                                <div style={{
-                                  width: 20, height: 20, borderRadius: "50%",
-                                  border: selectedVoucher?.user_voucher_id === v.user_voucher_id ? "6px solid var(--color-brand)" : "2px solid var(--color-border)",
-                                  background: "white", transition: "all 0.15s",
-                                }} />
-                              )}
                             </div>
                           );
                         })

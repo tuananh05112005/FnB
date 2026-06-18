@@ -26,6 +26,9 @@ import {
 
 import ProductImage from "../../components/common/ProductImage";
 import Pagination from "../../components/common/Pagination";
+import { api } from "../../lib/api";
+import { getUserId, saveSession } from "../../lib/session";
+
 import {
   DEFAULT_CATEGORY_SETTINGS,
   fetchCategorySettings,
@@ -41,15 +44,22 @@ import {
 import "../../styles/dashboard.css";
 import "../../styles/commerce.css";
 
+const fmt = (v) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(v || 0);
+
 // Component cài đặt hệ thống Admin
 const ProductAvailabilitySettings = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams(); // Sử dụng React Router Search Params để lưu trữ tab cài đặt hiện tại
 
-  // Nhận diện tab cài đặt hiện tại đang hoạt động
+  const userId = getUserId();
+  const role = localStorage.getItem("role") || "user";
+
   const tab = searchParams.get("tab");
   const activeSetting =
-    tab === "products" || tab === "menu" || tab === "categories" ? tab : null;
+    role === "user"
+      ? (tab === "profile" ? "profile" : null)
+      : (tab === "products" || tab === "menu" || tab === "categories" || tab === "profile" ? tab : null);
 
   // Khai báo các trạng thái biểu mẫu cài đặt và danh sách sản phẩm
   const [categoryForm, setCategoryForm] = useState(DEFAULT_CATEGORY_SETTINGS); // Dữ liệu form cài đặt danh mục
@@ -62,6 +72,17 @@ const ProductAvailabilitySettings = () => {
   const [error, setError] = useState("");                                       // Lưu thông báo lỗi
   const [successMessage, setSuccessMessage] = useState("");                     // Lưu thông báo thành công
   const [prodPage, setProdPage] = useState(1);                                 // Trang hiện tại khi phân trang món ăn
+
+  // Trạng thái biểu mẫu thông tin cá nhân
+  const [profileForm, setProfileForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    deliveryName: localStorage.getItem("default_delivery_name") || "",
+    deliveryPhone: localStorage.getItem("default_delivery_phone") || "",
+    deliveryAddress: localStorage.getItem("default_delivery_address") || ""
+  });
 
   const PROD_PAGE_SIZE = 10; // Kích thước phân trang món ăn hiển thị
 
@@ -96,6 +117,68 @@ const ProductAvailabilitySettings = () => {
     };
     loadCategory();
   }, []);
+
+  // Tải thông tin tài khoản người dùng
+  useEffect(() => {
+    if (userId && (role === "user" || activeSetting === "profile")) {
+      api.get(`/api/users/profile/${userId}`)
+        .then((res) => {
+          setProfileForm((prev) => ({
+            ...prev,
+            name: res.data.name || "",
+            email: res.data.email || ""
+          }));
+        })
+        .catch((err) => {
+          console.error("Lỗi khi tải thông tin tài khoản:", err);
+        });
+    }
+  }, [userId, role, activeSetting]);
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccessMessage("");
+
+    if (!profileForm.name || !profileForm.email) {
+      setError("Họ tên và email không được bỏ trống.");
+      return;
+    }
+
+    if (profileForm.password && profileForm.password !== profileForm.confirmPassword) {
+      setError("Mật khẩu mới và xác nhận mật khẩu không khớp.");
+      return;
+    }
+
+    try {
+      const updatePayload = {
+        name: profileForm.name,
+        email: profileForm.email
+      };
+      if (profileForm.password) {
+        updatePayload.password = profileForm.password;
+      }
+
+      await api.put(`/api/users/${userId}`, updatePayload);
+
+      // Cập nhật lại session hiển thị trên giao diện
+      saveSession({ name: profileForm.name });
+
+      // Lưu địa chỉ giao hàng mặc định vào localstorage
+      localStorage.setItem("default_delivery_name", profileForm.deliveryName);
+      localStorage.setItem("default_delivery_phone", profileForm.deliveryPhone);
+      localStorage.setItem("default_delivery_address", profileForm.deliveryAddress);
+
+      // Kích hoạt sự kiện đồng bộ storage
+      window.dispatchEvent(new Event("storage"));
+
+      setSuccessMessage("Cập nhật thông tin tài khoản thành công! 🎉");
+      setProfileForm((prev) => ({ ...prev, password: "", confirmPassword: "" }));
+    } catch (err) {
+      console.error("Lỗi khi cập nhật tài khoản:", err);
+      setError("Không thể cập nhật thông tin tài khoản. Vui lòng thử lại.");
+    }
+  };
 
 
 
@@ -252,7 +335,9 @@ const ProductAvailabilitySettings = () => {
         ? "Cài đặt giao diện menu"
         : activeSetting === "categories"
           ? "Cài đặt danh mục"
-          : "Cài đặt";
+          : activeSetting === "profile"
+            ? "Cài đặt cá nhân"
+            : "Cài đặt";
   const headerSubtitle =
     activeSetting === "products"
       ? "Bật hoặc tắt món khi tạm hết hàng để khách không đặt nhầm."
@@ -260,7 +345,9 @@ const ProductAvailabilitySettings = () => {
         ? "Tùy chỉnh tên quán, tiêu đề menu và banner hiển thị cho khách."
         : activeSetting === "categories"
           ? "Bật hoặc tắt danh mục và sắp xếp thứ tự hiển thị trên menu."
-          : "Chọn nhóm cài đặt bạn muốn quản lý.";
+          : activeSetting === "profile"
+            ? "Cập nhật thông tin cá nhân và địa chỉ giao hàng mặc định."
+            : "Chọn nhóm cài đặt bạn muốn quản lý.";
 
   return (
     <div className="dashboard-page">
@@ -279,10 +366,12 @@ const ProductAvailabilitySettings = () => {
           <button
             type="button"
             className="dashboard-back-btn"
-            onClick={() => (activeSetting ? setActiveTab(null) : navigate("/products"))}
+            onClick={() => {
+              activeSetting ? setActiveTab(null) : navigate("/products");
+            }}
           >
             <FaArrowLeft />
-            {activeSetting ? "Quay lại cài đặt" : "Quay lại"}
+            Quay lại
           </button>
         </div>
 
@@ -290,53 +379,75 @@ const ProductAvailabilitySettings = () => {
           <section className="dashboard-panel">
             <div className="dashboard-panel-body">
               <div className="dashboard-card-grid">
-                <button
-                  type="button"
-                  className="dashboard-mini-card settings-option-card"
-                  onClick={() => setActiveTab("products")}
-                >
-                  <div
-                    className="dashboard-stat-icon"
-                    style={{ background: "#f5f3ff", color: "#7c3aed" }}
-                  >
-                    <FaMugHot />
-                  </div>
-                  <div>
-                    <h4>Cài đặt món</h4>
-                    <p>Bật hoặc tắt món khi tạm hết hàng.</p>
-                  </div>
-                </button>
+                {role !== "user" && (
+                  <>
+                    <button
+                      type="button"
+                      className="dashboard-mini-card settings-option-card"
+                      onClick={() => setActiveTab("products")}
+                    >
+                      <div
+                        className="dashboard-stat-icon"
+                        style={{ background: "#f5f3ff", color: "#7c3aed" }}
+                      >
+                        <FaMugHot />
+                      </div>
+                      <div>
+                        <h4>Cài đặt món</h4>
+                        <p>Bật hoặc tắt món khi tạm hết hàng.</p>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="dashboard-mini-card settings-option-card"
+                      onClick={() => setActiveTab("menu")}
+                    >
+                      <div
+                        className="dashboard-stat-icon"
+                        style={{ background: "#eff6ff", color: "#2563eb" }}
+                      >
+                        <FaPalette />
+                      </div>
+                      <div>
+                        <h4>Cài đặt giao diện menu</h4>
+                        <p>Đổi tên quán, tiêu đề menu và banner.</p>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="dashboard-mini-card settings-option-card"
+                      onClick={() => setActiveTab("categories")}
+                    >
+                      <div
+                        className="dashboard-stat-icon"
+                        style={{ background: "#ecfdf3", color: "#16a34a" }}
+                      >
+                        <FaTags />
+                      </div>
+                      <div>
+                        <h4>Cài đặt danh mục</h4>
+                        <p>Bật/tắt danh mục và sắp xếp thứ tự hiển thị.</p>
+                      </div>
+                    </button>
+                  </>
+                )}
 
                 <button
                   type="button"
                   className="dashboard-mini-card settings-option-card"
-                  onClick={() => setActiveTab("menu")}
+                  onClick={() => setActiveTab("profile")}
                 >
                   <div
                     className="dashboard-stat-icon"
-                    style={{ background: "#eff6ff", color: "#2563eb" }}
+                    style={{ background: "#fffbeb", color: "#d97706" }}
                   >
-                    <FaPalette />
+                    <FaCog />
                   </div>
                   <div>
-                    <h4>Cài đặt giao diện menu</h4>
-                    <p>Đổi tên quán, tiêu đề menu và banner.</p>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  className="dashboard-mini-card settings-option-card"
-                  onClick={() => setActiveTab("categories")}
-                >
-                  <div
-                    className="dashboard-stat-icon"
-                    style={{ background: "#ecfdf3", color: "#16a34a" }}
-                  >
-                    <FaTags />
-                  </div>
-                  <div>
-                    <h4>Cài đặt danh mục</h4>
-                    <p>Bật/tắt danh mục và sắp xếp thứ tự hiển thị.</p>
+                    <h4>Cài đặt thông tin</h4>
+                    <p>Cập nhật thông tin và địa chỉ giao hàng.</p>
                   </div>
                 </button>
               </div>
@@ -710,10 +821,7 @@ const ProductAvailabilitySettings = () => {
                             </td>
                             <td>{product.category || "Chưa phân loại"}</td>
                             <td className="dashboard-money">
-                              {new Intl.NumberFormat("vi-VN", {
-                                style: "currency",
-                                currency: "VND",
-                              }).format(Number(product.price) || 0)}
+                              {fmt(product.price)}
                             </td>
                             <td>
                               <span
@@ -759,6 +867,136 @@ const ProductAvailabilitySettings = () => {
               )}
             </section>
           </>
+        )}
+
+        {activeSetting === "profile" && (
+          <section className="dashboard-panel">
+            <div className="dashboard-panel-body">
+              {error && <div className="commerce-alert commerce-alert-danger" style={{ marginBottom: 16 }}>{error}</div>}
+              {successMessage && (
+                <div className="commerce-alert commerce-alert-success" style={{ marginBottom: 16 }}>
+                  {successMessage}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
+                {/* Section 1: Personal Info */}
+                <div>
+                  <h3 style={{ fontSize: "1rem", fontWeight: 800, color: "var(--color-brand-dark)", borderBottom: "1.5px solid var(--color-border-light)", paddingBottom: 8, marginBottom: 16 }}>
+                     Thông tin cá nhân
+                  </h3>
+                  <div className="dashboard-form-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
+                    <div className="dashboard-field">
+                      <label htmlFor="profileName">Họ và tên</label>
+                      <input
+                        id="profileName"
+                        type="text"
+                        className="dashboard-input"
+                        placeholder="Nhập họ và tên"
+                        value={profileForm.name}
+                        onChange={(e) => setProfileForm(p => ({ ...p, name: e.target.value }))}
+                      />
+                    </div>
+                    <div className="dashboard-field">
+                      <label htmlFor="profileEmail">Địa chỉ Email</label>
+                      <input
+                        id="profileEmail"
+                        type="email"
+                        className="dashboard-input"
+                        placeholder="Nhập địa chỉ email"
+                        value={profileForm.email}
+                        onChange={(e) => setProfileForm(p => ({ ...p, email: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Default Delivery Info */}
+                <div>
+                  <h3 style={{ fontSize: "1rem", fontWeight: 800, color: "var(--color-brand-dark)", borderBottom: "1.5px solid var(--color-border-light)", paddingBottom: 8, marginBottom: 16 }}>
+                     Địa chỉ giao hàng mặc định
+                  </h3>
+                  <div className="dashboard-form-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
+                    <div className="dashboard-field">
+                      <label htmlFor="deliveryName">Họ tên người nhận mặc định</label>
+                      <input
+                        id="deliveryName"
+                        type="text"
+                        className="dashboard-input"
+                        placeholder="Họ tên người nhận hàng"
+                        value={profileForm.deliveryName}
+                        onChange={(e) => setProfileForm(p => ({ ...p, deliveryName: e.target.value }))}
+                      />
+                    </div>
+                    <div className="dashboard-field">
+                      <label htmlFor="deliveryPhone">Số điện thoại mặc định</label>
+                      <input
+                        id="deliveryPhone"
+                        type="tel"
+                        className="dashboard-input"
+                        placeholder="Số điện thoại nhận hàng"
+                        value={profileForm.deliveryPhone}
+                        onChange={(e) => setProfileForm(p => ({ ...p, deliveryPhone: e.target.value }))}
+                      />
+                    </div>
+                    <div className="dashboard-field" style={{ gridColumn: "1 / -1" }}>
+                      <label htmlFor="deliveryAddress">Địa chỉ giao hàng mặc định</label>
+                      <input
+                        id="deliveryAddress"
+                        type="text"
+                        className="dashboard-input"
+                        placeholder="Địa chỉ giao hàng chi tiết (số nhà, đường, phường/xã, quận/huyện...)"
+                        value={profileForm.deliveryAddress}
+                        onChange={(e) => setProfileForm(p => ({ ...p, deliveryAddress: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Change Password */}
+                <div>
+                  <h3 style={{ fontSize: "1rem", fontWeight: 800, color: "var(--color-brand-dark)", borderBottom: "1.5px solid var(--color-border-light)", paddingBottom: 8, marginBottom: 16 }}>
+                     Đổi mật khẩu
+                  </h3>
+                  <div className="dashboard-form-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
+                    <div className="dashboard-field">
+                      <label htmlFor="profilePassword">Mật khẩu mới</label>
+                      <input
+                        id="profilePassword"
+                        type="password"
+                        className="dashboard-input"
+                        placeholder="Nhập mật khẩu mới (nếu muốn thay đổi)"
+                        value={profileForm.password}
+                        onChange={(e) => setProfileForm(p => ({ ...p, password: e.target.value }))}
+                      />
+                    </div>
+                    <div className="dashboard-field">
+                      <label htmlFor="confirmPassword">Xác nhận mật khẩu mới</label>
+                      <input
+                        id="confirmPassword"
+                        type="password"
+                        className="dashboard-input"
+                        placeholder="Nhập lại mật khẩu mới"
+                        value={profileForm.confirmPassword}
+                        onChange={(e) => setProfileForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submit Actions */}
+                <div className="dashboard-form-actions" style={{ marginTop: "var(--space-4)" }}>
+                  <button
+                    type="submit"
+                    className="dashboard-btn dashboard-btn-primary"
+                    style={{ width: "auto", padding: "0 28px", height: 44, borderRadius: "var(--radius-pill)" }}
+                  >
+                    <FaSave /> Lưu thay đổi
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
         )}
       </div>
     </div>

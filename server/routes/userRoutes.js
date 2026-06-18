@@ -3,6 +3,7 @@ const router = require("express").Router();
 const ctrl = require("../controllers/userController");
 
 router.get("/users/all", ctrl.getAll);
+router.get("/users/profile/:id", ctrl.getProfile);
 router.put("/users/:id/role", ctrl.updateRole);
 router.delete("/users/:id", ctrl.remove);
 router.put("/users/:id", ctrl.update);
