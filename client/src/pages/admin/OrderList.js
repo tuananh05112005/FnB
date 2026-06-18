@@ -114,9 +114,9 @@ const OrderList = () => {
     };
   }, []);
 
-  // useMemo: Lọc danh sách đơn hàng dựa trên trạng thái, khoảng ngày và từ khóa tìm kiếm
+  // useMemo: Lọc và sắp xếp danh sách đơn hàng dựa trên trạng thái, khoảng ngày và từ khóa tìm kiếm
   const filteredOrders = useMemo(() => {
-    return orders.filter((o) => {
+    const list = orders.filter((o) => {
       const d = new Date(o.created_at || o.order_date);
       const matchStatus = activeStatus === "all" || o.status === activeStatus;
       const matchStart  = !startDate || d >= new Date(new Date(startDate).setHours(0, 0, 0, 0));
@@ -127,6 +127,20 @@ const OrderList = () => {
         || String(o.id).includes(q);
       return matchStatus && matchStart && matchEnd && matchSearch;
     });
+
+    // Sắp xếp: Đơn chưa thanh toán (pending) lên trước, sau đó xếp theo thời gian mới nhất
+    list.sort((a, b) => {
+      const aUnpaid = a.status === "pending" ? 1 : 0;
+      const bUnpaid = b.status === "pending" ? 1 : 0;
+      if (aUnpaid !== bUnpaid) {
+        return bUnpaid - aUnpaid; // Đơn chưa thanh toán (1) đứng trước (0)
+      }
+      const dateA = new Date(a.created_at || a.order_date);
+      const dateB = new Date(b.created_at || b.order_date);
+      return dateB - dateA; // Ngày giảm dần (mới nhất lên trước)
+    });
+
+    return list;
   }, [activeStatus, endDate, orders, startDate, search]);
 
   // useMemo: Tính toán các số liệu thống kê đơn hàng (Tổng doanh thu, số lượng đơn theo hình thức thanh toán/trạng thái)

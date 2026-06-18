@@ -191,9 +191,19 @@ const Cart = () => {
   }, [groupedOrders]);
 
   // Sắp xếp danh sách đơn hàng dựa trên sortField và sortOrder hiện tại
+  // Ưu tiên đơn chưa thanh toán (status === 'pending') lên trước
   const sortedOrders = useMemo(() => {
     const orders = [...filteredOrders];
     orders.sort((a, b) => {
+      // Đơn chưa thanh toán (pending) có độ ưu tiên cao hơn (value = 1), đã thanh toán/khác (value = 0)
+      const aUnpaid = a.status === "pending" ? 1 : 0;
+      const bUnpaid = b.status === "pending" ? 1 : 0;
+
+      if (aUnpaid !== bUnpaid) {
+        return bUnpaid - aUnpaid; // Đơn chưa thanh toán (1) đứng trước (0)
+      }
+
+      // Nếu cùng nhóm trạng thái thanh toán, áp dụng sortField và sortOrder
       let l = a[sortField], r = b[sortField];
       if (sortField === "name") {
         l = a.items[0]?.name || "";
