@@ -30,7 +30,7 @@ import "../styles/dashboard.css";
 import "../styles/commerce.css";
 
 // Thiết lập token Mapbox
-mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN || "pk.eyJ1IjoidHVhbmFuaDA1MTEyMDA1IiwiYSI6ImNsdzV5Mm10NzAzMWoya3BvdWZ2MDN0MGgifQ.PlaceholderToken";
+mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN || "";
 
 // Giới hạn địa lý của TP. Hồ Chí Minh [Tây Nam, Đông Bắc]
 const HCMC_BOUNDS = [
