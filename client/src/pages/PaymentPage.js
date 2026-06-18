@@ -179,22 +179,21 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
     setErrorMessage("");
     setSuggestions([]);
 
-    const token = mapboxgl.accessToken;
-    // Tìm kiếm trong VN và giới hạn trong khu vực HCMC Bounds
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?access_token=${token}&country=VN&bbox=106.35,10.35,107.05,11.16&limit=5`;
+    // Tìm kiếm trong VN và giới hạn trong khu vực HCMC Bounds bằng Nominatim
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&viewbox=106.35,10.35,107.05,11.16&bounded=1&limit=5&accept-language=vi`;
 
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
-        if (data.features && data.features.length > 0) {
-          setSuggestions(data.features);
+        if (data && data.length > 0) {
+          setSuggestions(data);
         } else {
           setSuggestions([]);
-          setErrorMessage("Không tìm thấy địa chỉ này trong khu vực TP. Hồ Chí Minh.");
+          setErrorMessage("Không tìm thấy địa chỉ có số nhà này trong khu vực TP. Hồ Chí Minh.");
         }
       })
       .catch((err) => {
-        console.error("Geocoding search error:", err);
+        console.error("Nominatim search error:", err);
         setErrorMessage("Lỗi kết nối khi tìm kiếm địa chỉ.");
       })
       .finally(() => {
@@ -203,9 +202,10 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
   };
 
   const handleSelectSuggestion = (item) => {
-    const [lng, lat] = item.center;
+    const lat = parseFloat(item.lat);
+    const lng = parseFloat(item.lon);
     setSuggestions([]);
-    setSearchQuery(item.place_name || item.text || "");
+    setSearchQuery(item.display_name || "");
     setErrorMessage("");
 
     if (mapRef.current) {
@@ -225,7 +225,7 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
       markerRef.current = marker;
     }
 
-    onPositionSelect([lat, lng], item.place_name || item.text || "");
+    onPositionSelect([lat, lng], item.display_name || "");
   };
 
   if (!show) return null;
@@ -286,9 +286,9 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
               overflowY: "auto", 
               boxShadow: "var(--shadow-lg)" 
             }}>
-              {suggestions.map((item) => (
+              {suggestions.map((item, index) => (
                 <li 
-                  key={item.id} 
+                  key={item.place_id || index} 
                   onClick={() => handleSelectSuggestion(item)}
                   style={{ 
                     padding: "10px 14px", 
@@ -302,7 +302,7 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
                   onMouseEnter={(e) => e.target.style.background = "var(--color-bg-alt)"}
                   onMouseLeave={(e) => e.target.style.background = "transparent"}
                 >
-                  📍 {item.place_name}
+                  📍 {item.display_name}
                 </li>
               ))}
             </ul>
