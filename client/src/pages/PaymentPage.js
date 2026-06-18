@@ -8,7 +8,7 @@
 //        Trang sử dụng LocalStorage để khôi phục phiên thanh toán dở dang khi tải lại trang.
 // ==============================================================
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -16,12 +16,8 @@ import {
   FaMapMarkedAlt, FaWallet, FaTimes,
 } from "react-icons/fa";
 
-import {
-  MapContainer, Marker, Popup,
-  TileLayer, useMapEvents,
-} from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 import { api } from "../lib/api";
 import { getUserId } from "../lib/session";
@@ -33,16 +29,16 @@ import ProductInfo from "../components/payment/ProductInfo";
 import "../styles/dashboard.css";
 import "../styles/commerce.css";
 
-/* ── Leaflet icon fix ──────────────────────────────────────────── */
-// Khắc phục lỗi hiển thị marker icon của Leaflet trong React khi dùng Webpack
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
-  iconUrl:       require("leaflet/dist/images/marker-icon.png"),
-  shadowUrl:     require("leaflet/dist/images/marker-shadow.png"),
-});
+// Thiết lập token Mapbox
+mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN || "pk.eyJ1IjoidHVhbmFuaDA1MTEyMDA1IiwiYSI6ImNsdzV5Mm10NzAzMWoya3BvdWZ2MDN0MGgifQ.PlaceholderToken";
 
-// Tọa độ mặc định (Thành phố Hồ Chí Minh)
+// Giới hạn địa lý của TP. Hồ Chí Minh [Tây Nam, Đông Bắc]
+const HCMC_BOUNDS = [
+  [106.35, 10.35], // [lng, lat]
+  [107.05, 11.16]  // [lng, lat]
+];
+
+// Tọa độ mặc định (Thành phố Hồ Chí Minh) [lat, lng]
 const DEFAULT_POSITION = [10.762622, 106.660172];
 const PAYMENT_SESSION_PREFIX = "fnb_payment_session";
 
@@ -73,31 +69,98 @@ const clearPaymentSession = (userId) => {
   localStorage.removeItem(getPaymentSessionKey(userId));
 };
 
-/* ── Map click handler ──────────────────────────────────────────── */
+/* ── Map Modal (Mapbox GL JS) ──────────────────────────── */
 /**
- * MapClickHandler: Lắng nghe sự kiện click trên bản đồ.
- * Gọi API Nominatim OpenStreetMap để dịch tọa độ thành địa chỉ chi tiết (reverse geocoding).
- */
-function MapClickHandler({ onSelect }) {
-  useMapEvents({
-    click({ latlng: { lat, lng } }) {
-      onSelect([lat, lng]);
-      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-        .then((r) => r.json())
-        .then((d) => onSelect([lat, lng], d.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`))
-        .catch(() => onSelect([lat, lng], `${lat.toFixed(4)}, ${lng.toFixed(4)}`));
-    },
-  });
-  return null;
-}
-
-/* ── Map Modal (native, no Bootstrap) ──────────────────────────── */
-/**
- * MapModal: Hiển thị bản đồ Leaflet trong một modal.
- * Giúp khách hàng chọn vị trí giao hàng trực quan trên bản đồ.
+ * MapModal: Hiển thị bản đồ Mapbox trong một modal.
+ * Khóa bản đồ trong khu vực TP.HCM và tích hợp geofencing để chỉ chấp nhận địa chỉ thuộc TP.HCM.
  */
 function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm, onClose }) {
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    if (!show || !mapContainerRef.current) return;
+
+    // Reset thông báo lỗi khi mở modal
+    setErrorMessage("");
+
+    // Kinh độ và vĩ độ mặc định của TP.HCM (Quận 1)
+    const defaultCenter = selectedPosition 
+      ? [selectedPosition[1], selectedPosition[0]] 
+      : [DEFAULT_POSITION[1], DEFAULT_POSITION[0]];
+
+    // Khởi tạo bản đồ Mapbox
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: "mapbox://styles/mapbox/streets-v12",
+      center: defaultCenter,
+      zoom: 13,
+      pitch: 45, // Góc nghiêng 3D
+      maxBounds: HCMC_BOUNDS, // Khóa trong địa phận TP.HCM
+    });
+
+    mapRef.current = map;
+
+    // Nút điều hướng (zoom, xoay)
+    map.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+    // Nếu đã có tọa độ từ trước, vẽ Marker
+    if (selectedPosition) {
+      const marker = new mapboxgl.Marker({ color: "#d97706" })
+        .setLngLat(defaultCenter)
+        .addTo(map);
+      markerRef.current = marker;
+    }
+
+    // Sự kiện click ghim điểm
+    map.on("click", (e) => {
+      const { lng, lat } = e.lngLat;
+      setErrorMessage("");
+
+      // Cập nhật hoặc tạo mới Marker
+      if (markerRef.current) {
+        markerRef.current.setLngLat([lng, lat]);
+      } else {
+        const marker = new mapboxgl.Marker({ color: "#d97706" })
+          .setLngLat([lng, lat])
+          .addTo(map);
+        markerRef.current = marker;
+      }
+
+      // Reverse Geocoding dịch tọa độ thành địa chỉ
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+        .then((r) => r.json())
+        .then((d) => {
+          const formattedAddress = d.display_name || "";
+          
+          // Kiểm tra xem vị trí có thuộc TP.HCM hay không
+          const isHCMC = formattedAddress.toLowerCase().includes("hồ chí minh") || 
+                         formattedAddress.toLowerCase().includes("hcmc");
+                         
+          if (!isHCMC) {
+            setErrorMessage("Rất tiếc! Cửa hàng chỉ hỗ trợ giao hàng trong khu vực TP. Hồ Chí Minh.");
+            onPositionSelect([lat, lng], ""); // Xóa địa chỉ ở form để chặn lưu
+            return;
+          }
+
+          onPositionSelect([lat, lng], formattedAddress);
+        })
+        .catch(() => {
+          onPositionSelect([lat, lng], `${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+        });
+    });
+
+    // Dọn dẹp bản đồ khi unmount
+    return () => {
+      map.remove();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show]);
+
   if (!show) return null;
+
   return createPortal(
     <div className="custom-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="custom-modal-container" style={{ maxWidth: 680, maxHeight: "90dvh" }}>
@@ -105,39 +168,36 @@ function MapModal({ show, address, selectedPosition, onPositionSelect, onConfirm
         <div className="custom-modal-header">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", color: "var(--color-brand-dark)" }}>
             <FaMapMarkedAlt />
-            <h3 style={{ fontSize: "1.05rem" }}>Chọn địa chỉ trên bản đồ</h3>
+            <h3 style={{ fontSize: "1.05rem" }}>Chọn địa chỉ trên bản đồ (TP.HCM)</h3>
           </div>
           <button className="custom-modal-close-btn" onClick={onClose}><FaTimes /></button>
         </div>
 
-        {/* Map */}
-        <div style={{ flex: 1, minHeight: "280px", position: "relative" }}>
-          <MapContainer center={DEFAULT_POSITION} zoom={13} style={{ height: "100%", minHeight: "280px", width: "100%" }}>
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org">OpenStreetMap</a>'
-            />
-            {selectedPosition && (
-              <Marker position={selectedPosition}>
-                <Popup>Vị trí giao hàng</Popup>
-              </Marker>
-            )}
-            <MapClickHandler onSelect={(pos, addr) => onPositionSelect(pos, addr)} />
-          </MapContainer>
+        {/* Map Container */}
+        <div style={{ flex: 1, minHeight: "350px", position: "relative" }}>
+          <div ref={mapContainerRef} style={{ height: "100%", minHeight: "350px", width: "100%" }} />
         </div>
 
-        {/* Address preview */}
-        {address && (
+        {/* Alert / Address preview */}
+        {errorMessage ? (
+          <div style={{ padding: "var(--space-3) var(--space-5)", background: "#fef2f2", borderTop: "1px solid #fee2e2", fontSize: "0.82rem", color: "#dc2626", fontWeight: "bold" }}>
+            ⚠️ {errorMessage}
+          </div>
+        ) : address ? (
           <div style={{ padding: "var(--space-3) var(--space-5)", background: "var(--color-bg-alt)", borderTop: "1px solid var(--color-border)", fontSize: "0.82rem", color: "var(--color-text-muted)" }}>
             📍 {address}
           </div>
-        )}
+        ) : null}
 
         {/* Footer */}
         <div className="custom-modal-footer">
           <button className="dashboard-btn dashboard-btn-secondary" onClick={onClose}>Đóng</button>
-          <button className="auth-submit-btn" style={{ width: "auto", padding: "0 28px", height: 44, borderRadius: "var(--radius-pill)" }}
-            disabled={!address} onClick={onConfirm}>
+          <button 
+            className="auth-submit-btn" 
+            style={{ width: "auto", padding: "0 28px", height: 44, borderRadius: "var(--radius-pill)" }}
+            disabled={!address || !!errorMessage} 
+            onClick={onConfirm}
+          >
             <FaCheckCircle /> Xác nhận địa chỉ
           </button>
         </div>
