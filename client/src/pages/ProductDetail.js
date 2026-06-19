@@ -12,7 +12,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   FaArrowLeft, FaCartPlus, FaHeart, FaRegHeart,
   FaStar, FaShieldAlt, FaTruck, FaLeaf, FaComments,
-  FaFire, FaCheck,
+  FaFire, FaCheck, FaChevronLeft, FaChevronRight,
 } from "react-icons/fa";
 
 import ProductImage from "../components/common/ProductImage";
@@ -20,7 +20,7 @@ import ChatOverlay from "../components/chatbot/ChatOverlay";
 import { api } from "../lib/api";
 import { getUserId } from "../lib/session";
 import { addToCart } from "../services/cartService";
-import { getProduct, isProductAvailable } from "../services/productService";
+import { getProduct, isProductAvailable, listProducts } from "../services/productService";
 import { useNotifications } from "../components/common/NotificationContext";
 import "../styles/dashboard.css";
 import "../styles/commerce.css";
@@ -96,12 +96,14 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [addSuccess, setAddSuccess] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [recommendations, setRecommendations] = useState([]);
+  const [quickAddSuccessId, setQuickAddSuccessId] = useState(null);
 
     /* --------------------------------------------------------------
-   FETCH PRODUCT & FAVORITES
+   FETCH PRODUCT, FAVORITES & RECOMMENDATIONS
    --------------------------------------------------------------
-   - Gọi song song `getProduct` và API yêu thích.
-   - Khi dữ liệu trả về, cập nhật state `product` và `isFavorite`.
+   - Gọi song song `getProduct`, danh sách yêu thích và danh sách tất cả sản phẩm.
+   - Lọc sản phẩm cùng danh mục và sản phẩm bán kèm (topping/bánh ngọt).
    - Bắt lỗi và cập nhật `error` nếu có vấn đề.
    - Cuối cùng đặt `loading` thành false.
    -------------------------------------------------------------- */
@@ -109,14 +111,47 @@ const ProductDetail = () => {
     window.scrollTo(0, 0);
     const fetchDetail = async () => {
       try {
-        const [productData, favorites] = await Promise.all([
+        const [productData, favorites, allProducts] = await Promise.all([
           getProduct(id),
           userId
             ? api.get(`/api/favorites/${userId}`).then((r) => r.data).catch(() => [])
             : Promise.resolve([]),
+          listProducts(),
         ]);
         setProduct(productData);
         setIsFavorite(favorites.some((item) => String(item.id) === String(id)));
+
+        // Xử lý logic gợi ý sản phẩm thông minh
+        if (productData && Array.isArray(allProducts)) {
+          const currentCategory = productData.category || "";
+          
+          // 1. Sản phẩm cùng danh mục (loại trừ sản phẩm hiện tại)
+          const sameCategoryItems = allProducts.filter(
+            (p) => p.category === currentCategory && String(p.id) !== String(id) && isProductAvailable(p)
+          );
+          
+          // 2. Gợi ý thêm bánh ngọt và topping nếu sản phẩm hiện tại là nước uống
+          let crossItems = [];
+          const isDrink = !["topping", "banh ngọt", "bánh ngọt", "cake", "bánh"].includes(currentCategory.toLowerCase());
+          if (isDrink) {
+            const toppings = allProducts.filter(
+              (p) => p.category?.toLowerCase() === "topping" && isProductAvailable(p)
+            );
+            const cakes = allProducts.filter(
+              (p) => ["banh ngọt", "bánh ngọt", "cake", "bánh"].includes(p.category?.toLowerCase()) && isProductAvailable(p)
+            );
+            // Lấy tối đa 3 topping và 3 bánh ngọt để đa dạng lựa chọn
+            crossItems = [...toppings.slice(0, 3), ...cakes.slice(0, 3)];
+          }
+
+          const combined = [...sameCategoryItems.slice(0, 4), ...crossItems];
+          // Loại bỏ các phần tử trùng lặp và loại trừ chính nó
+          const uniqueRecs = combined.filter(
+            (item, index, self) => self.findIndex((t) => t.id === item.id) === index && String(item.id) !== String(id)
+          );
+          
+          setRecommendations(uniqueRecs);
+        }
       } catch (e) {
         console.error(e);
         setError("Không thể tải chi tiết sản phẩm.");
@@ -155,6 +190,29 @@ const ProductDetail = () => {
     } catch (e) {
       console.error(e);
       setError("Không thể thêm sản phẩm vào giỏ hàng.");
+    }
+  };
+
+  // Thêm nhanh sản phẩm gợi ý từ Carousel trực tiếp vào giỏ hàng
+  const handleQuickAdd = async (item, e) => {
+    e.stopPropagation();
+    if (!userId) { navigate("/login"); return; }
+    try {
+      if (!isProductAvailable(item)) return;
+      const activeOrderCode = localStorage.getItem("activeOrderCode");
+      await addToCart(userId, item.id, 1, item.size || "M", activeOrderCode);
+
+      addNotification(
+        "new_order",
+        "🛒 Giỏ hàng",
+        `Đã thêm "${item.name}" vào giỏ hàng thành công!`
+      );
+
+      setQuickAddSuccessId(item.id);
+      setTimeout(() => setQuickAddSuccessId(null), 1500);
+    } catch (e) {
+      console.error(e);
+      addNotification("error", "⚠️ Lỗi", "Không thể thêm sản phẩm vào giỏ hàng.");
     }
   };
 
@@ -431,6 +489,90 @@ const ProductDetail = () => {
           ))}
         </div>
       </div>
+
+      {/* ── Recommendations carousel ── */}
+      {recommendations.length > 0 && (
+        <div className="recommendations-section animate-fadeInUp" style={{ animationDelay: "0.18s" }}>
+          <div className="recommendations-header">
+            <h2 className="recommendations-title">
+              <span>💡 Có thể bạn sẽ thích</span>
+            </h2>
+            <div className="carousel-controls">
+              <button 
+                type="button" 
+                className="carousel-arrow" 
+                onClick={() => {
+                  const carousel = document.getElementById("reco-carousel-list");
+                  if (carousel) carousel.scrollLeft -= 220;
+                }}
+                aria-label="Xem sản phẩm trước"
+              >
+                <FaChevronLeft size={12} />
+              </button>
+              <button 
+                type="button" 
+                className="carousel-arrow" 
+                onClick={() => {
+                  const carousel = document.getElementById("reco-carousel-list");
+                  if (carousel) carousel.scrollLeft += 220;
+                }}
+                aria-label="Xem sản phẩm tiếp theo"
+              >
+                <FaChevronRight size={12} />
+              </button>
+            </div>
+          </div>
+          
+          <div className="recommendations-carousel-wrapper">
+            <div id="reco-carousel-list" className="recommendations-carousel">
+              {recommendations.map((item) => {
+                const isQuickAddSuccess = quickAddSuccessId === item.id;
+                return (
+                  <div 
+                    key={item.id} 
+                    className="reco-card"
+                    onClick={() => navigate(`/products/${item.id}`)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <div className="reco-img-wrap">
+                      <ProductImage 
+                        src={item.image} 
+                        alt={item.name} 
+                        className="reco-img"
+                      />
+                      {item.category && (
+                        <span className="reco-badge">{item.category}</span>
+                      )}
+                    </div>
+                    <div className="reco-body">
+                      <h4 className="reco-name" title={item.name}>{item.name}</h4>
+                      <p className="reco-desc" title={item.description || ""}>
+                        {item.description || "Hương vị thơm ngon, thanh mát đặc trưng."}
+                      </p>
+                      <div className="reco-footer">
+                        <div className="reco-price-wrap">
+                          <span className="reco-price">{fmt(item.price)}</span>
+                          {item.size && (
+                            <span className="reco-size">Size {item.size}</span>
+                          )}
+                        </div>
+                        <button 
+                          type="button" 
+                          className={`reco-quick-add-btn ${isQuickAddSuccess ? "success" : ""}`}
+                          onClick={(e) => handleQuickAdd(item, e)}
+                          title="Thêm nhanh vào giỏ hàng"
+                        >
+                          {isQuickAddSuccess ? <FaCheck /> : <FaCartPlus />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Chat overlay */}
               {/* --------------------------------------------------------------

@@ -16,13 +16,16 @@ import { useNavigate } from "react-router-dom";
 import {
   FaArrowLeft, FaChartLine, FaCheck, FaCreditCard,
   FaShoppingCart, FaTimes, FaTruck, FaPlus,
+  FaChevronLeft, FaChevronRight,
 } from "react-icons/fa";
 
 import ProductImage from "../components/common/ProductImage";
 import Pagination from "../components/common/Pagination";
 import { api } from "../lib/api";
 import { getRole, getToken, getUserId } from "../lib/session";
-import { cancelCartItem, getCart, markCartItemReceived, removeCartItem, updateCartItem } from "../services/cartService";
+import { addToCart, cancelCartItem, getCart, markCartItemReceived, removeCartItem, updateCartItem } from "../services/cartService";
+import { listProducts, isProductAvailable } from "../services/productService";
+import { useNotifications } from "../components/common/NotificationContext";
 import "../styles/dashboard.css";
 import "../styles/commerce.css";
 
@@ -84,6 +87,9 @@ const Cart = () => {
   const userId = getUserId();
   const token = getToken();
   const role = getRole();
+  const { addNotification } = useNotifications();
+  const [recommendations, setRecommendations] = useState([]);
+  const [quickAddSuccessId, setQuickAddSuccessId] = useState(null);
 
   // --- Các Hook State quản lý trạng thái của Cart ---
   // cartItems: Danh sách đơn hàng/sản phẩm trong giỏ của User hoặc danh sách tất cả đơn hàng đối với Admin
@@ -118,6 +124,83 @@ const Cart = () => {
   useEffect(() => {
     if (!userId || !token) navigate("/login");
   }, [navigate, token, userId]);
+
+  // Lấy ra danh sách gợi ý dựa trên giỏ hàng hiện tại
+  useEffect(() => {
+    const loadRecs = async () => {
+      try {
+        const allProducts = await listProducts();
+        if (!Array.isArray(allProducts)) return;
+        
+        // Phân tích giỏ hàng
+        const hasDrinks = cartItems.some(
+          (item) => !["topping", "banh ngọt", "bánh ngọt", "cake", "bánh"].includes((item.category || "").toLowerCase())
+        );
+        const hasToppingsOrCakes = cartItems.some(
+          (item) => ["topping", "banh ngọt", "bánh ngọt", "cake", "bánh"].includes((item.category || "").toLowerCase())
+        );
+
+        let filtered = [];
+
+        if (cartItems.length === 0) {
+          // Giỏ hàng trống -> Gợi ý đồ uống bán chạy
+          filtered = allProducts.filter((p) => p.category?.toLowerCase() !== "topping" && isProductAvailable(p)).slice(0, 8);
+        } else if (hasDrinks && !hasToppingsOrCakes) {
+          // Chỉ có nước -> Gợi ý Topping và Bánh ngọt ăn kèm
+          const toppings = allProducts.filter((p) => p.category?.toLowerCase() === "topping" && isProductAvailable(p));
+          const cakes = allProducts.filter((p) => ["banh ngọt", "bánh ngọt", "cake", "bánh"].includes(p.category?.toLowerCase()) && isProductAvailable(p));
+          filtered = [...toppings.slice(0, 4), ...cakes.slice(0, 4)];
+        } else if (!hasDrinks && hasToppingsOrCakes) {
+          // Chỉ có bánh/topping -> Gợi ý đồ uống
+          filtered = allProducts.filter(
+            (p) => !["topping", "banh ngọt", "bánh ngọt", "cake", "bánh"].includes(p.category?.toLowerCase()) && isProductAvailable(p)
+          ).slice(0, 8);
+        } else {
+          // Có cả hai -> Gợi ý thức uống khác chưa có trong giỏ hàng
+          const currentProductIds = cartItems.map((item) => item.product_id);
+          filtered = allProducts.filter(
+            (p) => !currentProductIds.includes(p.id) && isProductAvailable(p)
+          ).slice(0, 8);
+        }
+
+        const currentProductIds = cartItems.map((item) => item.product_id);
+        const finalRecs = filtered.filter((item) => !currentProductIds.includes(item.id));
+        
+        setRecommendations(finalRecs);
+      } catch (e) {
+        console.error("Lỗi lấy danh sách gợi ý cho giỏ hàng:", e);
+      }
+    };
+    if (cartItems.length >= 0) {
+      loadRecs();
+    }
+  }, [cartItems]);
+
+  // Thêm nhanh gợi ý kèm theo vào giỏ hàng
+  const handleQuickAdd = async (item, e) => {
+    e.stopPropagation();
+    if (!userId) { navigate("/login"); return; }
+    try {
+      if (!isProductAvailable(item)) return;
+      const activeCode = localStorage.getItem("activeOrderCode");
+      await addToCart(userId, item.id, 1, item.size || "M", activeCode);
+
+      addNotification(
+        "new_order",
+        "🛒 Giỏ hàng",
+        `Đã thêm "${item.name}" vào giỏ hàng thành công!`
+      );
+
+      setQuickAddSuccessId(item.id);
+      setTimeout(() => setQuickAddSuccessId(null), 1500);
+
+      // Làm mới giỏ hàng ngay lập tức để cập nhật danh sách và tổng tiền
+      refreshCart();
+    } catch (e) {
+      console.error(e);
+      addNotification("error", "⚠️ Lỗi", "Không thể thêm sản phẩm vào giỏ hàng.");
+    }
+  };
 
   // Hàm đồng bộ và làm mới giỏ hàng bằng cách gọi API tương ứng với vai trò Admin hoặc User
   const refreshCart = async () => {
@@ -555,6 +638,90 @@ const Cart = () => {
             })
           )}
         </section>
+
+        {/* ── Recommendations carousel for User ── */}
+        {role === "user" && recommendations.length > 0 && (
+          <div className="recommendations-section animate-fadeInUp" style={{ marginTop: "var(--space-4)", animationDelay: "0.15s" }}>
+            <div className="recommendations-header">
+              <h2 className="recommendations-title">
+                <span>💡 Gợi ý thêm cho bạn</span>
+              </h2>
+              <div className="carousel-controls">
+                <button 
+                  type="button" 
+                  className="carousel-arrow" 
+                  onClick={() => {
+                    const carousel = document.getElementById("cart-reco-carousel-list");
+                    if (carousel) carousel.scrollLeft -= 220;
+                  }}
+                  aria-label="Xem sản phẩm trước"
+                >
+                  <FaChevronLeft size={12} />
+                </button>
+                <button 
+                  type="button" 
+                  className="carousel-arrow" 
+                  onClick={() => {
+                    const carousel = document.getElementById("cart-reco-carousel-list");
+                    if (carousel) carousel.scrollLeft += 220;
+                  }}
+                  aria-label="Xem sản phẩm tiếp theo"
+                >
+                  <FaChevronRight size={12} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="recommendations-carousel-wrapper">
+              <div id="cart-reco-carousel-list" className="recommendations-carousel">
+                {recommendations.map((item) => {
+                  const isQuickAddSuccess = quickAddSuccessId === item.id;
+                  return (
+                    <div 
+                      key={item.id} 
+                      className="reco-card"
+                      onClick={() => navigate(`/products/${item.id}`)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <div className="reco-img-wrap">
+                        <ProductImage 
+                          src={item.image} 
+                          alt={item.name} 
+                          className="reco-img"
+                        />
+                        {item.category && (
+                          <span className="reco-badge">{item.category}</span>
+                        )}
+                      </div>
+                      <div className="reco-body">
+                        <h4 className="reco-name" title={item.name}>{item.name}</h4>
+                        <p className="reco-desc" title={item.description || ""}>
+                          {item.description || "Món dùng kèm thơm ngon, đậm đà rất đáng thử."}
+                        </p>
+                        <div className="reco-footer">
+                          <div className="reco-price-wrap">
+                            <span className="reco-price">{fmt(item.price)}</span>
+                            {item.size && (
+                              <span className="reco-size">Size {item.size}</span>
+                            )}
+                          </div>
+                          <button 
+                            type="button" 
+                            className={`reco-quick-add-btn ${isQuickAddSuccess ? "success" : ""}`}
+                            onClick={(e) => handleQuickAdd(item, e)}
+                            title="Thêm nhanh vào giỏ"
+                          >
+                            {isQuickAddSuccess ? <FaCheck /> : <FaPlus />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {role === "user" && pendingItems.length > 0 && (
           <div className="dashboard-panel animate-fadeInUp" style={{ padding: "var(--space-5) var(--space-6)", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "4px solid var(--color-brand)", marginTop: "var(--space-4)" }}>
