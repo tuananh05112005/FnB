@@ -58,7 +58,7 @@ const Products = () => {
     category, products, favorites, cartItems,
     viewMode, setViewMode, searchTerm, setSearchTerm,
     sortOption, setSortOption, selectedSizes, setSelectedSizes,
-    priceRange, setPriceRange, currentPage, setCurrentPage,
+    currentPage, setCurrentPage,
     itemsPerPage, setItemsPerPage, isLoading, error,
     uniqueSizes, filteredProducts, pagedProducts, totalPages,
     handleAddToCart, handleDelete, handleToggleFavorite,
@@ -141,10 +141,11 @@ const Products = () => {
 
           {/* Size chips */}
           {uniqueSizes.length > 0 && (
-            <div className="commerce-chips">
+            <div className="commerce-chips" style={{ gap: 10 }}>
               {uniqueSizes.map((size) => (
                 <button key={size} type="button"
                   className={`commerce-chip ${selectedSizes.includes(size) ? "active" : ""}`}
+                  style={{ minWidth: 42, justifyContent: "center" }}
                   onClick={() => { setCurrentPage(1); setSelectedSizes((prev) => prev.includes(size) ? prev.filter((i) => i !== size) : [...prev, size]); }}>
                   {size}
                 </button>

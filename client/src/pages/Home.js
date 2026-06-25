@@ -13,12 +13,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, Tooltip, ResponsiveContainer,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import {
-  FaBoxOpen, FaChartLine, FaChartPie,
+  FaBoxOpen, FaChartPie,
   FaMoneyBillWave, FaShoppingBag, FaTimes, FaUsers,
-  FaEye, FaClipboardList, FaHeart, FaCoffee, FaCheck,
+  FaEye, FaClipboardList, FaHeart, FaCoffee,
 } from "react-icons/fa";
 
 import { api } from "../lib/api";
@@ -40,7 +40,7 @@ const STATUS_MAP = {
   cancelled: { label: "Đã hủy",     cls: "dashboard-badge-danger"   },
 };
 
-const CHART_COLORS = ["#C8860A", "#5A8A5A", "#3B82F6", "#EF4444", "#E8778A"];
+const CHART_COLORS = ["#C8860A", "#5A8A5A", "#4C7BC7", "#E8778A", "#D4A44C"];
 
 const CATEGORIES = [
   { label: "Tất cả",   emoji: "✨", path: "/products" },
@@ -287,7 +287,18 @@ const Home = () => {
               <div className="dashboard-panel-body" style={{ height: 280 }}>
                 {revenueData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={revenueData} barSize={28}>
+                    <BarChart data={revenueData} barSize={20}>
+                      <defs>
+                        <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="var(--color-brand)" stopOpacity={0.5} />
+                          <stop offset="100%" stopColor="var(--color-brand)" stopOpacity={0.1} />
+                        </linearGradient>
+                        <linearGradient id="lastBarGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="var(--color-brand)" stopOpacity={1} />
+                          <stop offset="100%" stopColor="var(--color-brand-dark)" stopOpacity={0.8} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid stroke="var(--color-border-light)" vertical={false} strokeDasharray="3 3" />
                       <XAxis dataKey="date" axisLine={false} tickLine={false}
                         tick={{ fontSize: 11, fill: "var(--color-text-faint)" }} />
                       <YAxis axisLine={false} tickLine={false}
@@ -295,10 +306,10 @@ const Home = () => {
                         tickFormatter={(v) => (v / 1000000).toFixed(1) + "tr"} />
                       <Tooltip
                         formatter={(v) => [fmt(v), "Doanh thu"]}
-                        contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)", background: "var(--color-surface)", fontSize: 12 }} />
-                      <Bar dataKey="amount" radius={[8, 8, 0, 0]}>
+                        contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)", background: "var(--color-surface)", fontSize: 12, boxShadow: "var(--shadow-md)" }} />
+                      <Bar dataKey="amount" radius={[5, 5, 0, 0]}>
                         {revenueData.map((_, i) => (
-                          <Cell key={i} fill={i === revenueData.length - 1 ? "var(--color-brand)" : "var(--color-brand-pale)"} />
+                          <Cell key={i} fill={i === revenueData.length - 1 ? "url(#lastBarGrad)" : "url(#barGrad)"} />
                         ))}
                       </Bar>
                     </BarChart>
@@ -316,21 +327,21 @@ const Home = () => {
               <div className="dashboard-panel-body" style={{ height: 280 }}>
                 {orderStatusData.some((d) => d.value > 0) ? (
                   <>
-                    <ResponsiveContainer width="100%" height={200}>
+                    <ResponsiveContainer width="100%" height={190}>
                       <PieChart>
-                        <Pie data={orderStatusData} innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value">
+                        <Pie data={orderStatusData} innerRadius={65} outerRadius={85} paddingAngle={4} dataKey="value">
                           {orderStatusData.map((entry, i) => (
                             <Cell key={i} fill={entry.color} />
                           ))}
                         </Pie>
                         <Tooltip
                           formatter={(v, name) => [v + " đơn", name]}
-                          contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)", background: "var(--color-surface)", fontSize: 12 }} />
+                          contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)", background: "var(--color-surface)", fontSize: 12, boxShadow: "var(--shadow-md)" }} />
                       </PieChart>
                     </ResponsiveContainer>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", marginTop: 10 }}>
                       {orderStatusData.map((d) => (
-                        <span key={d.name} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", color: "var(--color-text-muted)" }}>
+                        <span key={d.name} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", color: "var(--color-text-muted)", fontWeight: 600 }}>
                           <span style={{ width: 8, height: 8, borderRadius: 999, background: d.color, display: "inline-block" }} />
                           {d.name} ({d.value})
                         </span>

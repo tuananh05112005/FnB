@@ -211,31 +211,54 @@ const OrderList = () => {
         </div>
 
         {/* ── Revenue hero ── */}
-        <section className="dashboard-panel" style={{ borderLeft: "4px solid var(--color-brand)" }}>
-          <div className="dashboard-panel-body">
-            <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-              <div className="dashboard-stat-icon" style={{ background: "var(--color-brand-pale)", color: "var(--color-brand-dark)", width: 52, height: 52, fontSize: "1.2rem", borderRadius: "var(--radius-md)" }}>
-                <FaMoneyBillWave />
-              </div>
-              <div>
-                <p className="dashboard-stat-label" style={{ margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: "0.7rem" }}>Tổng doanh thu (đang lọc)</p>
-                <p className="dashboard-money-primary" style={{ margin: 0, fontSize: "1.8rem" }}>{fmt(stats.revenue)}</p>
-              </div>
-              <div style={{ marginLeft: "auto", display: "flex", gap: 24, flexWrap: "wrap" }}>
-                {[
-                  { icon: <FaMoneyBill />,   label: "Tiền mặt",     value: stats.cash    + " đơn", color: "var(--color-warning)" },
-                  { icon: <FaCreditCard />,  label: "Chuyển khoản", value: stats.banking + " đơn", color: "var(--color-info)"    },
-                  { icon: <FaCheckCircle />, label: "Đã giao",      value: stats.received + " đơn",color: "var(--color-success)"},
-                ].map((m) => (
-                  <div key={m.label} style={{ textAlign: "center" }}>
-                    <div style={{ color: "var(--color-text-faint)", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{m.label}</div>
-                    <div style={{ color: m.color, fontWeight: 900, fontSize: "1.05rem" }}>{m.value}</div>
-                  </div>
-                ))}
-              </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+          {/* Main Revenue Card */}
+          <div className="dashboard-stat" style={{
+            background: "linear-gradient(135deg, var(--sidebar-bg) 0%, #3D2B14 100%)",
+            border: "1.5px solid var(--color-brand)",
+            boxShadow: "var(--shadow-brand)",
+            borderRadius: 18,
+            padding: "20px 24px",
+            color: "#fff",
+            display: "flex",
+            alignItems: "center",
+            gap: 16
+          }}>
+            <div className="dashboard-stat-icon" style={{ background: "rgba(200, 134, 10, 0.2)", color: "var(--color-brand)", width: 52, height: 52, fontSize: "1.3rem", borderRadius: 14 }}>
+              <FaMoneyBillWave />
+            </div>
+            <div>
+              <p className="dashboard-stat-label" style={{ margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: "0.72rem", color: "var(--color-brand-light)", fontWeight: 700 }}>Tổng doanh thu (đang lọc)</p>
+              <p className="dashboard-money-primary" style={{ margin: 0, fontSize: "1.8rem", color: "#fff", fontWeight: 900 }}>{fmt(stats.revenue)}</p>
             </div>
           </div>
-        </section>
+
+          {/* Micro-metric capsules */}
+          {[
+            { icon: <FaMoneyBill />,   label: "Tiền mặt",     value: stats.cash    + " đơn", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.1)", border: "1px solid rgba(245, 158, 11, 0.15)" },
+            { icon: <FaCreditCard />,  label: "Chuyển khoản", value: stats.banking + " đơn", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.1)", border: "1px solid rgba(59, 130, 246, 0.15)" },
+            { icon: <FaCheckCircle />, label: "Đã giao",      value: stats.received + " đơn",color: "#10b981", bg: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.15)" },
+          ].map((m) => (
+            <div key={m.label} className="dashboard-stat" style={{
+              background: "var(--color-surface)",
+              borderRadius: 18,
+              padding: "16px 20px",
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              border: m.border,
+              boxShadow: "var(--shadow-sm)"
+            }}>
+              <div className="dashboard-stat-icon" style={{ background: m.bg, color: m.color, width: 44, height: 44, fontSize: "1.1rem", borderRadius: 12 }}>
+                {m.icon}
+              </div>
+              <div>
+                <p className="dashboard-stat-label" style={{ margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "0.68rem", color: "var(--color-text-muted)" }}>{m.label}</p>
+                <p style={{ margin: 0, fontSize: "1.2rem", fontWeight: 800, color: "var(--color-text)" }}>{m.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
 
         {/* ── Stat cards ── */}
         <div className="dashboard-stats-grid">
@@ -287,17 +310,20 @@ const OrderList = () => {
             </div>
 
             {/* Row 2: status chips */}
-            <div className="dashboard-toolbar-group" style={{ flexWrap: "wrap" }}>
+            <div className="dashboard-toolbar-group" style={{ flexWrap: "wrap", gap: 10 }}>
               {STATUS_TABS.map((tab) => (
                 <button key={tab.key} type="button"
                   className={`dashboard-chip ${activeStatus === tab.key ? "active" : ""}`}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}
                   onClick={() => setActiveStatus(tab.key)}
                 >
-                  <span style={{ width: 7, height: 7, borderRadius: 999, background: activeStatus === tab.key ? "#fff" : tab.dot, display: "inline-block" }} />
-                  {tab.label}
+                  <span style={{ width: 8, height: 8, borderRadius: 999, background: activeStatus === tab.key ? "#fff" : tab.dot }} />
+                  <span>{tab.label}</span>
                   {tab.key !== "all" && (
                     <span style={{
-                      background: "rgba(255,255,255,0.25)", borderRadius: 999,
+                      background: activeStatus === tab.key ? "rgba(255,255,255,0.25)" : "var(--color-bg-warm, #f1f5f9)",
+                      color: activeStatus === tab.key ? "#fff" : "var(--color-text-muted, #64748b)",
+                      borderRadius: 999,
                       padding: "1px 6px", fontSize: "0.7rem", fontWeight: 800,
                     }}>
                       {tab.key === "pending"   ? stats.pending   :

@@ -2,12 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AreaChart, Area, BarChart, Bar, Cell,
   PieChart, Pie, RadialBarChart, RadialBar,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import {
   FaArrowDown, FaArrowUp, FaChartPie, FaCheckCircle,
-  FaMoneyBillAlt, FaPercentage, FaTimes, FaUsers, FaWallet,
-  FaShoppingBag, FaCalendarAlt,
+  FaTimes, FaUsers, FaShoppingBag,
 } from "react-icons/fa";
 
 import { api } from "../../lib/api";
@@ -133,10 +132,9 @@ const AdminStatistics = () => {
     }));
   }, [orders]);
 
-  // 4. Tổng doanh thu theo phương thức thanh toán
   const revenueByMethod = useMemo(() => {
-    const cash    = orders.filter((o) => o.payment_method === "cash")   .reduce((s, o) => s + Number(o.amount || 0), 0);
-    const banking = orders.filter((o) => o.payment_method !== "cash")   .reduce((s, o) => s + Number(o.amount || 0), 0);
+    const cash    = orders.filter((o) => o.payment_method === "cash").reduce((s, o) => s + Number(o.amount || 0), 0);
+    const banking = orders.filter((o) => o.payment_method !== "cash").reduce((s, o) => s + Number(o.amount || 0), 0);
     return [
       { name: "Tiền mặt",      amount: cash    },
       { name: "Chuyển khoản",  amount: banking },
@@ -236,13 +234,15 @@ const AdminStatistics = () => {
           {/* Revenue hero badge */}
           {stats && (
             <div style={{
-              background: "linear-gradient(135deg,#1e2641,#2d3a6b)",
-              borderRadius: 18, padding: "14px 22px", color: "#fff",
+              background: "linear-gradient(135deg, var(--sidebar-bg) 0%, #3D2B14 100%)",
+              border: "1.5px solid var(--color-brand)",
+              boxShadow: "var(--shadow-brand)",
+              borderRadius: 18, padding: "14px 22px", color: "var(--color-text-inverse)",
               display: "flex", flexDirection: "column", gap: 2, minWidth: 200,
             }}>
-              <span style={{ fontSize: "0.72rem", color: "#8899cc", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Tổng doanh thu</span>
-              <span style={{ fontSize: "1.6rem", fontWeight: 900, letterSpacing: "-0.04em" }}>{fmt(stats.totalRevenue)}</span>
-              <span style={{ fontSize: "0.75rem", color: "#8899cc" }}>{orders.length} đơn hàng ghi nhận</span>
+              <span style={{ fontSize: "0.72rem", color: "var(--color-brand-light)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Tổng doanh thu</span>
+              <span style={{ fontSize: "1.6rem", fontWeight: 900, letterSpacing: "-0.04em", color: "#fff" }}>{fmt(stats.totalRevenue)}</span>
+              <span style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.6)" }}>{orders.length} đơn hàng ghi nhận</span>
             </div>
           )}
         </div>
@@ -282,15 +282,15 @@ const AdminStatistics = () => {
                   <AreaChart data={revenueTrend}>
                     <defs>
                       <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#7c3aed" stopOpacity={0.18} />
-                        <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
+                        <stop offset="5%"  stopColor="var(--color-brand)" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="var(--color-brand)" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#8aa0c5" }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#8aa0c5" }} tickFormatter={fmtShort} />
+                    <CartesianGrid stroke="var(--color-border-light)" vertical={false} strokeDasharray="3 3" />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--color-text-faint)" }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--color-text-faint)" }} tickFormatter={fmtShort} />
                     <Tooltip content={<CustomTooltip currency />} />
-                    <Area type="monotone" dataKey="amount" stroke="#7c3aed" strokeWidth={2.5} fill="url(#revGrad)" dot={{ r: 4, fill: "#7c3aed", strokeWidth: 0 }} activeDot={{ r: 6 }} />
+                    <Area type="monotone" dataKey="amount" stroke="var(--color-brand)" strokeWidth={2.5} fill="url(#revGrad)" dot={{ r: 4, fill: "var(--color-brand)", strokeWidth: 0 }} activeDot={{ r: 6 }} />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
@@ -312,16 +312,16 @@ const AdminStatistics = () => {
                 <>
                   <ResponsiveContainer width="100%" height={200}>
                     <RadialBarChart innerRadius={28} outerRadius={90} data={statusDist} startAngle={90} endAngle={-270}>
-                      <RadialBar dataKey="value" cornerRadius={6} background={{ fill: "#f8fafc" }} />
-                      <Tooltip formatter={(v, name) => [v + "%", name]} contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 8px 24px rgba(0,0,0,0.1)" }} />
+                      <RadialBar dataKey="value" cornerRadius={6} background={{ fill: "var(--color-bg-alt)" }} />
+                      <Tooltip formatter={(v, name) => [v + "%", name]} contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)", background: "var(--color-surface)", fontSize: 12, boxShadow: "var(--shadow-md)" }} />
                     </RadialBarChart>
                   </ResponsiveContainer>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 4 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 4 }}>
                     {statusDist.map((d) => (
                       <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 7 }}>
                         <span style={{ width: 9, height: 9, borderRadius: 3, background: d.fill, flexShrink: 0 }} />
-                        <span style={{ fontSize: "0.76rem", color: "#64748b", fontWeight: 600 }}>{d.name}</span>
-                        <span style={{ marginLeft: "auto", fontSize: "0.76rem", fontWeight: 800, color: "#0f172a" }}>{d.count}</span>
+                        <span style={{ fontSize: "0.76rem", color: "var(--color-text-muted)", fontWeight: 600 }}>{d.name}</span>
+                        <span style={{ marginLeft: "auto", fontSize: "0.76rem", fontWeight: 800, color: "var(--color-text)" }}>{d.count}</span>
                       </div>
                     ))}
                   </div>
@@ -349,20 +349,20 @@ const AdminStatistics = () => {
                 <>
                   <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
-                      <Pie data={paymentSplit} innerRadius={60} outerRadius={88} paddingAngle={5} dataKey="value">
+                      <Pie data={paymentSplit} innerRadius={65} outerRadius={85} paddingAngle={5} dataKey="value">
                         {paymentSplit.map((entry) => (
                           <Cell key={entry.name} fill={entry.fill} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(v, name) => [v + " đơn", name]} contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 8px 24px rgba(0,0,0,0.1)" }} />
+                      <Tooltip formatter={(v, name) => [v + " đơn", name]} contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)", background: "var(--color-surface)", fontSize: 12, boxShadow: "var(--shadow-md)" }} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="dashboard-toolbar-group" style={{ justifyContent: "center", flexWrap: "wrap", gap: 14 }}>
                     {paymentSplit.map((d) => (
-                      <span key={d.name} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", fontWeight: 700, color: "#334155" }}>
+                      <span key={d.name} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", fontWeight: 700, color: "var(--color-text-muted)" }}>
                         <span style={{ width: 10, height: 10, borderRadius: 999, background: d.fill }} />
                         {d.name}
-                        <span style={{ color: "#8aa0c5", fontWeight: 600 }}>({d.value})</span>
+                        <span style={{ color: "var(--color-text-faint)", fontWeight: 600 }}>({d.value})</span>
                       </span>
                     ))}
                   </div>
@@ -383,14 +383,14 @@ const AdminStatistics = () => {
             </div>
             <div className="dashboard-panel-body" style={{ height: 280 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenueByMethod} barSize={52} layout="vertical">
-                  <CartesianGrid horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#8aa0c5" }} tickFormatter={fmtShort} />
-                  <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#334155", fontWeight: 700 }} width={110} />
+                <BarChart data={revenueByMethod} barSize={36} layout="vertical">
+                  <CartesianGrid horizontal={false} stroke="var(--color-border-light)" strokeDasharray="3 3" />
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--color-text-faint)" }} tickFormatter={fmtShort} />
+                  <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "var(--color-text)", fontWeight: 700 }} width={110} />
                   <Tooltip content={<CustomTooltip currency />} />
-                  <Bar dataKey="amount" radius={[0, 8, 8, 0]}>
-                    <Cell fill="#7c3aed" />
-                    <Cell fill="#3b82f6" />
+                  <Bar dataKey="amount" radius={[0, 6, 6, 0]}>
+                    <Cell fill="var(--color-brand)" />
+                    <Cell fill="var(--color-matcha)" />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

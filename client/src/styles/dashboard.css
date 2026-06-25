@@ -85,7 +85,7 @@
 /* ── Stats grid ─────────────────────────────────────────────────── */
 .dashboard-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: var(--space-4);
 }
 
@@ -93,24 +93,41 @@
 .dashboard-stat {
   background: var(--color-surface);
   border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5);
+  border-radius: var(--radius-md);
+  padding: var(--space-5) var(--space-6);
   display: flex;
   align-items: center;
   gap: var(--space-4);
   box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--transition-base), transform var(--transition-base);
+  transition: box-shadow var(--transition-spring), transform var(--transition-spring), border-color var(--transition-fast);
   position: relative;
   overflow: hidden;
 }
 .dashboard-stat:hover {
   box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  border-color: rgba(200, 134, 10, 0.25);
 }
 
-/* Accent border-left strip */
+/* Accent border-left strip - redesigned as a premium inner glow element */
 .dashboard-stat-accent {
-  border-left: 4px solid var(--stat-accent, var(--color-brand));
+  border-left: none;
+}
+.dashboard-stat-accent::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--stat-accent, var(--color-brand));
+  opacity: 0.8;
+  transition: opacity var(--transition-fast), width var(--transition-fast), box-shadow var(--transition-fast);
+}
+.dashboard-stat:hover.dashboard-stat-accent::before {
+  width: 6px;
+  opacity: 1;
+  box-shadow: 0 0 14px var(--stat-accent, var(--color-brand));
 }
 
 .dashboard-stat-icon {
@@ -119,28 +136,32 @@
   justify-content: center;
   width: 48px;
   height: 48px;
-  border-radius: var(--radius-md);
+  border-radius: 12px;
   font-size: 1.25rem;
   flex-shrink: 0;
+  transition: transform var(--transition-spring);
+}
+.dashboard-stat:hover .dashboard-stat-icon {
+  transform: scale(1.1);
 }
 
 .dashboard-stat-value {
   font-family: var(--app-font-display);
-  font-size: 1.65rem;
+  font-size: 1.75rem;
   font-weight: 800;
   color: var(--color-text);
   letter-spacing: -0.03em;
   margin: 0;
-  line-height: 1;
+  line-height: 1.1;
 }
 
 .dashboard-stat-label {
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 700;
   color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin: 4px 0 0;
+  letter-spacing: 0.06em;
+  margin: 0 0 4px;
 }
 
 .dashboard-stat-trend {
@@ -159,24 +180,30 @@
 /* ── Panel ──────────────────────────────────────────────────────── */
 .dashboard-panel {
   background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+  transition: box-shadow var(--transition-base), border-color var(--transition-base);
+}
+.dashboard-panel:hover {
+  box-shadow: var(--shadow-md);
+  border-color: rgba(200, 134, 10, 0.25);
 }
 
 .dashboard-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-5) var(--space-6);
+  padding: var(--space-4) var(--space-6);
   border-bottom: 1px solid var(--color-border-light);
   gap: var(--space-3);
   flex-wrap: wrap;
+  background: var(--color-bg-alt);
 }
 
 .dashboard-panel-title {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--color-text);
   margin: 0;
