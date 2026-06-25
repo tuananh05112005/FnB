@@ -152,11 +152,16 @@ const AppContent = () => {
     const _path = location.pathname;
     const session = getSession();
     const payload = decodeTokenPayload(session.token);
-    const name = payload?.name || session.name || payload?.email || "User";
+    const role = payload?.role || session.role || "";
+    let name = payload?.name || session.name || payload?.email || "User";
+    if (role === "admin") {
+      name = "admin";
+    }
     return {
       name,
       initial: name.charAt(0).toUpperCase(),
       loggedIn: !!session.token,
+      role,
     };
   }, [location.pathname]);
 
@@ -337,18 +342,34 @@ const AppContent = () => {
                         <div className="app-user-dropdown-header">
                           Tài khoản: {currentUser.name}
                         </div>
-                        <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/admin/settings"); }}>
-                          👤 Hồ sơ & Cài đặt
-                        </button>
-                        <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/carts"); }}>
-                          📦 Đơn mua
-                        </button>
-                        <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/wallet"); }}>
-                          🎫 Ví Voucher & Điểm
-                        </button>
-                        <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/history"); }}>
-                          💳 Lịch sử thanh toán
-                        </button>
+                        {currentUser.role === "admin" ? (
+                          <>
+                            <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/admin/statistics"); }}>
+                              📊 Thống kê doanh thu
+                            </button>
+                            <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/admin/staffs"); }}>
+                              👥 Quản lý nhân viên
+                            </button>
+                            <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/orders"); }}>
+                              📋 Lịch sử giao dịch
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/admin/settings"); }}>
+                              👤 Hồ sơ & Cài đặt
+                            </button>
+                            <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/carts"); }}>
+                              📦 Đơn mua
+                            </button>
+                            <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/wallet"); }}>
+                              🎫 Ví Voucher & Điểm
+                            </button>
+                            <button type="button" className="app-user-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate("/history"); }}>
+                              💳 Lịch sử thanh toán
+                            </button>
+                          </>
+                        )}
                         <button type="button" className="app-user-dropdown-item danger" onClick={() => {
                           setIsUserMenuOpen(false);
                           const confirmLogout = window.confirm("Bạn có chắc chắn muốn đăng xuất?");
