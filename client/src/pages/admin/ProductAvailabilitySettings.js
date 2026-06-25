@@ -59,7 +59,7 @@ const ProductAvailabilitySettings = () => {
   const activeSetting =
     role === "user"
       ? (tab === "profile" ? "profile" : null)
-      : (tab === "products" || tab === "menu" || tab === "categories" || tab === "profile" ? tab : null);
+      : (tab === "products" || tab === "menu" || tab === "categories" ? tab : null);
 
   // Khai báo các trạng thái biểu mẫu cài đặt và danh sách sản phẩm
   const [categoryForm, setCategoryForm] = useState(DEFAULT_CATEGORY_SETTINGS); // Dữ liệu form cài đặt danh mục
@@ -434,22 +434,24 @@ const ProductAvailabilitySettings = () => {
                   </>
                 )}
 
-                <button
-                  type="button"
-                  className="dashboard-mini-card settings-option-card"
-                  onClick={() => setActiveTab("profile")}
-                >
-                  <div
-                    className="dashboard-stat-icon"
-                    style={{ background: "#fffbeb", color: "#d97706" }}
+                {role === "user" && (
+                  <button
+                    type="button"
+                    className="dashboard-mini-card settings-option-card"
+                    onClick={() => setActiveTab("profile")}
                   >
-                    <FaCog />
-                  </div>
-                  <div>
-                    <h4>Cài đặt thông tin</h4>
-                    <p>Cập nhật thông tin và địa chỉ giao hàng.</p>
-                  </div>
-                </button>
+                    <div
+                      className="dashboard-stat-icon"
+                      style={{ background: "#fffbeb", color: "#d97706" }}
+                    >
+                      <FaCog />
+                    </div>
+                    <div>
+                      <h4>Cài đặt thông tin</h4>
+                      <p>Cập nhật thông tin và địa chỉ giao hàng.</p>
+                    </div>
+                  </button>
+                )}
               </div>
             </div>
           </section>

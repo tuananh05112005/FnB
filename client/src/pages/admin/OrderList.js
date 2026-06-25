@@ -228,7 +228,7 @@ const OrderList = () => {
               <FaMoneyBillWave />
             </div>
             <div>
-              <p className="dashboard-stat-label" style={{ margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: "0.72rem", color: "var(--color-brand-light)", fontWeight: 700 }}>Tổng doanh thu (đang lọc)</p>
+              <p className="dashboard-stat-label" style={{ margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: "0.72rem", color: "var(--color-brand-light)", fontWeight: 700 }}>Tổng doanh thu</p>
               <p className="dashboard-money-primary" style={{ margin: 0, fontSize: "1.8rem", color: "#fff", fontWeight: 900 }}>{fmt(stats.revenue)}</p>
             </div>
           </div>
