@@ -13,6 +13,7 @@ import * as Yup from "yup";
 import { FaArrowLeft, FaBoxOpen, FaMagic, FaPlus, FaUpload } from "react-icons/fa";
 
 import ProductImagePicker from "../../components/admin/ProductImagePicker";
+import { api } from "../../lib/api";
 import { createProduct } from "../../services/productService";
 import { buildProductDescription, getImageNameSuggestion } from "../../utils/productContent";
 import "../../styles/dashboard.css";
@@ -142,12 +143,16 @@ const AddProductForm = () => {
                                 setUploadLoading(true);
                                 setErrorMessage("");
                                 
-                                const { storage } = await import("../../config/firebase");
-                                const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
+                                const formData = new FormData();
+                                formData.append("image", file);
                                 
-                                const storageRef = ref(storage, `products/${Date.now()}_${file.name}`);
-                                const snapshot = await uploadBytes(storageRef, file);
-                                const downloadUrl = await getDownloadURL(snapshot.ref);
+                                const response = await api.post("/api/upload", formData, {
+                                  headers: {
+                                    "Content-Type": "multipart/form-data"
+                                  }
+                                });
+                                
+                                const downloadUrl = response.data.url;
                                 
                                 setFieldValue("image", downloadUrl);
                                 setPreviewImage(downloadUrl);
@@ -155,7 +160,7 @@ const AddProductForm = () => {
                                 setTimeout(() => setSuccessMessage(""), 3000);
                               } catch (uploadErr) {
                                 console.error("Upload error:", uploadErr);
-                                setErrorMessage("Lỗi tải ảnh lên: " + (uploadErr.message || uploadErr));
+                                setErrorMessage("Lỗi tải ảnh lên: " + (uploadErr.response?.data?.message || uploadErr.message || uploadErr));
                               } finally {
                                 setUploadLoading(false);
                               }
@@ -163,7 +168,7 @@ const AddProductForm = () => {
                           />
                         </label>
                       </div>
-                      {uploadLoading && <span style={{ fontSize: "0.8rem", color: "var(--color-brand)" }}>Đang tải ảnh lên Firebase...</span>}
+                      {uploadLoading && <span style={{ fontSize: "0.8rem", color: "var(--color-brand)" }}>Đang tải ảnh lên...</span>}
                       <ErrorMessage name="image" component="div" className="text-danger" />
                       <ProductImagePicker
                         query={values.name}
