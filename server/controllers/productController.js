@@ -26,6 +26,7 @@ const FOOD_IMAGE_QUERY_MAP = [
   ["bánh", "cake dessert"],
   ["pancake", "pancake dessert"],
   ["waffle", "waffle dessert"],
+  ["topping", "dessert topping"],
 ];
 
 // Chuan hoa chuoi tim kiem de so khop tu khoa tieng Viet khong dau

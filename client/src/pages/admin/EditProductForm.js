@@ -25,6 +25,7 @@ const defaultProduct = {
   price: "",
   description: "",
   size: "",
+  category: "",
 };
 
 // Component chính chỉnh sửa sản phẩm
@@ -40,6 +41,17 @@ const EditProductForm = () => {
   const [error, setError] = useState("");                               // Lưu thông báo lỗi
   const [successMessage, setSuccessMessage] = useState("");             // Lưu thông báo thành công
   const [uploadLoading, setUploadLoading] = useState(false);             // Trạng thái tải ảnh lên
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
+  const [newCategoryVal, setNewCategoryVal] = useState("");
+
+  useEffect(() => {
+    api.get("/api/product-categories")
+      .then((res) => {
+        setCategoriesList(res.data ? res.data.filter(Boolean) : []);
+      })
+      .catch((err) => console.error("Lỗi lấy danh mục:", err));
+  }, []);
 
   // Tải thông tin sản phẩm và lịch sử chỉnh sửa khi mở trang
   useEffect(() => {
@@ -69,12 +81,75 @@ const EditProductForm = () => {
     setEditingProduct((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleCategorySelectChange = (e) => {
+    const val = e.target.value;
+    if (val === "new") {
+      setShowNewCategoryInput(true);
+      setEditingProduct((prev) => ({ ...prev, category: "new" }));
+    } else {
+      setShowNewCategoryInput(false);
+      setNewCategoryVal("");
+      setEditingProduct((prev) => ({ ...prev, category: val }));
+    }
+  };
+
   // Gửi yêu cầu cập nhật thông tin sản phẩm lên API backend
   const handleUpdateProduct = async () => {
+    const finalCategory = editingProduct.category === "new" ? newCategoryVal.trim() : (editingProduct.category || "").trim();
+
+    if (!editingProduct.image) {
+      setError("Vui lòng nhập URL hình ảnh.");
+      return;
+    }
+    if (!editingProduct.name) {
+      setError("Vui lòng nhập tên sản phẩm.");
+      return;
+    }
+    if (!editingProduct.price || isNaN(editingProduct.price) || Number(editingProduct.price) <= 0) {
+      setError("Giá bán phải là số dương.");
+      return;
+    }
+    if (!editingProduct.description) {
+      setError("Vui lòng nhập mô tả.");
+      return;
+    }
+    if (!finalCategory) {
+      setError("Vui lòng chọn hoặc nhập danh mục.");
+      return;
+    }
+
+    const isTopping = finalCategory.toLowerCase() === "topping";
+    if (!isTopping) {
+      if (!editingProduct.code) {
+        setError("Vui lòng nhập mã sản phẩm.");
+        return;
+      }
+      if (editingProduct.code.length > 20) {
+        setError("Mã sản phẩm không quá 20 ký tự.");
+        return;
+      }
+      if (!editingProduct.size) {
+        setError("Vui lòng nhập kích cỡ.");
+        return;
+      }
+    }
+
     try {
       setError("");
       setSuccessMessage("");
-      await updateProduct(id, editingProduct);
+
+      const payload = {
+        image: editingProduct.image,
+        code: isTopping ? (editingProduct.code?.trim() || null) : editingProduct.code?.trim(),
+        name: editingProduct.name.trim(),
+        price: Number(editingProduct.price),
+        description: editingProduct.description.trim(),
+        size: isTopping ? (editingProduct.size?.trim() || null) : editingProduct.size?.trim(),
+        category: finalCategory,
+        is_available: editingProduct.is_available,
+      };
+
+      await updateProduct(id, payload);
       setSuccessMessage("Cập nhật sản phẩm thành công.");
       setTimeout(() => navigate("/products"), 1200);
     } catch (updateError) {
@@ -98,6 +173,9 @@ const EditProductForm = () => {
       </div>
     );
   }
+
+  const actualCategory = editingProduct.category === "new" ? newCategoryVal : editingProduct.category;
+  const isTopping = actualCategory && actualCategory.trim().toLowerCase() === "topping";
 
   return (
     <div className="dashboard-page">
@@ -205,7 +283,41 @@ const EditProductForm = () => {
                 />
               </div>
               <div className="dashboard-field">
-                <label htmlFor="edit-code">Mã sản phẩm</label>
+                <label htmlFor="edit-category">Danh mục sản phẩm</label>
+                <select
+                  id="edit-category"
+                  name="category"
+                  className="dashboard-input"
+                  value={editingProduct.category || ""}
+                  onChange={handleCategorySelectChange}
+                >
+                  <option value="">-- Chọn danh mục --</option>
+                  {categoriesList.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                  <option value="new">+ Thêm danh mục mới...</option>
+                </select>
+              </div>
+
+              {showNewCategoryInput && (
+                <div className="dashboard-field">
+                  <label htmlFor="edit-new-category">Tên danh mục mới</label>
+                  <input
+                    id="edit-new-category"
+                    className="dashboard-input"
+                    placeholder="Ví dụ: trà hoa quả"
+                    value={newCategoryVal}
+                    onChange={(e) => setNewCategoryVal(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div className="dashboard-field">
+                <label htmlFor="edit-code">
+                  Mã sản phẩm {isTopping && <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", fontWeight: "normal" }}>(Không bắt buộc)</span>}
+                </label>
                 <input
                   id="edit-code"
                   name="code"
@@ -236,7 +348,9 @@ const EditProductForm = () => {
                 />
               </div>
               <div className="dashboard-field">
-                <label htmlFor="edit-size">Kích cỡ</label>
+                <label htmlFor="edit-size">
+                  Kích cỡ {isTopping && <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", fontWeight: "normal" }}>(Không bắt buộc)</span>}
+                </label>
                 <input
                   id="edit-size"
                   name="size"

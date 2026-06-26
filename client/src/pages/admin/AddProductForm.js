@@ -6,10 +6,9 @@
 //        - Tích hợp tính năng AI gợi ý mô tả sản phẩm tự động (buildProductDescription).
 // ==============================================================
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ErrorMessage, Field, Form, Formik } from "formik";
-import * as Yup from "yup";
 import { FaArrowLeft, FaBoxOpen, FaMagic, FaPlus, FaUpload } from "react-icons/fa";
 
 import ProductImagePicker from "../../components/admin/ProductImagePicker";
@@ -19,15 +18,51 @@ import { buildProductDescription, getImageNameSuggestion } from "../../utils/pro
 import "../../styles/dashboard.css";
 import "../../styles/commerce.css";
 
-// Định nghĩa quy tắc kiểm tra tính hợp lệ dữ liệu đầu vào (Validation Schema) bằng Yup
-const validationSchema = Yup.object({
-  image: Yup.string().required("Vui lòng nhập URL hình ảnh."),
-  code: Yup.string().required("Vui lòng nhập mã sản phẩm.").max(20),
-  name: Yup.string().required("Vui lòng nhập tên sản phẩm.").max(100),
-  price: Yup.number().typeError("Giá phải là số.").positive().required("Vui lòng nhập giá sản phẩm."),
-  description: Yup.string().required("Vui lòng nhập mô tả."),
-  size: Yup.string().required("Vui lòng nhập kích cỡ."),
-});
+// Quy tắc kiểm tra tính hợp lệ dữ liệu đầu vào (Custom Validation)
+const validateForm = (values) => {
+  const errors = {};
+  if (!values.image) {
+    errors.image = "Vui lòng nhập URL hình ảnh.";
+  }
+  
+  const actualCategory = values.category === "new" ? values.newCategory : values.category;
+  if (!actualCategory) {
+    errors.category = "Vui lòng chọn hoặc nhập danh mục.";
+  } else if (values.category === "new" && !values.newCategory.trim()) {
+    errors.newCategory = "Vui lòng nhập danh mục mới.";
+  }
+
+  const isTopping = actualCategory && actualCategory.trim().toLowerCase() === "topping";
+
+  if (!isTopping) {
+    if (!values.code) {
+      errors.code = "Vui lòng nhập mã sản phẩm.";
+    } else if (values.code.length > 20) {
+      errors.code = "Mã sản phẩm không quá 20 ký tự.";
+    }
+    if (!values.size) {
+      errors.size = "Vui lòng nhập kích cỡ.";
+    }
+  }
+
+  if (!values.name) {
+    errors.name = "Vui lòng nhập tên sản phẩm.";
+  } else if (values.name.length > 100) {
+    errors.name = "Tên sản phẩm không quá 100 ký tự.";
+  }
+  
+  if (!values.price) {
+    errors.price = "Vui lòng nhập giá sản phẩm.";
+  } else if (isNaN(values.price) || Number(values.price) <= 0) {
+    errors.price = "Giá phải là số dương.";
+  }
+  
+  if (!values.description) {
+    errors.description = "Vui lòng nhập mô tả.";
+  }
+
+  return errors;
+};
 
 // Component chính trang thêm sản phẩm mới
 const AddProductForm = () => {
@@ -38,6 +73,17 @@ const AddProductForm = () => {
   const [errorMessage, setErrorMessage] = useState("");     // Thông báo lỗi nếu gửi dữ liệu thất bại
   const [previewImage, setPreviewImage] = useState("");     // Ảnh xem trước của URL hình ảnh sản phẩm
   const [uploadLoading, setUploadLoading] = useState(false); // Trạng thái tải ảnh lên
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
+
+  useEffect(() => {
+    api.get("/api/product-categories")
+      .then((res) => {
+        const list = res.data ? res.data.filter(Boolean) : [];
+        setCategoriesList(list);
+      })
+      .catch((err) => console.error("Lỗi lấy danh mục:", err));
+  }, []);
 
   return (
     <div className="dashboard-page">
@@ -85,18 +131,38 @@ const AddProductForm = () => {
                 price: "",
                 description: "",
                 size: "",
+                category: "",
+                newCategory: "",
               }}
-              validationSchema={validationSchema}
+              validate={validateForm}
               onSubmit={async (values, { setSubmitting, resetForm }) => {
                 setErrorMessage("");
                 setSuccessMessage("");
 
+                const finalCategory = values.category === "new" ? values.newCategory.trim() : values.category;
+                const isTopping = finalCategory.toLowerCase() === "topping";
+
+                const payload = {
+                  image: values.image,
+                  code: isTopping ? (values.code.trim() || null) : values.code.trim(),
+                  name: values.name.trim(),
+                  price: Number(values.price),
+                  description: values.description.trim(),
+                  size: isTopping ? (values.size.trim() || null) : values.size.trim(),
+                  category: finalCategory,
+                };
+
                 try {
                   // Gọi API thêm sản phẩm mới
-                  await createProduct(values);
-                  setSuccessMessage("ản phẩm đã được thêm thành công.");
+                  await createProduct(payload);
+                  setSuccessMessage("Sản phẩm đã được thêm thành công.");
                   resetForm();
                   setPreviewImage("");
+                  setShowNewCategoryInput(false);
+                  // Cập nhật lại danh mục
+                  api.get("/api/product-categories")
+                    .then((res) => setCategoriesList(res.data ? res.data.filter(Boolean) : []))
+                    .catch(console.error);
                   // Quay lại trang danh mục sau khi thêm thành công
                   setTimeout(() => navigate("/products"), 1200);
                 } catch (error) {
@@ -111,8 +177,12 @@ const AddProductForm = () => {
                 }
               }}
             >
-              {({ isSubmitting, setFieldValue, values }) => (
-                <Form>
+              {({ isSubmitting, setFieldValue, values }) => {
+                const actualCategory = values.category === "new" ? values.newCategory : values.category;
+                const isTopping = actualCategory && actualCategory.trim().toLowerCase() === "topping";
+
+                return (
+                  <Form>
                   <div className="dashboard-form-grid">
                     <div className="dashboard-field">
                       <label htmlFor="product-image">Hình ảnh URL hoặc tải lên</label>
@@ -192,7 +262,51 @@ const AddProductForm = () => {
                     </div>
 
                     <div className="dashboard-field">
-                      <label htmlFor="product-code">Mã sản phẩm</label>
+                      <label htmlFor="product-category">Danh mục sản phẩm</label>
+                      <Field
+                        as="select"
+                        id="product-category"
+                        name="category"
+                        className="dashboard-input"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFieldValue("category", val);
+                          if (val === "new") {
+                            setShowNewCategoryInput(true);
+                          } else {
+                            setShowNewCategoryInput(false);
+                            setFieldValue("newCategory", "");
+                          }
+                        }}
+                      >
+                        <option value="">-- Chọn danh mục --</option>
+                        {categoriesList.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                        <option value="new">+ Thêm danh mục mới...</option>
+                      </Field>
+                      <ErrorMessage name="category" component="div" className="text-danger" />
+                    </div>
+
+                    {showNewCategoryInput && (
+                      <div className="dashboard-field">
+                        <label htmlFor="product-newCategory">Tên danh mục mới</label>
+                        <Field
+                          id="product-newCategory"
+                          name="newCategory"
+                          className="dashboard-input"
+                          placeholder="Ví dụ: trà hoa quả"
+                        />
+                        <ErrorMessage name="newCategory" component="div" className="text-danger" />
+                      </div>
+                    )}
+
+                    <div className="dashboard-field">
+                      <label htmlFor="product-code">
+                        Mã sản phẩm {isTopping && <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", fontWeight: "normal" }}>(Không bắt buộc)</span>}
+                      </label>
                       <Field
                         id="product-code"
                         name="code"
@@ -203,12 +317,12 @@ const AddProductForm = () => {
                     </div>
 
                     <div className="dashboard-field">
-                      <label htmlFor="product-name">ên sản phẩm</label>
+                      <label htmlFor="product-name">Tên sản phẩm</label>
                       <Field
                         id="product-name"
                         name="name"
                         className="dashboard-input"
-                        placeholder="Nhap ten san pham"
+                        placeholder="Nhập tên sản phẩm"
                       />
                       <ErrorMessage name="name" component="div" className="text-danger" />
                     </div>
@@ -226,7 +340,9 @@ const AddProductForm = () => {
                     </div>
 
                     <div className="dashboard-field">
-                      <label htmlFor="product-size">Kích cỡ</label>
+                      <label htmlFor="product-size">
+                        Kích cỡ {isTopping && <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", fontWeight: "normal" }}>(Không bắt buộc)</span>}
+                      </label>
                       <Field
                         id="product-size"
                         name="size"
@@ -282,7 +398,7 @@ const AddProductForm = () => {
                     </button>
                   </div>
                 </Form>
-              )}
+              );}}
             </Formik>
 
             {previewImage && (
