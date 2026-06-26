@@ -51,6 +51,7 @@ function registerRoutes(app) {
   app.use("/api/category-settings", categorySettingsRoutes); // Cài đặt ẩn hiện, thứ tự danh mục sản phẩm
   app.use("/api/ai", aiRoutes);            // Tích hợp Chatbot AI Gemini tư vấn sản phẩm
   app.use("/api/conversations", converationsRoutes); // Quản lý lịch sử cuộc hội thoại AI
+  app.use("/api/upload", require("./uploadRoutes")); // Tải ảnh lên cục bộ
 }
 
 module.exports = registerRoutes;

@@ -9,10 +9,13 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const path = require('path');
 require('./config/firebase');
 const registerRoutes = require('./routes');
 
 const app = express();
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Cấu hình Middleware CORS để Client React kết nối từ cổng khác được chấp thuận
 app.use(
