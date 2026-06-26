@@ -164,7 +164,7 @@ const AddProductForm = () => {
                     .then((res) => setCategoriesList(res.data ? res.data.filter(Boolean) : []))
                     .catch(console.error);
                   // Quay lại trang danh mục sau khi thêm thành công
-                  setTimeout(() => navigate("/products"), 1200);
+                  setTimeout(() => navigate(`/products?category=${encodeURIComponent(finalCategory)}`), 1200);
                 } catch (error) {
                   console.error("Không thể thêm sản phẩm:", error);
                   setErrorMessage(

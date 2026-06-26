@@ -7,6 +7,8 @@
 // ==============================================================
 
 const { getDB, getQuery } = require("../config/db");
+const jwt = require("jsonwebtoken");
+const { jwtSecret } = require("../config/jwt");
 
 // Bảng ánh xạ từ khóa món ăn tiếng Việt sang từ khóa tiếng Anh tương ứng của Pexels để cho kết quả ảnh đẹp nhất
 const FOOD_IMAGE_QUERY_MAP = [
@@ -198,9 +200,22 @@ exports.update = async (req, res) => {
       }
     });
 
+    // Giải mã token từ header Authorization để lấy role của người chỉnh sửa
+    let editedBy = "staff";
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+      try {
+        const decoded = jwt.verify(token, jwtSecret);
+        editedBy = decoded.role || "staff";
+      } catch (err) {
+        console.error("Lỗi giải mã token khi ghi nhật ký chỉnh sửa:", err.message);
+      }
+    }
+
     await query(
       "INSERT INTO product_edit_logs (product_id, edited_by, changed_fields) VALUES (?, ?, ?)",
-      [productId, (req.user && req.user.id) || "staff", JSON.stringify(changes)]
+      [productId, editedBy, JSON.stringify(changes)]
     );
 
     res.status(200).json({ message: "Cập nhật thành công", changes });

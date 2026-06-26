@@ -151,7 +151,7 @@ const EditProductForm = () => {
 
       await updateProduct(id, payload);
       setSuccessMessage("Cập nhật sản phẩm thành công.");
-      setTimeout(() => navigate("/products"), 1200);
+      setTimeout(() => navigate(`/products?category=${encodeURIComponent(finalCategory)}`), 1200);
     } catch (updateError) {
       console.error("Không thể cập nhật sản phẩm:", updateError);
       setError(
