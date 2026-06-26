@@ -7,6 +7,7 @@
 
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
 
 // Cấu hình kết nối Firebase app
 const firebaseConfig = {
@@ -25,5 +26,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 // Khởi tạo nhà cung cấp dịch vụ đăng nhập Google
 const googleProvider = new GoogleAuthProvider();
+// Khởi tạo thực thể Storage
+const storage = getStorage(app);
 
-export { auth, googleProvider,  signInWithPopup };
+export { auth, googleProvider, signInWithPopup, storage };

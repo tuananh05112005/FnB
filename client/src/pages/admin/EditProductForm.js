@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FaArrowLeft, FaHistory, FaMagic, FaSave } from "react-icons/fa";
+import { FaArrowLeft, FaHistory, FaMagic, FaSave, FaUpload } from "react-icons/fa";
 
 import ProductImagePicker from "../../components/admin/ProductImagePicker";
 import { api } from "../../lib/api";
@@ -39,6 +39,7 @@ const EditProductForm = () => {
   const [isLoading, setIsLoading] = useState(true);                     // Trạng thái đang tải dữ liệu sản phẩm
   const [error, setError] = useState("");                               // Lưu thông báo lỗi
   const [successMessage, setSuccessMessage] = useState("");             // Lưu thông báo thành công
+  const [uploadLoading, setUploadLoading] = useState(false);             // Trạng thái tải ảnh lên
 
   // Tải thông tin sản phẩm và lịch sử chỉnh sửa khi mở trang
   useEffect(() => {
@@ -135,14 +136,52 @@ const EditProductForm = () => {
 
             <div className="dashboard-form-grid" style={{ marginTop: error || successMessage ? 16 : 0 }}>
               <div className="dashboard-field">
-                <label htmlFor="edit-image">Hình ảnh URL</label>
-                <input
-                  id="edit-image"
-                  name="image"
-                  className="dashboard-input"
-                  value={editingProduct.image || ""}
-                  onChange={handleInputChange}
-                />
+                <label htmlFor="edit-image">Hình ảnh URL hoặc tải lên</label>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <input
+                    id="edit-image"
+                    name="image"
+                    className="dashboard-input"
+                    style={{ flex: 1 }}
+                    value={editingProduct.image || ""}
+                    onChange={handleInputChange}
+                  />
+                  <label className="dashboard-btn dashboard-btn-secondary" style={{ margin: 0, padding: "10px 16px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, height: 42, boxSizing: "border-box", borderRadius: "var(--radius-pill)", border: "1.5px solid var(--color-border)" }}>
+                    <FaUpload />
+                    <span>Tải ảnh lên</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      onChange={async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        
+                        try {
+                          setUploadLoading(true);
+                          setError("");
+                          
+                          const { storage } = await import("../../config/firebase");
+                          const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
+                          
+                          const storageRef = ref(storage, `products/${Date.now()}_${file.name}`);
+                          const snapshot = await uploadBytes(storageRef, file);
+                          const downloadUrl = await getDownloadURL(snapshot.ref);
+                          
+                          setEditingProduct((prev) => ({ ...prev, image: downloadUrl }));
+                          setSuccessMessage("Tải ảnh lên thành công!");
+                          setTimeout(() => setSuccessMessage(""), 3000);
+                        } catch (uploadErr) {
+                          console.error("Upload error:", uploadErr);
+                          setError("Lỗi tải ảnh lên: " + (uploadErr.message || uploadErr));
+                        } finally {
+                          setUploadLoading(false);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                {uploadLoading && <span style={{ fontSize: "0.8rem", color: "var(--color-brand)" }}>Đang tải ảnh lên Firebase...</span>}
                 <ProductImagePicker
                   query={editingProduct.name}
                   onSelect={(image) => {

@@ -10,7 +10,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ErrorMessage, Field, Form, Formik } from "formik";
 import * as Yup from "yup";
-import { FaArrowLeft, FaBoxOpen, FaMagic, FaPlus } from "react-icons/fa";
+import { FaArrowLeft, FaBoxOpen, FaMagic, FaPlus, FaUpload } from "react-icons/fa";
 
 import ProductImagePicker from "../../components/admin/ProductImagePicker";
 import { createProduct } from "../../services/productService";
@@ -36,6 +36,7 @@ const AddProductForm = () => {
   const [successMessage, setSuccessMessage] = useState(""); // Thông báo thành công
   const [errorMessage, setErrorMessage] = useState("");     // Thông báo lỗi nếu gửi dữ liệu thất bại
   const [previewImage, setPreviewImage] = useState("");     // Ảnh xem trước của URL hình ảnh sản phẩm
+  const [uploadLoading, setUploadLoading] = useState(false); // Trạng thái tải ảnh lên
 
   return (
     <div className="dashboard-page">
@@ -113,17 +114,56 @@ const AddProductForm = () => {
                 <Form>
                   <div className="dashboard-form-grid">
                     <div className="dashboard-field">
-                      <label htmlFor="product-image">Hình ảnh URL</label>
-                      <Field
-                        id="product-image"
-                        name="image"
-                        className="dashboard-input"
-                        onChange={(event) => {
-                          setFieldValue("image", event.target.value);
-                          setPreviewImage(event.target.value);
-                        }}
-                        placeholder="https://..."
-                      />
+                      <label htmlFor="product-image">Hình ảnh URL hoặc tải lên</label>
+                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        <Field
+                          id="product-image"
+                          name="image"
+                          className="dashboard-input"
+                          style={{ flex: 1 }}
+                          onChange={(event) => {
+                            setFieldValue("image", event.target.value);
+                            setPreviewImage(event.target.value);
+                          }}
+                          placeholder="https://..."
+                        />
+                        <label className="dashboard-btn dashboard-btn-secondary" style={{ margin: 0, padding: "10px 16px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, height: 42, boxSizing: "border-box", borderRadius: "var(--radius-pill)", border: "1.5px solid var(--color-border)" }}>
+                          <FaUpload />
+                          <span>Tải ảnh lên</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: "none" }}
+                            onChange={async (e) => {
+                              const file = e.target.files[0];
+                              if (!file) return;
+                              
+                              try {
+                                setUploadLoading(true);
+                                setErrorMessage("");
+                                
+                                const { storage } = await import("../../config/firebase");
+                                const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
+                                
+                                const storageRef = ref(storage, `products/${Date.now()}_${file.name}`);
+                                const snapshot = await uploadBytes(storageRef, file);
+                                const downloadUrl = await getDownloadURL(snapshot.ref);
+                                
+                                setFieldValue("image", downloadUrl);
+                                setPreviewImage(downloadUrl);
+                                setSuccessMessage("Tải ảnh lên thành công!");
+                                setTimeout(() => setSuccessMessage(""), 3000);
+                              } catch (uploadErr) {
+                                console.error("Upload error:", uploadErr);
+                                setErrorMessage("Lỗi tải ảnh lên: " + (uploadErr.message || uploadErr));
+                              } finally {
+                                setUploadLoading(false);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                      {uploadLoading && <span style={{ fontSize: "0.8rem", color: "var(--color-brand)" }}>Đang tải ảnh lên Firebase...</span>}
                       <ErrorMessage name="image" component="div" className="text-danger" />
                       <ProductImagePicker
                         query={values.name}
