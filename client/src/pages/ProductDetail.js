@@ -600,7 +600,7 @@ const ProductDetail = () => {
           - Pass `product` để AI có ngữ cảnh và `onClose` để đóng.
         -------------------------------------------------------------- */}
       {/* AI consultant overlay */}
-      <ChatOverlay isOpen={showChat} onClose={() => setShowChat(false)} contextProduct={product} />
+      {showChat && <ChatOverlay onClose={() => setShowChat(false)} product={product} />}
 
       {customizingProduct && (
         <ProductCustomizationModal
