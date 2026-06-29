@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { FaTimes, FaPlus, FaMinus, FaShoppingBag } from "react-icons/fa";
 import { api } from "../../lib/api";
 import "./ProductCustomizationModal.css";
@@ -68,9 +69,11 @@ const ProductCustomizationModal = ({ product, onClose, onConfirm }) => {
     });
   };
 
-  return (
-    <div className="custom-modal-overlay animate-fadeIn">
+  return createPortal(
+    <div className="custom-modal-overlay animate-fadeIn" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="custom-modal-container animate-scaleIn">
+        {/* Drag handle pill for mobile bottom sheets */}
+        <div className="bottom-sheet-handle" />
         {/* Header */}
         <div className="custom-modal-header">
           <h3>Tùy chỉnh thức uống</h3>
@@ -212,7 +215,8 @@ const ProductCustomizationModal = ({ product, onClose, onConfirm }) => {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
