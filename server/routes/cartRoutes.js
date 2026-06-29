@@ -10,5 +10,7 @@ router.put("/checkout-item/:id", ctrl.checkoutItem);
 router.put("/received/:id", ctrl.received);
 router.put("/cancel/:id", ctrl.cancel);
 
+router.delete("/:id", ctrl.remove);
+
 module.exports = router;
  

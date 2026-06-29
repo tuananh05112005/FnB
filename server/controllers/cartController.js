@@ -267,3 +267,22 @@ exports.cancel = (req, res) => {
     });
   });
 };
+
+/**
+ * remove: Xóa một món ăn khỏi giỏ hàng (DELETE /api/cart/:id).
+ */
+exports.remove = (req, res) => {
+  const db = getDB();
+  const { id } = req.params;
+
+  db.query("DELETE FROM cart WHERE id = ?", [id], (err, results) => {
+    if (err) {
+      console.error("Lỗi khi xóa giỏ hàng:", err);
+      return res.status(500).send("Lỗi server");
+    }
+    if (results.affectedRows === 0) {
+      return res.status(404).json({ error: "Không tìm thấy món ăn trong giỏ" });
+    }
+    res.status(200).json({ message: "Xóa món ăn thành công" });
+  });
+};
