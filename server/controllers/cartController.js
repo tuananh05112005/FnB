@@ -15,14 +15,19 @@ const { getDB } = require("../config/db");
  */
 exports.add = (req, res) => {
   const db = getDB();
-  const { user_id, product_id, quantity, size, order_code } = req.body;
+  const { user_id, product_id, quantity, size, order_code, sugar, ice, toppings } = req.body;
   
   // Nếu có order_code thì dùng, nếu không thì tự sinh mã mới
   const finalOrderCode = order_code || `DH${Date.now()}`;
   
-  const q = "INSERT INTO cart (user_id, product_id, quantity, size, order_code) VALUES (?, ?, ?, ?, ?)";
-  db.query(q, [user_id, product_id, quantity, size, finalOrderCode], (err, results) => {
-    if (err) return res.status(500).send("Lỗi server");
+  const q = "INSERT INTO cart (user_id, product_id, quantity, size, order_code, sugar, ice, toppings) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+  const finalToppings = typeof toppings === "object" && toppings !== null ? JSON.stringify(toppings) : toppings;
+
+  db.query(q, [user_id, product_id, quantity, size, finalOrderCode, sugar || null, ice || null, finalToppings || null], (err, results) => {
+    if (err) {
+      console.error("Lỗi khi thêm giỏ hàng:", err);
+      return res.status(500).send("Lỗi server");
+    }
     res.status(201).json({ id: results.insertId, ...req.body, order_code: finalOrderCode });
   });
 };
@@ -35,6 +40,7 @@ exports.listByUser = (req, res) => {
   const { user_id } = req.params;
   const q = `
     SELECT cart.id, cart.quantity, cart.size, cart.status, cart.order_date, cart.order_code,
+           cart.sugar, cart.ice, cart.toppings,
            products.id AS product_id, products.code, products.name, products.price, products.image
     FROM cart
     JOIN products ON cart.product_id = products.id
@@ -42,7 +48,25 @@ exports.listByUser = (req, res) => {
   `;
   db.query(q, [user_id], (err, results) => {
     if (err) return res.status(500).send("Lỗi server");
-    res.json(results);
+    
+    // Parse toppings sang JSON nếu có để client dễ xử lý
+    const parsedResults = results.map(row => {
+      let toppingsList = [];
+      if (row.toppings) {
+        try {
+          toppingsList = JSON.parse(row.toppings);
+        } catch (e) {
+          // Fallback nếu không phải JSON
+          toppingsList = row.toppings.split(",").map(t => ({ name: t.trim(), price: 0 }));
+        }
+      }
+      return {
+        ...row,
+        toppings: toppingsList
+      };
+    });
+    
+    res.json(parsedResults);
   });
 };
 

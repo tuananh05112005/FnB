@@ -16,6 +16,7 @@ import {
 } from "react-icons/fa";
 
 import ProductImage from "../components/common/ProductImage";
+import ProductCustomizationModal from "../components/common/ProductCustomizationModal";
 import ChatOverlay from "../components/chatbot/ChatOverlay";
 import { api } from "../lib/api";
 import { getUserId } from "../lib/session";
@@ -98,6 +99,13 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [recommendations, setRecommendations] = useState([]);
   const [quickAddSuccessId, setQuickAddSuccessId] = useState(null);
+  const [customizingProduct, setCustomizingProduct] = useState(null);
+
+  const needsCustomization = (p) => {
+    if (!p || !p.category) return false;
+    const cat = p.category.toLowerCase().trim();
+    return cat !== "bánh" && cat !== "topping" && cat !== "bánh ngọt";
+  };
 
     /* --------------------------------------------------------------
    FETCH PRODUCT, FAVORITES & RECOMMENDATIONS
@@ -175,18 +183,23 @@ const ProductDetail = () => {
     if (!userId) { navigate("/login"); return; }
     try {
       if (!isProductAvailable(product)) { setError("Món này hiện đang hết."); return; }
-      const activeOrderCode = localStorage.getItem("activeOrderCode");
-      await addToCart(userId, product.id, quantity, product.size || "M", activeOrderCode);
+      
+      if (needsCustomization(product)) {
+        setCustomizingProduct({ ...product, initialQty: quantity });
+      } else {
+        const activeOrderCode = localStorage.getItem("activeOrderCode");
+        await addToCart(userId, product.id, quantity, product.size || "M", activeOrderCode);
 
-      // Hiện thông báo toast
-      addNotification(
-        "new_order",
-        "🛒 Giỏ hàng",
-        `Đã thêm "${product.name}" vào giỏ hàng thành công!`
-      );
+        // Hiện thông báo toast
+        addNotification(
+          "new_order",
+          "🛒 Giỏ hàng",
+          `Đã thêm "${product.name}" vào giỏ hàng thành công!`
+        );
 
-      setAddSuccess(true);
-      setTimeout(() => setAddSuccess(false), 2500);
+        setAddSuccess(true);
+        setTimeout(() => setAddSuccess(false), 2500);
+      }
     } catch (e) {
       console.error(e);
       setError("Không thể thêm sản phẩm vào giỏ hàng.");
@@ -199,17 +212,22 @@ const ProductDetail = () => {
     if (!userId) { navigate("/login"); return; }
     try {
       if (!isProductAvailable(item)) return;
-      const activeOrderCode = localStorage.getItem("activeOrderCode");
-      await addToCart(userId, item.id, 1, item.size || "M", activeOrderCode);
+      
+      if (needsCustomization(item)) {
+        setCustomizingProduct({ ...item, initialQty: 1 });
+      } else {
+        const activeOrderCode = localStorage.getItem("activeOrderCode");
+        await addToCart(userId, item.id, 1, item.size || "M", activeOrderCode);
 
-      addNotification(
-        "new_order",
-        "🛒 Giỏ hàng",
-        `Đã thêm "${item.name}" vào giỏ hàng thành công!`
-      );
+        addNotification(
+          "new_order",
+          "🛒 Giỏ hàng",
+          `Đã thêm "${item.name}" vào giỏ hàng thành công!`
+        );
 
-      setQuickAddSuccessId(item.id);
-      setTimeout(() => setQuickAddSuccessId(null), 1500);
+        setQuickAddSuccessId(item.id);
+        setTimeout(() => setQuickAddSuccessId(null), 1500);
+      }
     } catch (e) {
       console.error(e);
       addNotification("error", "⚠️ Lỗi", "Không thể thêm sản phẩm vào giỏ hàng.");
@@ -581,7 +599,57 @@ const ProductDetail = () => {
           - Khi `showChat` true, render component ChatOverlay.
           - Pass `product` để AI có ngữ cảnh và `onClose` để đóng.
         -------------------------------------------------------------- */}
-        {showChat && <ChatOverlay onClose={() => setShowChat(false)} product={product} />}
+      {/* AI consultant overlay */}
+      <ChatOverlay isOpen={showChat} onClose={() => setShowChat(false)} contextProduct={product} />
+
+      {customizingProduct && (
+        <ProductCustomizationModal
+          product={customizingProduct}
+          onClose={() => setCustomizingProduct(null)}
+          onConfirm={async (customData) => {
+            setCustomizingProduct(null);
+            try {
+              // Thêm sản phẩm chính kèm tùy chọn vào giỏ hàng
+              const activeOrderCode = localStorage.getItem("activeOrderCode");
+              await addToCart(
+                userId,
+                customData.product.id,
+                customData.quantity,
+                customData.product.size || "M",
+                activeOrderCode,
+                customData.sugar,
+                customData.ice,
+                customData.toppings
+              );
+
+              // Hiện thông báo toast
+              addNotification(
+                "new_order",
+                "🛒 Giỏ hàng",
+                `Đã thêm "${customData.product.name}" vào giỏ hàng thành công!`
+              );
+
+              if (customData.product.id === product.id) {
+                setAddSuccess(true);
+                setTimeout(() => setAddSuccess(false), 2500);
+              } else {
+                setQuickAddSuccessId(customData.product.id);
+                setTimeout(() => setQuickAddSuccessId(null), 1500);
+              }
+
+              // Thêm các món ăn kèm (bánh) khác vào giỏ hàng (nếu có)
+              if (customData.accompaniments && customData.accompaniments.length > 0) {
+                for (const acc of customData.accompaniments) {
+                  await addToCart(userId, acc.id, 1, acc.size || "M", activeOrderCode);
+                }
+              }
+            } catch (err) {
+              console.error(err);
+              addNotification("error", "⚠️ Lỗi", "Không thể thêm sản phẩm vào giỏ hàng.");
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

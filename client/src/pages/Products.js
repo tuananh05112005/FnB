@@ -7,6 +7,7 @@
 //        Tài khoản Admin/Staff có thể thêm, sửa, xóa sản phẩm trực tiếp tại danh sách này.
 // ==============================================================
 
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaBoxOpen, FaCartPlus, FaEdit, FaEye,
@@ -15,6 +16,7 @@ import {
 } from "react-icons/fa";
 
 import ProductImage from "../components/common/ProductImage";
+import ProductCustomizationModal from "../components/common/ProductCustomizationModal";
 import { useMenuSettings } from "../hooks/useMenuSettings";
 import { getRole } from "../lib/session";
 import { useProductCatalog } from "../hooks/useProductCatalog";
@@ -49,6 +51,13 @@ function SkeletonProductCard() {
 const Products = () => {
   const navigate = useNavigate();
   const role = getRole();
+  const [customizingProduct, setCustomizingProduct] = useState(null);
+  
+  const needsCustomization = (product) => {
+    if (!product || !product.category) return false;
+    const cat = product.category.toLowerCase().trim();
+    return cat !== "bánh" && cat !== "topping" && cat !== "bánh ngọt";
+  };
   
   // Custom hook lấy tiêu đề, phụ đề, banner của cửa hàng
   const menuSettings = useMenuSettings();
@@ -270,7 +279,14 @@ const Products = () => {
                       ) : (
                         <button type="button" className="commerce-add-btn"
                           disabled={!available}
-                          onClick={(e) => handleAddToCart(navigate, product, e)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (needsCustomization(product)) {
+                              setCustomizingProduct(product);
+                            } else {
+                              handleAddToCart(navigate, product, e);
+                            }
+                          }}
                           title={available ? "Thêm vào giỏ" : "Hết món"}>
                           +
                         </button>
@@ -323,7 +339,14 @@ const Products = () => {
                         ) : (
                           <button className="dashboard-btn dashboard-btn-primary" style={{ padding: "7px 14px", fontSize: "0.8rem" }}
                             disabled={!available}
-                            onClick={(e) => handleAddToCart(navigate, product, e)}>
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (needsCustomization(product)) {
+                                setCustomizingProduct(product);
+                              } else {
+                                handleAddToCart(navigate, product, e);
+                              }
+                            }}>
                             <FaCartPlus /> {available ? "Thêm" : "Hết"}
                           </button>
                         )}
@@ -362,6 +385,32 @@ const Products = () => {
           </div>
         )}
       </div>
+
+      {customizingProduct && (
+        <ProductCustomizationModal
+          product={customizingProduct}
+          onClose={() => setCustomizingProduct(null)}
+          onConfirm={async (customData) => {
+            setCustomizingProduct(null);
+            // Thêm sản phẩm chính kèm tùy chọn vào giỏ hàng
+            await handleAddToCart(
+              navigate,
+              customData.product,
+              null,
+              customData.quantity,
+              customData.sugar,
+              customData.ice,
+              customData.toppings
+            );
+            // Thêm các món ăn kèm (bánh) khác vào giỏ hàng (nếu có)
+            if (customData.accompaniments && customData.accompaniments.length > 0) {
+              for (const acc of customData.accompaniments) {
+                await handleAddToCart(navigate, acc, null, 1);
+              }
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -18,13 +18,16 @@ export const getCart = async (userId) => {
 /**
  * Thêm sản phẩm vào giỏ hàng với số lượng và kích cỡ tùy chọn.
  */
-export const addToCart = async (userId, productId, quantity = 1, size = 'M', orderCode = null) => {
+export const addToCart = async (userId, productId, quantity = 1, size = 'M', orderCode = null, sugar = null, ice = null, toppings = null) => {
   const response = await api.post('/api/cart/add', {
     user_id: userId,
     product_id: productId,
     quantity,
     size,
     order_code: orderCode,
+    sugar,
+    ice,
+    toppings,
   });
   return response.data;
 };

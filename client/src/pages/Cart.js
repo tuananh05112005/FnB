@@ -20,6 +20,7 @@ import {
 } from "react-icons/fa";
 
 import ProductImage from "../components/common/ProductImage";
+import ProductCustomizationModal from "../components/common/ProductCustomizationModal";
 import Pagination from "../components/common/Pagination";
 import { api } from "../lib/api";
 import { getRole, getToken, getUserId } from "../lib/session";
@@ -111,6 +112,13 @@ const Cart = () => {
   const [cancellationReason, setCancellationReason] = useState("");
   // error: Lưu trữ và hiển thị các thông điệp lỗi trong quá trình thực thi API
   const [error, setError] = useState("");
+  const [customizingProduct, setCustomizingProduct] = useState(null);
+
+  const needsCustomization = (p) => {
+    if (!p || !p.category) return false;
+    const cat = p.category.toLowerCase().trim();
+    return cat !== "bánh" && cat !== "topping" && cat !== "bánh ngọt";
+  };
 
   // activeTab: Tab lọc trạng thái đơn hàng hiện tại (all, pending, completed, received, cancelled)
   const [activeTab, setActiveTab] = useState("all");
@@ -182,20 +190,25 @@ const Cart = () => {
     if (!userId) { navigate("/login"); return; }
     try {
       if (!isProductAvailable(item)) return;
-      const activeCode = localStorage.getItem("activeOrderCode");
-      await addToCart(userId, item.id, 1, item.size || "M", activeCode);
+      
+      if (needsCustomization(item)) {
+        setCustomizingProduct({ ...item, initialQty: 1 });
+      } else {
+        const activeCode = localStorage.getItem("activeOrderCode");
+        await addToCart(userId, item.id, 1, item.size || "M", activeCode);
 
-      addNotification(
-        "new_order",
-        "🛒 Giỏ hàng",
-        `Đã thêm "${item.name}" vào giỏ hàng thành công!`
-      );
+        addNotification(
+          "new_order",
+          "🛒 Giỏ hàng",
+          `Đã thêm "${item.name}" vào giỏ hàng thành công!`
+        );
 
-      setQuickAddSuccessId(item.id);
-      setTimeout(() => setQuickAddSuccessId(null), 1500);
+        setQuickAddSuccessId(item.id);
+        setTimeout(() => setQuickAddSuccessId(null), 1500);
 
-      // Làm mới giỏ hàng ngay lập tức để cập nhật danh sách và tổng tiền
-      refreshCart();
+        // Làm mới giỏ hàng ngay lập tức để cập nhật danh sách và tổng tiền
+        refreshCart();
+      }
     } catch (e) {
       console.error(e);
       addNotification("error", "⚠️ Lỗi", "Không thể thêm sản phẩm vào giỏ hàng.");
@@ -253,7 +266,11 @@ const Cart = () => {
         };
       }
       groups[code].items.push(item);
-      groups[code].totalAmount += Number(item.price) * Number(item.quantity);
+      const basePrice = Number(item.price) || 0;
+      const toppingsPrice = Array.isArray(item.toppings)
+        ? item.toppings.reduce((sum, t) => sum + Number(t.price || 0), 0)
+        : 0;
+      groups[code].totalAmount += (basePrice + toppingsPrice) * Number(item.quantity);
     });
     return Object.values(groups);
   }, [cartItems]);
@@ -314,7 +331,12 @@ const Cart = () => {
   }, [groupedOrders]);
 
   const pendingItems = useMemo(() => cartItems.filter((i) => i.status === "pending"), [cartItems]);
-  const totalPendingAmount = useMemo(() => pendingItems.reduce((acc, curr) => acc + Number(curr.price) * Number(curr.quantity), 0), [pendingItems]);
+  const totalPendingAmount = useMemo(() => pendingItems.reduce((acc, curr) => {
+    const toppingsPrice = Array.isArray(curr.toppings)
+      ? curr.toppings.reduce((sum, t) => sum + Number(t.price || 0), 0)
+      : 0;
+    return acc + (Number(curr.price) + toppingsPrice) * Number(curr.quantity);
+  }, 0), [pendingItems]);
 
   const handleCheckoutAll = () => {
     navigate("/payment", { state: { items: pendingItems, isCart: true } });
@@ -552,8 +574,20 @@ const Cart = () => {
                           <ProductImage src={item.image} alt={item.name} style={{ width: 56, height: 56, borderRadius: "var(--radius-md)", objectFit: "cover" }} />
                           <div>
                             <div className="commerce-order-item-name" style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--color-text)" }}>{item.name}</div>
-                            <span className="dashboard-code" style={{ marginRight: 8 }}>{item.code || "SP"}</span>
-                            <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--color-text-faint)", background: "var(--color-bg-alt)", padding: "2px 8px", borderRadius: 4 }}>Size: {item.size}</span>
+                            <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", marginTop: "4px" }}>
+                              <span className="dashboard-code">{item.code || "SP"}</span>
+                              <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--color-text-faint)", background: "var(--color-bg-alt)", padding: "2px 8px", borderRadius: 4 }}>Size: {item.size}</span>
+                              {(item.sugar || item.ice) && (
+                                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--color-brand-dark)", background: "rgba(139, 90, 43, 0.08)", padding: "2px 8px", borderRadius: 4 }}>
+                                  {item.sugar ? item.sugar : ""} {item.ice ? `| ${item.ice}` : ""}
+                                </span>
+                              )}
+                            </div>
+                            {Array.isArray(item.toppings) && item.toppings.length > 0 && (
+                              <div style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginTop: "4px", fontWeight: 500 }}>
+                                <strong>Topping:</strong> {item.toppings.map(t => `${t.name} (+${fmt(t.price)})`).join(", ")}
+                              </div>
+                            )}
                           </div>
                         </div>
                         
@@ -605,7 +639,9 @@ const Cart = () => {
                           <div className="commerce-order-stat-block subtotal-block" style={{ textAlign: "right", minWidth: 120, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px" }}>
                             <div style={{ textAlign: "right" }}>
                               <span style={{ display: "block", fontSize: "0.75rem", color: "var(--color-text-faint)", fontWeight: 700, textTransform: "uppercase" }}>Thành tiền</span>
-                              <span style={{ fontSize: "0.95rem", fontWeight: 800, color: "var(--color-brand-dark)" }}>{fmt(Number(item.price) * Number(item.quantity))}</span>
+                              <span style={{ fontSize: "0.95rem", fontWeight: 800, color: "var(--color-brand-dark)" }}>
+                                {fmt((Number(item.price) + (Array.isArray(item.toppings) ? item.toppings.reduce((sum, t) => sum + Number(t.price || 0), 0) : 0)) * Number(item.quantity))}
+                              </span>
                             </div>
                             {order.status === "pending" && role === "user" && (
                               <button 
@@ -752,6 +788,49 @@ const Cart = () => {
         onConfirm={handleConfirmCancel}
         onClose={() => { setShowCancelModal(false); setSelectedItem(null); setCancellationReason(""); }}
       />
+
+      {customizingProduct && (
+        <ProductCustomizationModal
+          product={customizingProduct}
+          onClose={() => setCustomizingProduct(null)}
+          onConfirm={async (customData) => {
+            setCustomizingProduct(null);
+            try {
+              const activeCode = localStorage.getItem("activeOrderCode");
+              await addToCart(
+                userId,
+                customData.product.id,
+                customData.quantity,
+                customData.product.size || "M",
+                activeCode,
+                customData.sugar,
+                customData.ice,
+                customData.toppings
+              );
+              
+              addNotification(
+                "new_order",
+                "🛒 Giỏ hàng",
+                `Đã thêm "${customData.product.name}" vào giỏ hàng thành công!`
+              );
+              
+              setQuickAddSuccessId(customData.product.id);
+              setTimeout(() => setQuickAddSuccessId(null), 1500);
+              refreshCart();
+              
+              // Thêm bánh ngọt đi kèm nếu có
+              if (customData.accompaniments && customData.accompaniments.length > 0) {
+                for (const acc of customData.accompaniments) {
+                  await addToCart(userId, acc.id, 1, acc.size || "M", activeCode);
+                }
+              }
+            } catch (err) {
+              console.error(err);
+              addNotification("error", "⚠️ Lỗi", "Không thể thêm sản phẩm vào giỏ hàng.");
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -170,7 +170,7 @@ export const useProductCatalog = () => {
   }, [currentPage, totalPages]);
 
   // Hành động: Thêm sản phẩm vào giỏ hàng
-  const handleAddToCart = async (navigate, product, e) => {
+  const handleAddToCart = async (navigate, product, e, quantity = 1, sugar = null, ice = null, toppings = null) => {
     if (!userId) {
       navigate("/login");
       return;
@@ -183,7 +183,7 @@ export const useProductCatalog = () => {
       }
 
       const activeOrderCode = localStorage.getItem("activeOrderCode");
-      await addToCart(userId, product.id, 1, product.size || "M", activeOrderCode);
+      await addToCart(userId, product.id, quantity, product.size || "M", activeOrderCode, sugar, ice, toppings);
       
       // Hiện thông báo toast
       addNotification(
