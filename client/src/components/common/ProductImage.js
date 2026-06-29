@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { API_BASE_URL } from "../../lib/api";
 
 const FALLBACK_IMAGE =
   "data:image/svg+xml;utf8," +
@@ -77,7 +78,21 @@ const getCuratedFallback = (alt = "") => {
 
 const ProductImage = ({ src, alt, className, ...props }) => {
   const sources = useMemo(() => {
-    const trimmedSrc = typeof src === "string" ? src.trim() : "";
+    let trimmedSrc = typeof src === "string" ? src.trim() : "";
+
+    // Chuyển đổi link localhost thành link API base URL thực tế khi đang ở môi trường online
+    if (trimmedSrc && trimmedSrc.includes("localhost:5000") && !API_BASE_URL.includes("localhost:5000")) {
+      trimmedSrc = trimmedSrc.replace("http://localhost:5000", API_BASE_URL);
+    }
+    if (trimmedSrc && trimmedSrc.includes("127.0.0.1:5000") && !API_BASE_URL.includes("localhost:5000")) {
+      trimmedSrc = trimmedSrc.replace("http://127.0.0.1:5000", API_BASE_URL);
+    }
+
+    // Nếu là đường dẫn tương đối, tự động nối thêm API_BASE_URL
+    if (trimmedSrc && !/^https?:\/\//i.test(trimmedSrc)) {
+      trimmedSrc = `${API_BASE_URL}${trimmedSrc.startsWith("/") ? trimmedSrc : `/${trimmedSrc}`}`;
+    }
+
     const proxySrc = trimmedSrc ? buildProxyUrl(trimmedSrc) : null;
     const curatedFallback = getCuratedFallback(alt);
 
