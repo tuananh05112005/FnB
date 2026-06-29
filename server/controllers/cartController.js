@@ -47,7 +47,10 @@ exports.listByUser = (req, res) => {
     WHERE cart.user_id = ?
   `;
   db.query(q, [user_id], (err, results) => {
-    if (err) return res.status(500).send("Lỗi server");
+    if (err) {
+      console.error("Lỗi query listByUser:", err);
+      return res.status(500).send("Lỗi server");
+    }
     
     // Parse toppings sang JSON nếu có để client dễ xử lý
     const parsedResults = results.map(row => {
@@ -81,7 +84,10 @@ exports.updateQty = (req, res) => {
     return res.status(400).json({ error: "Dữ liệu không hợp lệ" });
   }
   db.query("UPDATE cart SET quantity = ? WHERE id = ?", [quantity, id], (err) => {
-    if (err) return res.status(500).send("Lỗi server");
+    if (err) {
+      console.error("Lỗi query updateQty:", err);
+      return res.status(500).send("Lỗi server");
+    }
     res.status(200).json({ message: "Cập nhật số lượng thành công" });
   });
 };
