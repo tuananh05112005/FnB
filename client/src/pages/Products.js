@@ -7,7 +7,7 @@
 //        Tài khoản Admin/Staff có thể thêm, sửa, xóa sản phẩm trực tiếp tại danh sách này.
 // ==============================================================
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaBoxOpen, FaCartPlus, FaEdit, FaEye,
@@ -72,6 +72,11 @@ const Products = () => {
     uniqueSizes, filteredProducts, pagedProducts, totalPages,
     handleAddToCart, handleDelete, handleToggleFavorite,
   } = useProductCatalog();
+  
+  // Tự động cuộn lên đầu trang khi chuyển phân trang
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentPage]);
 
   const isManager = role === "admin" || role === "staff";
   const favoriteCount = favorites.length;
