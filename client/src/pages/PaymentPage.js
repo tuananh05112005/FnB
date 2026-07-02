@@ -549,10 +549,28 @@ const PaymentPage = () => {
     setError(""); setCurrentStep(2);
   };
 
-  // Tính tổng tiền cần thanh toán ban đầu (trước giảm giá)
+  // Hàm phụ trợ phân tích và tính giá Topping
+  const parseToppings = (toppings) => {
+    if (!toppings) return [];
+    if (Array.isArray(toppings)) return toppings;
+    try {
+      return JSON.parse(toppings);
+    } catch {
+      return toppings.split(",").map(t => ({ name: t.trim(), price: 0 }));
+    }
+  };
+
+  const getItemPrice = (it) => {
+    if (!it) return 0;
+    const toppingsList = parseToppings(it.toppings);
+    const toppingsPrice = toppingsList.reduce((sum, t) => sum + Number(t.price || 0), 0);
+    return Number(it.price || 0) + toppingsPrice;
+  };
+
+  // Tính tổng tiền cần thanh toán ban đầu (trước giảm giá, đã cộng tiền topping)
   const subtotal = isCart
-    ? checkoutItems.reduce((sum, it) => sum + Number(it.price) * Number(it.quantity), 0)
-    : Number(item?.price || 0) * Number(item?.quantity || 0);
+    ? checkoutItems.reduce((sum, it) => sum + getItemPrice(it) * Number(it.quantity), 0)
+    : getItemPrice(item) * Number(item?.quantity || 0);
 
   // Tính số tiền được giảm từ voucher
   let discountAmount = 0;
