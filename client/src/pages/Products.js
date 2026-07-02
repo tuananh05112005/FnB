@@ -258,13 +258,6 @@ const Products = () => {
                       <span className="commerce-rating-count">(4.0)</span>
                     </div>
 
-                    {/* Size badge */}
-                    {product.size && (
-                      <span className="dashboard-badge dashboard-badge-info" style={{ width: "fit-content", fontSize: "0.7rem" }}>
-                        Size {product.size}
-                      </span>
-                    )}
-
                     {/* Price + action */}
                     <div className="commerce-card-footer">
                       <span className="commerce-price">{formatCurrency(product.price)}</span>

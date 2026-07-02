@@ -364,9 +364,6 @@ const ProductDetail = () => {
           {/* Price */}
           <div className="pd-price-wrap">
             <span className="pd-price">{fmt(product.price)}</span>
-            {product.size && (
-              <span className="pd-size-badge">Size {product.size}</span>
-            )}
           </div>
 
           {/* Description */}
@@ -615,7 +612,7 @@ const ProductDetail = () => {
                 userId,
                 customData.product.id,
                 customData.quantity,
-                customData.product.size || "M",
+                customData.size || "M",
                 activeOrderCode,
                 customData.sugar,
                 customData.ice,
