@@ -93,6 +93,11 @@ const ProductImage = ({ src, alt, className, ...props }) => {
       trimmedSrc = `${API_BASE_URL}${trimmedSrc.startsWith("/") ? trimmedSrc : `/${trimmedSrc}`}`;
     }
 
+    // Tự động tối ưu hóa ảnh Cloudinary: tự động nén (q_auto), định dạng nhẹ (f_auto) và rộng tối đa 600px
+    if (trimmedSrc && trimmedSrc.includes("res.cloudinary.com") && !trimmedSrc.includes("/f_auto,q_auto")) {
+      trimmedSrc = trimmedSrc.replace("/image/upload/", "/image/upload/f_auto,q_auto,w_600/");
+    }
+
     const proxySrc = trimmedSrc ? buildProxyUrl(trimmedSrc) : null;
     const curatedFallback = getCuratedFallback(alt);
 
