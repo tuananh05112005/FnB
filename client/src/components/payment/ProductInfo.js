@@ -27,13 +27,24 @@ const ProductInfo = ({ item, items }) => {
     }
   };
 
+  const getSizePriceAdjustment = (sizeVal, productSizeStr) => {
+    if (!sizeVal || !productSizeStr) return 0;
+    const availableSizes = productSizeStr.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+    if (availableSizes.length === 0) return 0;
+    const finalSizes = ["S", "M", ...(availableSizes.includes("L") ? ["L"] : [])];
+    const idx = finalSizes.indexOf(sizeVal.trim().toUpperCase());
+    if (idx === -1) return 0;
+    return idx * 7000;
+  };
+
   if (items && items.length > 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
         {items.map((it) => {
           const toppingsList = parseToppings(it.toppings);
           const toppingsPrice = toppingsList.reduce((sum, t) => sum + Number(t.price || 0), 0);
-          const unitPrice = Number(it.price) + toppingsPrice;
+          const sizePriceAdjustment = getSizePriceAdjustment(it.size, it.product_size);
+          const unitPrice = Number(it.price) + toppingsPrice + sizePriceAdjustment;
 
           return (
             <div key={it.id} className="payment-product-summary" style={{ marginBottom: 0, paddingBottom: "var(--space-3)", borderBottom: "1px dashed var(--color-border-light)" }}>
@@ -72,7 +83,8 @@ const ProductInfo = ({ item, items }) => {
 
   const toppingsList = parseToppings(item?.toppings);
   const toppingsPrice = toppingsList.reduce((sum, t) => sum + Number(t.price || 0), 0);
-  const unitPrice = Number(item?.price || 0) + toppingsPrice;
+  const sizePriceAdjustment = getSizePriceAdjustment(item?.size, item?.product_size);
+  const unitPrice = Number(item?.price || 0) + toppingsPrice + sizePriceAdjustment;
 
   return (
     <div className="payment-product-summary">

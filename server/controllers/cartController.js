@@ -41,7 +41,8 @@ exports.listByUser = (req, res) => {
   const q = `
     SELECT cart.id, cart.quantity, cart.size, cart.status, cart.order_date, cart.order_code,
            cart.sugar, cart.ice, cart.toppings,
-           products.id AS product_id, products.code, products.name, products.price, products.image
+           products.id AS product_id, products.code, products.name, products.price, products.image,
+           products.size AS product_size
     FROM cart
     JOIN products ON cart.product_id = products.id
     WHERE cart.user_id = ?

@@ -34,6 +34,17 @@ import "../styles/commerce.css";
 const fmt = (n) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number(n) || 0);
 
+// Hàm tiện ích tính tiền size chênh lệch (mỗi size tăng 7.000đ từ size đầu tiên)
+const getSizePriceAdjustment = (sizeVal, productSizeStr) => {
+  if (!sizeVal || !productSizeStr) return 0;
+  const availableSizes = productSizeStr.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+  if (availableSizes.length === 0) return 0;
+  const finalSizes = ["S", "M", ...(availableSizes.includes("L") ? ["L"] : [])];
+  const idx = finalSizes.indexOf(sizeVal.trim().toUpperCase());
+  if (idx === -1) return 0;
+  return idx * 7000;
+};
+
 /* ── Cancel modal (native, no react-bootstrap) ───────────────────── */
 /**
  * CancelModal: Hộp thoại xác nhận hủy đơn hàng.
@@ -270,7 +281,8 @@ const Cart = () => {
       const toppingsPrice = Array.isArray(item.toppings)
         ? item.toppings.reduce((sum, t) => sum + Number(t.price || 0), 0)
         : 0;
-      groups[code].totalAmount += (basePrice + toppingsPrice) * Number(item.quantity);
+      const sizePriceAdjustment = getSizePriceAdjustment(item.size, item.product_size);
+      groups[code].totalAmount += (basePrice + toppingsPrice + sizePriceAdjustment) * Number(item.quantity);
     });
     return Object.values(groups);
   }, [cartItems]);
@@ -335,7 +347,8 @@ const Cart = () => {
     const toppingsPrice = Array.isArray(curr.toppings)
       ? curr.toppings.reduce((sum, t) => sum + Number(t.price || 0), 0)
       : 0;
-    return acc + (Number(curr.price) + toppingsPrice) * Number(curr.quantity);
+    const sizePriceAdjustment = getSizePriceAdjustment(curr.size, curr.product_size);
+    return acc + (Number(curr.price) + toppingsPrice + sizePriceAdjustment) * Number(curr.quantity);
   }, 0), [pendingItems]);
 
   const handleCheckoutAll = () => {
@@ -640,7 +653,7 @@ const Cart = () => {
                             <div style={{ textAlign: "right" }}>
                               <span style={{ display: "block", fontSize: "0.75rem", color: "var(--color-text-faint)", fontWeight: 700, textTransform: "uppercase" }}>Thành tiền</span>
                               <span style={{ fontSize: "0.95rem", fontWeight: 800, color: "var(--color-brand-dark)" }}>
-                                {fmt((Number(item.price) + (Array.isArray(item.toppings) ? item.toppings.reduce((sum, t) => sum + Number(t.price || 0), 0) : 0)) * Number(item.quantity))}
+                                {fmt((Number(item.price) + (Array.isArray(item.toppings) ? item.toppings.reduce((sum, t) => sum + Number(t.price || 0), 0) : 0) + getSizePriceAdjustment(item.size, item.product_size)) * Number(item.quantity))}
                               </span>
                             </div>
                             {order.status === "pending" && role === "user" && (
@@ -801,7 +814,7 @@ const Cart = () => {
                 userId,
                 customData.product.id,
                 customData.quantity,
-                customData.product.size || "M",
+                customData.size || "M",
                 activeCode,
                 customData.sugar,
                 customData.ice,

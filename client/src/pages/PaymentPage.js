@@ -560,11 +560,22 @@ const PaymentPage = () => {
     }
   };
 
+  const getSizePriceAdjustment = (sizeVal, productSizeStr) => {
+    if (!sizeVal || !productSizeStr) return 0;
+    const availableSizes = productSizeStr.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+    if (availableSizes.length === 0) return 0;
+    const finalSizes = ["S", "M", ...(availableSizes.includes("L") ? ["L"] : [])];
+    const idx = finalSizes.indexOf(sizeVal.trim().toUpperCase());
+    if (idx === -1) return 0;
+    return idx * 7000;
+  };
+
   const getItemPrice = (it) => {
     if (!it) return 0;
     const toppingsList = parseToppings(it.toppings);
     const toppingsPrice = toppingsList.reduce((sum, t) => sum + Number(t.price || 0), 0);
-    return Number(it.price || 0) + toppingsPrice;
+    const sizePriceAdjustment = getSizePriceAdjustment(it.size, it.product_size);
+    return Number(it.price || 0) + toppingsPrice + sizePriceAdjustment;
   };
 
   // Tính tổng tiền cần thanh toán ban đầu (trước giảm giá, đã cộng tiền topping)

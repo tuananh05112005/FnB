@@ -8,9 +8,22 @@ const fmt = (v) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(v || 0);
 
 const ProductCustomizationModal = ({ product, onClose, onConfirm }) => {
+  const availableSizes = product.size
+    ? product.size.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean)
+    : [];
+
+  const finalSizes = availableSizes.length > 0
+    ? ["S", "M", ...(availableSizes.includes("L") ? ["L"] : [])]
+    : [];
+
   const [quantity, setQuantity] = useState(product.initialQty || 1);
   const [sugar, setSugar] = useState("100% đường");
   const [ice, setIce] = useState("100% đá");
+  const [size, setSize] = useState(
+    finalSizes.includes("M")
+      ? "M"
+      : (finalSizes[0] || "M")
+  );
   const [toppings, setToppings] = useState([]);
   const [selectedToppings, setSelectedToppings] = useState([]);
   const [accompaniments, setAccompaniments] = useState([]);
@@ -54,8 +67,11 @@ const ProductCustomizationModal = ({ product, onClose, onConfirm }) => {
     }
   };
 
+  const sizeIndex = finalSizes.indexOf(size);
+  const sizePriceAdjustment = sizeIndex > 0 ? sizeIndex * 7000 : 0;
+
   const toppingPriceTotal = selectedToppings.reduce((sum, t) => sum + Number(t.price), 0);
-  const unitPrice = Number(product.price) + toppingPriceTotal;
+  const unitPrice = Number(product.price) + toppingPriceTotal + sizePriceAdjustment;
   const totalPrice = unitPrice * quantity;
 
   const handleConfirmSubmit = () => {
@@ -64,6 +80,7 @@ const ProductCustomizationModal = ({ product, onClose, onConfirm }) => {
       quantity,
       sugar,
       ice,
+      size,
       toppings: selectedToppings,
       accompaniments: selectedAccompaniments
     });
@@ -104,6 +121,28 @@ const ProductCustomizationModal = ({ product, onClose, onConfirm }) => {
 
           {/* Options */}
           <div className="custom-sections">
+            {/* Chọn size */}
+            {finalSizes.length > 0 && (
+              <div className="custom-section">
+                <h5 className="section-title">Chọn kích cỡ (Size)</h5>
+                <div className="pills-grid">
+                  {finalSizes.map((sz, idx) => {
+                    const extraPrice = idx > 0 ? idx * 7000 : 0;
+                    return (
+                      <button
+                        key={sz}
+                        type="button"
+                        className={`pill-btn ${size === sz ? "active" : ""}`}
+                        onClick={() => setSize(sz)}
+                      >
+                        Size {sz} {extraPrice > 0 ? `(+${fmt(extraPrice)})` : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Lượng đường */}
             <div className="custom-section">
               <h5 className="section-title">Chọn lượng đường</h5>
