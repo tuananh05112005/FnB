@@ -87,7 +87,7 @@ const ProductCustomizationModal = ({ product, onClose, onConfirm }) => {
   };
 
   return createPortal(
-    <div className="custom-modal-overlay animate-fadeIn" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="custom-modal-overlay animate-fadeIn">
       <div className="custom-modal-container animate-scaleIn">
         {/* Drag handle pill for mobile bottom sheets */}
         <div className="bottom-sheet-handle" />
