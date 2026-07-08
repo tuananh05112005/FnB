@@ -15,10 +15,10 @@ const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL?.replace(/\/+$/, "") ||
   "http://localhost:5000";
 
-// Tạo instance Axios với cấu hình mặc định
+// Tạo instance Axios với cấu hình mặc định (tăng timeout lên 90s để đợi Render cold start)
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 90000,
 });
 
 // Request Interceptor: Tự động chèn token Bearer vào header Authorization trước khi gửi request
