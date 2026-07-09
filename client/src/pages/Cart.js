@@ -455,19 +455,37 @@ const Cart = () => {
         {role === "admin" ? (
           <div className="dashboard-stats-grid animate-fadeInUp animate-delay-1">
             {[
-              { icon: <FaShoppingCart />, label: "Tổng đơn",   value: groupedOrders.length,  bg: "var(--color-brand-pale)",    color: "var(--color-brand-dark)", accent: "var(--color-brand)" },
-              { icon: <FaCreditCard />,   label: "Đang xử lý", value: statusGroups.pending,   bg: "var(--color-warning-light)", color: "var(--color-warning)",     accent: "var(--color-warning)" },
-              { icon: <FaTruck />,        label: "Đang giao",  value: statusGroups.completed, bg: "var(--color-info-light)",    color: "var(--color-info)",        accent: "var(--color-info)" },
-              { icon: <FaTimes />,        label: "Đã hủy",     value: statusGroups.cancelled, bg: "var(--color-danger-light)",  color: "var(--color-danger)",      accent: "var(--color-danger)" },
-            ].map((s) => (
-              <article key={s.label} className="dashboard-stat dashboard-stat-accent" style={{ "--stat-accent": s.accent }}>
-                <div className="dashboard-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
-                <div>
-                  <p className="dashboard-stat-value">{s.value}</p>
-                  <p className="dashboard-stat-label">{s.label}</p>
-                </div>
-              </article>
-            ))}
+              { icon: <FaShoppingCart />, label: "Tổng đơn",   statusKey: "all",       value: groupedOrders.length,  bg: "var(--color-brand-pale)",    color: "var(--color-brand-dark)", accent: "var(--color-brand)" },
+              { icon: <FaCreditCard />,   label: "Đang xử lý", statusKey: "pending",   value: statusGroups.pending,   bg: "var(--color-warning-light)", color: "var(--color-warning)",     accent: "var(--color-warning)" },
+              { icon: <FaTruck />,        label: "Đang giao",  statusKey: "completed", value: statusGroups.completed, bg: "var(--color-info-light)",    color: "var(--color-info)",        accent: "var(--color-info)" },
+              { icon: <FaTimes />,        label: "Đã hủy",     statusKey: "cancelled", value: statusGroups.cancelled, bg: "var(--color-danger-light)",  color: "var(--color-danger)",      accent: "var(--color-danger)" },
+            ].map((s) => {
+              const isActive = activeTab === s.statusKey;
+              return (
+                <article
+                  key={s.label}
+                  className="dashboard-stat dashboard-stat-accent"
+                  onClick={() => {
+                    setActiveTab(s.statusKey);
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    "--stat-accent": s.accent,
+                    cursor: "pointer",
+                    transition: "all 0.22s cubic-bezier(0.4, 0, 0.2, 1)",
+                    transform: isActive ? "translateY(-4px) scale(1.025)" : "none",
+                    border: isActive ? `1.5px solid ${s.accent}` : "1.5px solid transparent",
+                    boxShadow: isActive ? `0 10px 20px -5px ${s.accent}25` : "var(--shadow-sm)"
+                  }}
+                >
+                  <div className="dashboard-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
+                  <div>
+                    <p className="dashboard-stat-value">{s.value}</p>
+                    <p className="dashboard-stat-label">{s.label}</p>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         ) : (
           <div className="shopee-tabs animate-fadeInUp animate-delay-1">
