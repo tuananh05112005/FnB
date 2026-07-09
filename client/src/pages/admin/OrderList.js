@@ -114,18 +114,24 @@ const OrderList = () => {
     };
   }, []);
 
-  // useMemo: Lọc và sắp xếp danh sách đơn hàng dựa trên trạng thái, khoảng ngày và từ khóa tìm kiếm
-  const filteredOrders = useMemo(() => {
-    const list = orders.filter((o) => {
+  // useMemo: Lọc danh sách theo khoảng ngày và từ khóa tìm kiếm (không lọc theo trạng thái để giữ nguyên thống kê trên các thẻ)
+  const baseFilteredOrders = useMemo(() => {
+    return orders.filter((o) => {
       const d = new Date(o.created_at || o.order_date);
-      const matchStatus = activeStatus === "all" || o.status === activeStatus;
       const matchStart  = !startDate || d >= new Date(new Date(startDate).setHours(0, 0, 0, 0));
       const matchEnd    = !endDate   || d <= new Date(new Date(endDate).setHours(23, 59, 59, 999));
       const q = search.toLowerCase();
       const matchSearch = !q || (o.email || "").toLowerCase().includes(q)
         || (o.name || "").toLowerCase().includes(q)
         || String(o.id).includes(q);
-      return matchStatus && matchStart && matchEnd && matchSearch;
+      return matchStart && matchEnd && matchSearch;
+    });
+  }, [endDate, orders, startDate, search]);
+
+  // useMemo: Lọc và sắp xếp danh sách đơn hàng cuối cùng (áp dụng tiếp activeStatus)
+  const filteredOrders = useMemo(() => {
+    const list = baseFilteredOrders.filter((o) => {
+      return activeStatus === "all" || o.status === activeStatus;
     });
 
     // Sắp xếp: Đơn chưa thanh toán (pending) lên trước, sau đó xếp theo thời gian mới nhất
@@ -141,23 +147,23 @@ const OrderList = () => {
     });
 
     return list;
-  }, [activeStatus, endDate, orders, startDate, search]);
+  }, [baseFilteredOrders, activeStatus]);
 
   // useMemo: Tính toán các số liệu thống kê đơn hàng (Tổng doanh thu, số lượng đơn theo hình thức thanh toán/trạng thái)
   const stats = useMemo(() => {
-    const cash    = filteredOrders.filter((o) => o.payment_method === "cash");
-    const banking = filteredOrders.filter((o) => o.payment_method !== "cash");
+    const cash    = baseFilteredOrders.filter((o) => o.payment_method === "cash");
+    const banking = baseFilteredOrders.filter((o) => o.payment_method !== "cash");
     return {
-      total:      filteredOrders.length,
-      revenue:    filteredOrders.reduce((s, o) => s + Number(o.amount || 0), 0),
+      total:      baseFilteredOrders.length,
+      revenue:    baseFilteredOrders.reduce((s, o) => s + Number(o.amount || 0), 0),
       cash:       cash.length,
       banking:    banking.length,
-      pending:    filteredOrders.filter((o) => o.status === "pending").length,
-      completed:  filteredOrders.filter((o) => o.status === "completed").length,
-      received:   filteredOrders.filter((o) => o.status === "received").length,
-      cancelled:  filteredOrders.filter((o) => o.status === "cancelled").length,
+      pending:    baseFilteredOrders.filter((o) => o.status === "pending").length,
+      completed:  baseFilteredOrders.filter((o) => o.status === "completed").length,
+      received:   baseFilteredOrders.filter((o) => o.status === "received").length,
+      cancelled:  baseFilteredOrders.filter((o) => o.status === "cancelled").length,
     };
-  }, [filteredOrders]);
+  }, [baseFilteredOrders]);
 
   // Hàm handleDelete: Gửi yêu cầu xóa giao dịch đơn hàng lên server
   const handleDelete = async (id) => {
@@ -186,10 +192,10 @@ const OrderList = () => {
   }, [filteredOrders, page]);
 
   const statCards = [
-    { label: "Tổng đơn",      value: stats.total,    icon: <FaBoxOpen />,       accent: "#7c3aed", bg: "#f5f3ff", color: "#7c3aed" },
-    { label: "Đang xử lý",    value: stats.pending,  icon: <FaClipboardList />, accent: "#f59e0b", bg: "#fff7ed", color: "#f59e0b" },
-    { label: "Đang giao",      value: stats.completed,icon: <FaUniversity />,    accent: "#3b82f6", bg: "#eff6ff", color: "#3b82f6" },
-    { label: "Đã hủy",         value: stats.cancelled,icon: <FaTimes />,         accent: "#ef4444", bg: "#fef2f2", color: "#ef4444" },
+    { label: "Tổng đơn",      statusKey: "all",       value: stats.total,    icon: <FaBoxOpen />,       accent: "#7c3aed", bg: "#f5f3ff", color: "#7c3aed" },
+    { label: "Đang xử lý",    statusKey: "pending",   value: stats.pending,  icon: <FaClipboardList />, accent: "#f59e0b", bg: "#fff7ed", color: "#f59e0b" },
+    { label: "Đang giao",      statusKey: "completed", value: stats.completed,icon: <FaUniversity />,    accent: "#3b82f6", bg: "#eff6ff", color: "#3b82f6" },
+    { label: "Đã hủy",         statusKey: "cancelled", value: stats.cancelled,icon: <FaTimes />,         accent: "#ef4444", bg: "#fef2f2", color: "#ef4444" },
   ];
 
   return (
@@ -262,15 +268,33 @@ const OrderList = () => {
 
         {/* ── Stat cards ── */}
         <div className="dashboard-stats-grid">
-          {statCards.map((s) => (
-            <article key={s.label} className="dashboard-stat dashboard-stat-accent" style={{ "--stat-accent": s.accent }}>
-              <div className="dashboard-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
-              <div>
-                <p className="dashboard-stat-value">{s.value}</p>
-                <p className="dashboard-stat-label">{s.label}</p>
-              </div>
-            </article>
-          ))}
+          {statCards.map((s) => {
+            const isActive = activeStatus === s.statusKey;
+            return (
+              <article
+                key={s.label}
+                className="dashboard-stat dashboard-stat-accent"
+                onClick={() => {
+                  setActiveStatus(s.statusKey);
+                  setPage(1);
+                }}
+                style={{
+                  "--stat-accent": s.accent,
+                  cursor: "pointer",
+                  transition: "all 0.22s cubic-bezier(0.4, 0, 0.2, 1)",
+                  transform: isActive ? "translateY(-4px) scale(1.025)" : "none",
+                  border: isActive ? `1.5px solid ${s.accent}` : "1.5px solid transparent",
+                  boxShadow: isActive ? `0 10px 20px -5px ${s.accent}25` : "var(--shadow-sm)"
+                }}
+              >
+                <div className="dashboard-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
+                <div>
+                  <p className="dashboard-stat-value">{s.value}</p>
+                  <p className="dashboard-stat-label">{s.label}</p>
+                </div>
+              </article>
+            );
+          })}
         </div>
 
         {/* ── Toolbar ── */}
