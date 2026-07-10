@@ -735,6 +735,7 @@ exports.historyByUser = async (req, res) => {
         p.payment_status,
         p.created_at,
         p.transaction_code,
+        p.address,
         pr.name AS product_name,
         pr.image,
         pr.price,
