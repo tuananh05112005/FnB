@@ -23,6 +23,7 @@ const productController = require("../controllers/productController");
 const loyaltyController = require("../controllers/loyaltyController");
 const aiRoutes = require("./aiRoutes");
 const converationsRoutes = require("./conversationsRoutes");
+const visitorRoutes = require("./visitorRoutes");
 
 // Đăng ký toàn bộ các định tuyến API nhóm theo phân hệ chức năng
 function registerRoutes(app) {
@@ -46,6 +47,7 @@ function registerRoutes(app) {
   app.use("/api/payments", paymentRoutes);  // Lịch sử giao dịch và cổng thanh toán
   app.use("/api", sepayWebhookRoutes);
   app.use("/api", statsRoutes);            // Thống kê số liệu doanh thu / sản phẩm bán chạy cho Admin
+  app.use("/api/stats", visitorRoutes);    // Nhật ký truy cập và IP khách hàng
   app.use("/api", passwordRoutes);         // Đổi mật khẩu và gửi OTP khôi phục mật khẩu qua Gmail
 
   app.use("/api/category-settings", categorySettingsRoutes); // Cài đặt ẩn hiện, thứ tự danh mục sản phẩm

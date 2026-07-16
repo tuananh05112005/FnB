@@ -13,7 +13,8 @@ import { Bell, Menu, Moon, Search, Sun, X } from "lucide-react";
 import "./App.css";
 import Sidebar from "./components/common/Sidebar";
 import { useMenuSettings } from "./hooks/useMenuSettings";
-import { decodeTokenPayload, getSession, clearSession } from "./lib/session";
+import { decodeTokenPayload, getSession, clearSession, getUserId } from "./lib/session";
+import { api } from "./lib/api";
 import { auth } from "./config/firebase";
 import { GlobalStyle } from "./styles/theme";
 import AddProductForm from "./pages/admin/AddProductForm";
@@ -109,6 +110,23 @@ const AppContent = () => {
   useEffect(() => {
     setActiveOrderCode(localStorage.getItem("activeOrderCode"));
   }, [location]);
+
+  // Effect: Ghi nhận nhật ký truy cập (Visitor Logs) mỗi khi chuyển trang
+  useEffect(() => {
+    if (AUTH_ROUTES.has(location.pathname)) return;
+    const track = async () => {
+      try {
+        const uid = getUserId();
+        await api.post("/api/stats/track-visit", {
+          page_url: location.pathname,
+          user_id: uid ? Number(uid) : null
+        });
+      } catch (e) {
+        console.error("Failed to track visit:", e);
+      }
+    };
+    track();
+  }, [location.pathname]);
   const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const urlSearch = queryParams.get("search") || "";
   const [quickSearch, setQuickSearch] = useState(urlSearch);
