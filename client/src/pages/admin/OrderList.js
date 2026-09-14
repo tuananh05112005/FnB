@@ -54,6 +54,7 @@ const OrderList = () => {
   const [endDate,        setEndDate]        = useState(null); // Ngày kết thúc lọc chính thức áp dụng
   const [showFilter,     setShowFilter]     = useState(false); // Trạng thái hiển thị form lọc theo ngày
   const [page,           setPage]           = useState(1); // Trang hiện tại (Pagination)
+  const [unmatched,      setUnmatched]      = useState([]); // Tiền vào mã đã hủy / không khớp đơn
 
   // Effect 1: Tải danh sách đơn hàng từ API khi mở trang
   useEffect(() => {
@@ -65,6 +66,13 @@ const OrderList = () => {
         console.error("Failed to load orders:", e);
       } finally {
         setLoading(false);
+      }
+
+      try {
+        const unmatchedRes = await api.get("/api/admin/payments/unmatched");
+        setUnmatched(Array.isArray(unmatchedRes.data) ? unmatchedRes.data : []);
+      } catch (e) {
+        console.error("Failed to load unmatched transfers:", e);
       }
     };
     load();
@@ -100,10 +108,29 @@ const OrderList = () => {
       );
     };
 
+    const handleUnmatchedTransfer = (data) => {
+      setUnmatched((prev) => [
+        {
+          id: data.sepayTransactionId || Date.now(),
+          sepay_transaction_id: data.sepayTransactionId,
+          transaction_code: data.transactionCode,
+          transfer_amount: data.amount,
+          status: "late_or_cancelled",
+          created_at: new Date().toISOString(),
+          payment_id: data.paymentId,
+          payment_status: data.paymentStatus,
+          name: data.name,
+          expected_amount: data.expectedAmount,
+        },
+        ...prev.filter((row) => row.sepay_transaction_id !== data.sepayTransactionId),
+      ]);
+    };
+
     socket.on("orderDelivered", handleOrderDelivered);
     socket.on("orderCancelled", handleOrderCancelled);
     socket.on("orderStatusUpdated", handleOrderStatusUpdated);
     socket.on("orderPaid", handleOrderPaid);
+    socket.on("unmatchedTransfer", handleUnmatchedTransfer);
 
     // Hủy đăng ký listener khi component unmount
     return () => {
@@ -111,6 +138,7 @@ const OrderList = () => {
       socket.off("orderCancelled", handleOrderCancelled);
       socket.off("orderStatusUpdated", handleOrderStatusUpdated);
       socket.off("orderPaid", handleOrderPaid);
+      socket.off("unmatchedTransfer", handleUnmatchedTransfer);
     };
   }, []);
 
@@ -195,6 +223,7 @@ const OrderList = () => {
     { label: "Tổng đơn",      statusKey: "all",       value: stats.total,    icon: <FaBoxOpen />,       accent: "#7c3aed", bg: "#f5f3ff", color: "#7c3aed" },
     { label: "Đang xử lý",    statusKey: "pending",   value: stats.pending,  icon: <FaClipboardList />, accent: "#f59e0b", bg: "#fff7ed", color: "#f59e0b" },
     { label: "Đang giao",      statusKey: "completed", value: stats.completed,icon: <FaUniversity />,    accent: "#3b82f6", bg: "#eff6ff", color: "#3b82f6" },
+    { label: "Đã giao",        statusKey: "received",  value: stats.received, icon: <FaCheckCircle />,   accent: "#16a34a", bg: "#f0fdf4", color: "#16a34a" },
     { label: "Đã hủy",         statusKey: "cancelled", value: stats.cancelled,icon: <FaTimes />,         accent: "#ef4444", bg: "#fef2f2", color: "#ef4444" },
   ];
 
@@ -215,6 +244,45 @@ const OrderList = () => {
             <FaArrowLeft /> Quay lại
           </button>
         </div>
+
+        {unmatched.length > 0 && (
+          <div className="dashboard-panel" style={{ border: "1.5px solid #f59e0b", background: "#fffbeb" }}>
+            <div className="dashboard-panel-header">
+              <h2 className="dashboard-panel-title">⚠️ Cần hoàn tiền ({unmatched.length})</h2>
+            </div>
+            <div className="dashboard-panel-body" style={{ display: "grid", gap: 8 }}>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
+                Có tiền vào tài khoản nhưng đơn đã hủy hoặc không khớp. Hoàn tay, không giao hàng.
+              </p>
+              {unmatched.slice(0, 8).map((row) => (
+                <div
+                  key={row.id || row.sepay_transaction_id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    flexWrap: "wrap",
+                    padding: "8px 0",
+                    borderTop: "1px dashed var(--color-border)",
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  <span>
+                    <strong>{row.transaction_code || "Không có mã"}</strong>
+                    {row.name ? ` · ${row.name}` : ""}
+                    {" · "}
+                    {row.status === "late_or_cancelled"
+                      ? "Mã đã hủy/hết hạn"
+                      : row.status === "amount_mismatch"
+                        ? "Sai số tiền"
+                        : "Không tìm thấy đơn"}
+                  </span>
+                  <strong>{fmt(row.transfer_amount)}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Revenue hero ── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
@@ -243,7 +311,7 @@ const OrderList = () => {
           {[
             { icon: <FaMoneyBill />,   label: "Tiền mặt",     value: stats.cash    + " đơn", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.1)", border: "1px solid rgba(245, 158, 11, 0.15)" },
             { icon: <FaCreditCard />,  label: "Chuyển khoản", value: stats.banking + " đơn", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.1)", border: "1px solid rgba(59, 130, 246, 0.15)" },
-            { icon: <FaCheckCircle />, label: "Đã giao",      value: stats.received + " đơn",color: "#10b981", bg: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.15)" },
+            // { icon: <FaCheckCircle />, label: "Đã giao",      value: stats.received + " đơn",color: "#10b981", bg: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.15)" },
           ].map((m) => (
             <div key={m.label} className="dashboard-stat" style={{
               background: "var(--color-surface)",

@@ -222,7 +222,43 @@ exports.handleSepayWebhook = async (req, res) => {
       currentStatus: payment.payment_status,
     });
 
-    // 5. Kiểm tra chênh lệch số tiền (Đề phòng trường hợp khách chuyển thiếu tiền)
+    // 5. Mã đã hủy/hết hạn: ghi unmatched, không fulfill, báo admin hoàn tay
+    if (payment.payment_status !== "pending" && payment.payment_status !== "paid") {
+      await query(
+        `
+        UPDATE sepay_webhook_logs
+        SET status = 'late_or_cancelled', payment_id = ?
+        WHERE sepay_transaction_id = ?
+        `,
+        [payment.id, sepayTransactionId],
+      );
+
+      if (global.io) {
+        global.io.to("managers").emit("unmatchedTransfer", {
+          paymentId: payment.id,
+          transactionCode,
+          amount: transferAmount,
+          expectedAmount: Number(payment.amount || 0),
+          paymentStatus: payment.payment_status,
+          sepayTransactionId,
+          name: payment.name,
+        });
+      }
+
+      logStep("Bỏ qua vì payment không còn pending (đã hủy/hết hạn)", {
+        paymentId: payment.id,
+        currentStatus: payment.payment_status,
+        transferAmount,
+      });
+
+      return res.json({
+        success: true,
+        ignored: true,
+        status: "late_or_cancelled",
+      });
+    }
+
+    // 6. Kiểm tra chênh lệch số tiền (Đề phòng trường hợp khách chuyển thiếu tiền)
     if (transferAmount < Number(payment.amount || 0)) {
       await query(
         `
@@ -242,10 +278,44 @@ exports.handleSepayWebhook = async (req, res) => {
       return res.json({ success: true, ignored: true });
     }
 
-    // 6. Đánh dấu hóa đơn đã thanh toán thành công (markPaymentPaid)
+    // 7. Đánh dấu hóa đơn đã thanh toán thành công (markPaymentPaid)
     const paidResult = await markPaymentPaid(payment, query);
 
-    // 7. Cập nhật nhật ký webhook trạng thái sang đã xác nhận (confirmed)
+    if (paidResult.rejected) {
+      await query(
+        `
+        UPDATE sepay_webhook_logs
+        SET status = 'late_or_cancelled', payment_id = ?
+        WHERE sepay_transaction_id = ?
+        `,
+        [payment.id, sepayTransactionId],
+      );
+
+      if (global.io) {
+        global.io.to("managers").emit("unmatchedTransfer", {
+          paymentId: payment.id,
+          transactionCode,
+          amount: transferAmount,
+          expectedAmount: Number(payment.amount || 0),
+          paymentStatus: paidResult.currentStatus,
+          sepayTransactionId,
+          name: payment.name,
+        });
+      }
+
+      logStep("Webhook đến sau khi payment đã hủy/hết hạn", {
+        paymentId: payment.id,
+        currentStatus: paidResult.currentStatus,
+      });
+
+      return res.json({
+        success: true,
+        ignored: true,
+        status: "late_or_cancelled",
+      });
+    }
+
+    // 8. Cập nhật nhật ký webhook trạng thái sang đã xác nhận (confirmed)
     await query(
       `
       UPDATE sepay_webhook_logs

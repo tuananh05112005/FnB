@@ -7,7 +7,8 @@
 //        Tích hợp lưu thông báo vào cơ sở dữ liệu và phát tín hiệu Real-time qua Socket.io.
 // ==============================================================
 
-const { getDB } = require("../config/db");
+const { getDB, getQuery } = require("../config/db");
+const { cancelPendingPayment } = require("./paymentController");
 
 /**
  * add: Thêm sản phẩm mới vào giỏ hàng của người dùng (POST /api/cart/add).
@@ -202,77 +203,114 @@ exports.received = (req, res) => {
  * - Lưu vết thông báo bị hủy đơn kèm theo lý do cụ thể.
  * - Phát socket 'orderStatusUpdated' (cho User) và 'orderCancelled' (cho Managers) kèm thông tin chi tiết.
  */
-exports.cancel = (req, res) => {
-  const db = getDB();
+exports.cancel = async (req, res) => {
   const { id } = req.params;
   const { cancellation_reason, role } = req.body;
+  const query = getQuery();
+  const isByAdmin = role === "admin" || role === "staff";
 
-  const qFind = isNaN(id)
-    ? "SELECT order_code, user_id FROM cart WHERE order_code = ? LIMIT 1"
-    : "SELECT order_code, user_id FROM cart WHERE id = ? LIMIT 1";
+  try {
+    const qFind = isNaN(id)
+      ? "SELECT order_code, user_id, status FROM cart WHERE order_code = ? LIMIT 1"
+      : "SELECT order_code, user_id, status FROM cart WHERE id = ? LIMIT 1";
 
-  db.query(qFind, [id], (findErr, findResults) => {
-    if (findErr) return res.status(500).json({ message: "Lỗi server" });
-    if (!findResults.length) return res.status(404).json({ message: "Đơn hàng không tồn tại" });
+    const findResults = await query(qFind, [id]);
+    if (!findResults.length) {
+      return res.status(404).json({ message: "Đơn hàng không tồn tại" });
+    }
 
-    const { order_code, user_id } = findResults[0];
-    const isByAdmin = role === "admin" || role === "staff";
+    const { order_code, user_id, status: cartStatus } = findResults[0];
 
-    const qSelect = `
-      SELECT cart.user_id, users.name, GROUP_CONCAT(products.name SEPARATOR ', ') AS product_names 
-      FROM cart 
-      LEFT JOIN users ON cart.user_id = users.id 
+    // Đơn chưa giao: nếu đã nhận tiền thì không hủy (tránh hủy đơn đang chờ CK nhưng tiền đã vào)
+    if (cartStatus === "pending") {
+      const paidPayments = await query(
+        `
+        SELECT id FROM payments
+        WHERE transaction_code = ?
+        AND payment_status = 'paid'
+        LIMIT 1
+        `,
+        [order_code],
+      );
+
+      if (paidPayments.length) {
+        return res.status(400).json({
+          message: "Đơn đã thanh toán, không thể hủy.",
+          reason: "already_paid",
+        });
+      }
+
+      const cancelResult = await cancelPendingPayment({
+        orderCode: order_code,
+        query,
+      });
+
+      const paidAfter = await query(
+        `
+        SELECT id FROM payments
+        WHERE transaction_code = ?
+        AND payment_status = 'paid'
+        LIMIT 1
+        `,
+        [order_code],
+      );
+
+      if (paidAfter.length || cancelResult.reason === "already_paid") {
+        return res.status(400).json({
+          message: "Đơn đã thanh toán, không thể hủy.",
+          reason: "already_paid",
+        });
+      }
+    }
+
+    const selectResults = await query(
+      `
+      SELECT cart.user_id, users.name, GROUP_CONCAT(products.name SEPARATOR ', ') AS product_names
+      FROM cart
+      LEFT JOIN users ON cart.user_id = users.id
       LEFT JOIN products ON cart.product_id = products.id
       WHERE cart.order_code = ?
       GROUP BY cart.user_id, users.name
-    `;
+      `,
+      [order_code],
+    );
+    const orderInfo = selectResults[0] || { name: "Khách hàng", product_names: "Sản phẩm" };
 
-    db.query(qSelect, [order_code], (selectErr, selectResults) => {
-      if (selectErr) return res.status(500).json({ message: "Lỗi server" });
-      const orderInfo = selectResults[0] || { name: "Khách hàng", product_names: "Sản phẩm" };
+    await query(
+      "UPDATE cart SET status = 'cancelled', cancellation_reason = ? WHERE order_code = ?",
+      [cancellation_reason, order_code],
+    );
 
-      db.query(
-        "UPDATE cart SET status = 'cancelled', cancellation_reason = ? WHERE order_code = ?",
-        [cancellation_reason, order_code],
-        (err) => {
-          if (err) return res.status(500).send("Lỗi server");
+    const notifyMsg = isByAdmin
+      ? `Đơn hàng #${order_code} của bạn đã bị hủy với lý do: ${cancellation_reason || "Không có lý do"}.`
+      : `Đơn hàng #${order_code} đã bị hủy. Lý do: ${cancellation_reason || "Không có lý do"}.`;
 
-          // Luu thong bao vao database cho khach hang
-          const notifyMsg = isByAdmin
-            ? `Đơn hàng #${order_code} của bạn đã bị hủy với lý do: ${cancellation_reason || "Không có lý do"}.`
-            : `Đơn hàng #${order_code} đã bị hủy. Lý do: ${cancellation_reason || "Không có lý do"}.`;
+    await query("INSERT INTO notifications (user_id, message) VALUES (?, ?)", [
+      user_id,
+      notifyMsg,
+    ]);
 
-          db.query(
-            "INSERT INTO notifications (user_id, message) VALUES (?, ?)",
-            [user_id, notifyMsg],
-            (notifyErr) => {
-              if (notifyErr) console.error("Lỗi lưu thông báo hủy đơn:", notifyErr);
-            }
-          );
+    if (global.io) {
+      global.io.to(`user:${user_id}`).emit("orderStatusUpdated", {
+        orderId: order_code,
+        status: "cancelled",
+        cancellation_reason: cancellation_reason,
+        cancelledBy: isByAdmin ? "admin" : "user",
+      });
+      global.io.to("managers").emit("orderCancelled", {
+        id: order_code,
+        userName: orderInfo.name || "Khách hàng",
+        productName: orderInfo.product_names,
+        cancellation_reason: cancellation_reason,
+        cancelledBy: isByAdmin ? "admin" : "user",
+      });
+    }
 
-          if (global.io) {
-            // Gui thong bao cho khach hang
-            global.io.to(`user:${user_id}`).emit("orderStatusUpdated", {
-              orderId: order_code,
-              status: "cancelled",
-              cancellation_reason: cancellation_reason,
-              cancelledBy: isByAdmin ? "admin" : "user"
-            });
-            // Gui thong bao cho managers (admin/staff)
-            global.io.to("managers").emit("orderCancelled", {
-              id: order_code,
-              userName: orderInfo.name || "Khách hàng",
-              productName: orderInfo.product_names,
-              cancellation_reason: cancellation_reason,
-              cancelledBy: isByAdmin ? "admin" : "user"
-            });
-          }
-
-          res.status(200).json({ message: "Hủy đơn hàng thành công" });
-        }
-      );
-    });
-  });
+    return res.status(200).json({ message: "Hủy đơn hàng thành công" });
+  } catch (err) {
+    console.error("Lỗi hủy đơn hàng:", err);
+    return res.status(500).json({ message: "Lỗi server" });
+  }
 };
 
 /**

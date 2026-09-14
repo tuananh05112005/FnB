@@ -1,0 +1,12 @@
+.env
+.env.*
+*.log
+node_modules/
+dist/
+build/
+.firebase/
+scratch_query.js
+$null
+scratch/
+server/scripts/online_db.json
+server/scripts/sync-db.js

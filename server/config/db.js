@@ -32,7 +32,10 @@ function initDB() {
       connection.query(
         "UPDATE cart SET order_code = CONCAT('DH', LPAD(id, 8, '0')) WHERE order_code IS NULL",
         (updateErr) => {
-          connection.release();
+          connection.query("ALTER TABLE payments MODIFY payment_status ENUM('pending','confirmed','paid','expired','failed','cancelled') DEFAULT 'pending'", () => {});
+      connection.query("ALTER TABLE payments ADD COLUMN cancelled_at DATETIME NULL", () => {});
+      connection.query("ALTER TABLE sepay_webhook_logs MODIFY status ENUM('received','ignored','payment_not_found','amount_mismatch','confirmed','late_or_cancelled') DEFAULT 'received'", () => {});
+      connection.release();
           if (updateErr) {
             console.error("Lỗi cập nhật order_code cho dữ liệu cũ:", updateErr);
           } else {

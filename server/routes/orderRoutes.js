@@ -9,6 +9,7 @@ router.put("/orders/:id/status", orders.adminUpdateStatus);
 
 router.get("/payments", payments.adminList);
 router.get("/payments/pending", payments.adminListPending);
+router.get("/payments/unmatched", payments.adminListUnmatched);
 router.put("/payments/pending/:id/confirm", payments.adminConfirmPending);
 router.delete("/payments/:id", payments.remove);
 

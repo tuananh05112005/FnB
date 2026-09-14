@@ -428,6 +428,7 @@ const PaymentPage = () => {
   });
   const [currentStep,      setCurrentStep]      = useState(() => savedSession?.currentStep || 1);
   const [isSubmitting,     setIsSubmitting]      = useState(false);
+  const [isCancelling,     setIsCancelling]      = useState(false);
   const [showMapModal,     setShowMapModal]      = useState(false);
   const [selectedPosition, setSelectedPosition]  = useState(null);
   const [qrUrl,            setQrUrl]             = useState(() => savedSession?.qrUrl || "");
@@ -474,9 +475,18 @@ const PaymentPage = () => {
       setCheckoutItems(location.state.items);
       setCheckoutItem(null);
       setIsCart(true);
-      setOrderCode(location.state.orderCode || null);
+      const incomingOrderCode = location.state.orderCode || null;
+      setOrderCode(incomingOrderCode);
+
+      // Nếu là thanh toán một đơn hàng mới khác với session cũ -> reset về bước 1
+      if (incomingOrderCode && savedSession?.orderCode && incomingOrderCode !== savedSession.orderCode) {
+        setCurrentStep(1);
+        setQrUrl("");
+        setPaymentId(null);
+        setPaymentStatus("");
+      }
     }
-  }, [location.state]);
+  }, [location.state, savedSession]);
 
   // Điều hướng về trang Giỏ hàng nếu không có món hàng nào để thanh toán
   useEffect(() => {
@@ -527,10 +537,16 @@ const PaymentPage = () => {
         const status = res.data.payment_status;
         setPaymentStatus(status);
         if (status === "paid") { setCurrentStep(4); clearInterval(interval); }
+        if (status === "cancelled") {
+          clearInterval(interval);
+          setSessionClosed(true);
+          clearPaymentSession(userId);
+          navigate("/carts");
+        }
       } catch (e) { console.error(e); }
     }, 3000);
     return () => clearInterval(interval);
-  }, [paymentId]);
+  }, [paymentId, userId, navigate]);
 
   // Xử lý thay đổi dữ liệu trên form thông tin giao hàng
   const handlePaymentInfoChange = (e) => {
@@ -664,6 +680,32 @@ const PaymentPage = () => {
     navigate("/products");
   };
 
+  const handleCancelBanking = async () => {
+    if (!paymentId || isCancelling) return;
+    const confirmed = window.confirm(
+      "Hủy thanh toán sẽ vô hiệu hóa mã chuyển khoản. Nếu bạn đã chuyển tiền, đừng hủy."
+    );
+    if (!confirmed) return;
+
+    setIsCancelling(true);
+    setError("");
+    try {
+      await api.post(`/api/payments/${paymentId}/cancel`, { user_id: userId });
+      setSessionClosed(true);
+      clearPaymentSession(userId);
+      navigate("/carts");
+    } catch (e) {
+      if (e.response?.data?.reason === "already_paid") {
+        setPaymentStatus("paid");
+        setCurrentStep(4);
+      } else {
+        setError(e.response?.data?.message || "Không thể hủy thanh toán lúc này.");
+      }
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   if (!item && !checkoutItems.length) return null;
 
   return (
@@ -679,8 +721,19 @@ const PaymentPage = () => {
               <p className="dashboard-subtitle">Hoàn tất thông tin, chọn cách thanh toán và xác nhận đơn.</p>
             </div>
           </div>
-          <button className="dashboard-back-btn" onClick={() => navigate(-1)}>
-            <FaArrowLeft /> Quay lại
+          <button
+            className="dashboard-back-btn"
+            onClick={() => {
+              if (currentStep === 3) {
+                setCurrentStep(2); // Cho phép quay lại chọn phương thức thanh toán
+              } else if (currentStep === 2) {
+                setCurrentStep(1); // Cho phép quay lại cập nhật thông tin địa chỉ
+              } else {
+                navigate(-1);
+              }
+            }}
+          >
+            <FaArrowLeft /> {currentStep > 1 ? "Quay lại bước trước" : "Quay lại"}
           </button>
         </div>
 
@@ -974,6 +1027,10 @@ const PaymentPage = () => {
                     </div>
                   )}
 
+                  <p className="payment-share-warning">
+                    Nội dung chuyển khoản gắn với đơn của bạn. Đừng chia sẻ mã. Chỉ chuyển 1 lần với đúng số tiền.
+                  </p>
+
                   {/* Polling indicator */}
                   <p className="payment-waiting-note">
                     <span>
@@ -981,6 +1038,25 @@ const PaymentPage = () => {
                       Hệ thống đang chờ xác nhận giao dịch...
                     </span>
                   </p>
+
+                  <div className="payment-cancel-row" style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+                    <button
+                      type="button"
+                      className="dashboard-btn dashboard-btn-secondary"
+                      onClick={() => setCurrentStep(2)}
+                      disabled={isCancelling || paymentStatus === "paid"}
+                    >
+                      <FaArrowLeft /> Đổi phương thức thanh toán
+                    </button>
+                    <button
+                      type="button"
+                      className="dashboard-btn dashboard-btn-danger"
+                      onClick={handleCancelBanking}
+                      disabled={isCancelling || paymentStatus === "paid"}
+                    >
+                      <FaTimes /> {isCancelling ? "Đang hủy..." : "Hủy thanh toán"}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="dashboard-empty">

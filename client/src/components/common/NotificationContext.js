@@ -279,6 +279,16 @@ export const NotificationProvider = ({ children }) => {
       }
     };
 
+    const handleUnmatchedTransfer = (data) => {
+      if (role === "admin" || role === "staff") {
+        addNotification(
+          "unmatched_transfer",
+          "⚠️ Cần hoàn tiền chuyển khoản",
+          `Có tiền vào mã ${data.transactionCode || data.paymentId} (${formatCurrency(data.amount)}) nhưng đơn đã hủy/hết hạn. Cần hoàn tay.`
+        );
+      }
+    };
+
     // 7. Lắng nghe Khách hàng hủy đơn (Dành cho Admin/Nhân viên)
     const handleOrderCancelled = (data) => {
       if (role === "admin" || role === "staff") {
@@ -306,6 +316,7 @@ export const NotificationProvider = ({ children }) => {
     socket.on("orderDelivered", handleOrderDelivered);
     socket.on("newVoucher", handleNewVoucher);
     socket.on("orderCancelled", handleOrderCancelled);
+    socket.on("unmatchedTransfer", handleUnmatchedTransfer);
 
     // Hủy đăng ký listener khi component unmount để tránh rò rỉ bộ nhớ (memory leaks)
     return () => {
@@ -316,6 +327,7 @@ export const NotificationProvider = ({ children }) => {
       socket.off("orderDelivered", handleOrderDelivered);
       socket.off("newVoucher", handleNewVoucher);
       socket.off("orderCancelled", handleOrderCancelled);
+      socket.off("unmatchedTransfer", handleUnmatchedTransfer);
     };
   }, [role, userId]);
 
@@ -336,6 +348,7 @@ export const NotificationProvider = ({ children }) => {
       case "new_voucher":
         return <Gift size={18} className="text-warning" style={{ color: "#f59e0b" }} />;
       case "order_cancelled":
+      case "unmatched_transfer":
         return <X size={18} className="text-danger" style={{ color: "#ef4444" }} />;
       default:
         return <CreditCard size={18} />;

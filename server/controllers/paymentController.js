@@ -19,7 +19,16 @@ const { getDB, getQuery } = require("../config/db");
  */
 async function markPaymentPaid(payment, query) {
   if (payment.payment_status === "paid") {
-    return { alreadyPaid: true, pointsEarned: 0 };
+    return { alreadyPaid: true, rejected: false, currentStatus: "paid", pointsEarned: 0 };
+  }
+
+  if (payment.payment_status !== "pending") {
+    return {
+      alreadyPaid: false,
+      rejected: true,
+      currentStatus: payment.payment_status,
+      pointsEarned: 0,
+    };
   }
 
   const result = await query(
@@ -29,13 +38,22 @@ async function markPaymentPaid(payment, query) {
       payment_status = 'paid',
       confirmed_at = NOW()
     WHERE id = ?
-    AND payment_status <> 'paid'
+    AND payment_status = 'pending'
     `,
     [payment.id],
   );
 
   if (!result.affectedRows) {
-    return { alreadyPaid: true, pointsEarned: 0 };
+    const latest = await query("SELECT payment_status FROM payments WHERE id = ? LIMIT 1", [
+      payment.id,
+    ]);
+    const currentStatus = latest[0]?.payment_status || payment.payment_status;
+    return {
+      alreadyPaid: currentStatus === "paid",
+      rejected: currentStatus !== "paid",
+      currentStatus,
+      pointsEarned: 0,
+    };
   }
 
   // Cập nhật trạng thái giỏ hàng bằng order_code (transaction_code)
@@ -44,6 +62,7 @@ async function markPaymentPaid(payment, query) {
     UPDATE cart
     SET status = 'completed'
     WHERE order_code = ?
+    AND status = 'pending'
     `,
     [payment.transaction_code],
   );
@@ -131,7 +150,71 @@ async function markPaymentPaid(payment, query) {
     });
   }
 
-  return { alreadyPaid: false, pointsEarned };
+  return { alreadyPaid: false, rejected: false, currentStatus: "paid", pointsEarned };
+}
+
+/**
+ * cancelPendingPayment: Vô hiệu hóa mã CK khi payment còn pending.
+ * Dùng UPDATE ... WHERE payment_status = 'pending' để tránh race với webhook.
+ */
+async function cancelPendingPayment({ paymentId, userId, orderCode, query }) {
+  const clauses = ["payment_status = 'pending'"];
+  const params = [];
+
+  if (paymentId) {
+    clauses.push("id = ?");
+    params.push(paymentId);
+  }
+
+  if (orderCode) {
+    clauses.push("transaction_code = ?");
+    params.push(orderCode);
+  }
+
+  if (userId) {
+    clauses.push("user_id = ?");
+    params.push(userId);
+  }
+
+  if (!paymentId && !orderCode) {
+    return { cancelled: false, reason: "missing_key" };
+  }
+
+  const result = await query(
+    `
+    UPDATE payments
+    SET payment_status = 'cancelled', cancelled_at = NOW()
+    WHERE ${clauses.join(" AND ")}
+    `,
+    params,
+  );
+
+  if (result.affectedRows) {
+    return { cancelled: true, affectedRows: result.affectedRows };
+  }
+
+  let existing = [];
+  if (paymentId) {
+    existing = await query("SELECT * FROM payments WHERE id = ? LIMIT 1", [paymentId]);
+  } else {
+    existing = await query(
+      "SELECT * FROM payments WHERE transaction_code = ? ORDER BY id DESC LIMIT 1",
+      [orderCode],
+    );
+  }
+
+  const current = existing[0];
+  if (!current) {
+    return { cancelled: false, reason: "not_found" };
+  }
+  if (current.payment_status === "paid") {
+    return { cancelled: false, reason: "already_paid", payment: current };
+  }
+  if (current.payment_status === "cancelled") {
+    return { cancelled: true, alreadyCancelled: true, payment: current };
+  }
+
+  return { cancelled: false, reason: "not_cancellable", payment: current };
 }
 
 /*
@@ -688,14 +771,22 @@ exports.adminConfirmPending = async (req, res) => {
 
     const payment = payments[0];
 
-    if (payment.payment_status === "paid") {
+    if (payment.payment_status !== "pending") {
       return res.status(400).json({
         success: false,
-        message: "Thanh toan da duoc xac nhan",
+        message: payment.payment_status === "paid"
+          ? "Thanh toan da duoc xac nhan"
+          : "Thanh toan khong con hieu luc",
       });
     }
 
-    await markPaymentPaid(payment, query);
+    const paidResult = await markPaymentPaid(payment, query);
+    if (paidResult.rejected) {
+      return res.status(400).json({
+        success: false,
+        message: "Thanh toan khong con hieu luc",
+      });
+    }
 
     res.json({
       success: true,
@@ -836,4 +927,135 @@ exports.remove = async (req, res) => {
   }
 };
 
+/**
+ * cancel: User hủy phiên chuyển khoản trên màn QR.
+ * Chỉ hủy được khi payment còn pending. Mã CK chết ngay, cart pending cùng mã cũng hủy.
+ */
+exports.cancel = async (req, res) => {
+  const { id } = req.params;
+  const user_id = req.body?.user_id;
+
+  try {
+    const query = getQuery();
+    const payments = await query("SELECT * FROM payments WHERE id = ? LIMIT 1", [id]);
+
+    if (!payments.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thanh toán",
+      });
+    }
+
+    const payment = payments[0];
+
+    const currentUserId = req.user?.id || user_id;
+    if (currentUserId && Number(payment.user_id) !== Number(currentUserId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Không có quyền hủy thanh toán này",
+      });
+    }
+
+    const result = await cancelPendingPayment({
+      paymentId: payment.id,
+      query,
+    });
+
+    if (!result.cancelled) {
+      if (result.reason === "already_paid") {
+        return res.status(400).json({
+          success: false,
+          reason: "already_paid",
+          message: "Đã nhận tiền, không thể hủy.",
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        reason: result.reason,
+        message: "Không thể hủy thanh toán.",
+      });
+    }
+
+    if (payment.transaction_code) {
+      await query(
+        `
+        UPDATE cart
+        SET status = 'cancelled', cancellation_reason = ?
+        WHERE order_code = ?
+        AND status = 'pending'
+        `,
+        ["Hủy thanh toán chuyển khoản", payment.transaction_code],
+      );
+    }
+
+    if (global.io) {
+      global.io.to(`user:${payment.user_id}`).emit("orderStatusUpdated", {
+        orderId: payment.transaction_code,
+        status: "cancelled",
+        cancellation_reason: "Hủy thanh toán chuyển khoản",
+        cancelledBy: "user",
+      });
+      global.io.to("managers").emit("orderCancelled", {
+        id: payment.transaction_code,
+        userName: payment.name,
+        productName: "",
+        cancellation_reason: "Hủy thanh toán chuyển khoản",
+        cancelledBy: "user",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Đã hủy thanh toán. Mã chuyển khoản không còn hiệu lực.",
+    });
+  } catch (err) {
+    console.error("Loi cancel payment:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Loi server",
+    });
+  }
+};
+
+/**
+ * adminListUnmatched: Tiền vào nhưng không fulfill (mã đã hủy, không tìm thấy, sai số tiền).
+ */
+exports.adminListUnmatched = async (_req, res) => {
+  try {
+    const query = getQuery();
+    const rows = await query(
+      `
+      SELECT
+        l.id,
+        l.sepay_transaction_id,
+        l.transaction_code,
+        l.transfer_amount,
+        l.status,
+        l.created_at,
+        l.payment_id,
+        p.payment_status,
+        p.name,
+        p.amount AS expected_amount
+      FROM sepay_webhook_logs l
+      LEFT JOIN payments p ON p.id = l.payment_id
+      WHERE l.status IN ('late_or_cancelled', 'payment_not_found', 'amount_mismatch')
+      ORDER BY l.created_at DESC
+      LIMIT 50
+      `,
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error("Loi adminListUnmatched:", err);
+
+    res.status(500).json({
+      success: false,
+      message: "Loi server",
+    });
+  }
+};
+
 exports.markPaymentPaid = markPaymentPaid;
+exports.cancelPendingPayment = cancelPendingPayment;

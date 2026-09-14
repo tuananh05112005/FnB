@@ -399,7 +399,10 @@ const Cart = () => {
       await cancelCartItem(selectedItem.order_code, cancellationReason, role);
       await refreshCart();
       setShowCancelModal(false); setSelectedItem(null); setCancellationReason("");
-    } catch (e) { console.error(e); setError("Không thể hủy đơn hàng này."); }
+    } catch (e) {
+      console.error(e);
+      setError(e.response?.data?.message || "Không thể hủy đơn hàng này.");
+    }
   };
 
   // Xác nhận khách hàng đã nhận được sản phẩm thành công (Giao hàng thành công)

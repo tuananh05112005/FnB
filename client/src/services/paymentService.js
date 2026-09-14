@@ -27,6 +27,24 @@ export const finalizeBankingPayment = async (pendingPaymentId) => {
 };
 
 /**
+ * Hủy phiên chuyển khoản đang pending — vô hiệu hóa mã CK.
+ */
+export const cancelBankingPayment = async (paymentId, userId) => {
+  const response = await api.post(`/api/payments/${paymentId}/cancel`, {
+    user_id: userId,
+  });
+  return response.data;
+};
+
+/**
+ * Danh sách tiền vào không khớp đơn (mã đã hủy / không tìm thấy / sai số tiền).
+ */
+export const listUnmatchedAdminPayments = async () => {
+  const response = await api.get("/api/admin/payments/unmatched");
+  return response.data;
+};
+
+/**
  * Lấy danh sách lịch sử giao dịch mua sắm của một khách hàng.
  */
 export const getPaymentHistory = async (userId) => {

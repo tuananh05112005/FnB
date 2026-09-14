@@ -27,6 +27,11 @@ router.get(
   ctrl.getPaymentStatus
 );
 
+router.post(
+  "/:id/cancel",
+  ctrl.cancel
+);
+
 /*
 ====================================================
 SEPAY WEBHOOK

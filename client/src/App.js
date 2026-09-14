@@ -111,15 +111,40 @@ const AppContent = () => {
     setActiveOrderCode(localStorage.getItem("activeOrderCode"));
   }, [location]);
 
-  // Effect: Ghi nhận nhật ký truy cập (Visitor Logs) mỗi khi chuyển trang
+  // Effect: Ghi nhận nhật ký truy cập (Visitor Logs) với IP & Model thiết bị
   useEffect(() => {
     if (AUTH_ROUTES.has(location.pathname)) return;
     const track = async () => {
       try {
         const uid = getUserId();
+        let clientIp = "";
+        try {
+          // Lấy IP Public thực tế nếu đang chạy trên localhost để hiện rõ IP
+          if (!window._cachedClientIp) {
+            const ipRes = await fetch("https://api.ipify.org?format=json").then(r => r.json());
+            window._cachedClientIp = ipRes.ip || "";
+          }
+          clientIp = window._cachedClientIp || "";
+        } catch (_) {}
+
+        let hardwareModel = "";
+        try {
+          const canvas = document.createElement("canvas");
+          const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+          if (gl) {
+            const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+            if (debugInfo) {
+              const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || "";
+              hardwareModel = renderer;
+            }
+          }
+        } catch (_) {}
+
         await api.post("/api/stats/track-visit", {
           page_url: location.pathname,
-          user_id: uid ? Number(uid) : null
+          user_id: uid ? Number(uid) : null,
+          client_ip: clientIp,
+          hardware_info: hardwareModel,
         });
       } catch (e) {
         console.error("Failed to track visit:", e);
