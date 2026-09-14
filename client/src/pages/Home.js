@@ -18,8 +18,9 @@ import {
 import {
   FaBoxOpen, FaChartPie,
   FaMoneyBillWave, FaShoppingBag, FaTimes, FaUsers,
-  FaEye, FaClipboardList, FaHeart, FaCoffee,
+  FaEye, FaClipboardList, FaHeart, FaCoffee, FaArrowRight, FaSparkles
 } from "react-icons/fa";
+import { Coffee, Milk, Cake, Citrus, Sparkles } from "lucide-react";
 
 import { api } from "../lib/api";
 import { getRole } from "../lib/session";
@@ -43,13 +44,12 @@ const STATUS_MAP = {
 const CHART_COLORS = ["#C8860A", "#5A8A5A", "#4C7BC7", "#E8778A", "#D4A44C"];
 
 const CATEGORIES = [
-  { label: "Tất cả",   emoji: "✨", path: "/products" },
-  { label: "Trà sữa",  emoji: "🧋", path: "/products?category=Trà sữa" },
-  { label: "Cafe",     emoji: "☕", path: "/products?category=Cafe" },
-  { label: "Matcha",   emoji: "🍵", path: "/products?category=Matcha" },
-  { label: "Nước ép",  emoji: "🍹", path: "/products?category=Nước ép" },
-  { label: "Bánh ngọt",emoji: "🧁", path: "/products?category=Bánh ngọt" },
-  { label: "Bánh kem", emoji: "🎂", path: "/products?category=Bánh kem" },
+  { label: "Tất cả món", icon: Sparkles, path: "/products" },
+  { label: "Cà phê pha máy", icon: Coffee, path: "/products?category=Cafe" },
+  { label: "Trà sữa đặc chế", icon: Milk, path: "/products?category=Trà sữa" },
+  { label: "Matcha & Trà", icon: Coffee, path: "/products?category=Matcha" },
+  { label: "Nước ép tươi", icon: Citrus, path: "/products?category=Nước ép" },
+  { label: "Bánh & Tráng miệng", icon: Cake, path: "/products?category=Bánh ngọt" },
 ];
 
 /* ── Order Modal ────────────────────────────────────────────────── */
@@ -215,42 +215,57 @@ const Home = () => {
         {/* ── Hero ── */}
         <div className="home-hero animate-fadeInUp">
           <div className="home-hero-content">
-            <p className="home-hero-greeting">☕ {greeting}</p>
+            <div className="home-hero-badge">
+              <span>Boutique Cafe & Bakery</span>
+            </div>
             <h1 className="home-hero-title">
               {isManager ? (
-                <>Quản lý <span>thông minh</span><br />tăng doanh thu</>
+                <>Hệ thống quản trị<br /><span>Hoạt động & Doanh thu</span></>
               ) : (
-                <>Chọn thức uống<br /><span>yêu thích</span> của bạn</>
+                <>Hương vị thủ công,<br /><span>trọn vẹn từng khoảnh khắc</span></>
               )}
             </h1>
             <p className="home-hero-sub">
               {isManager
-                ? "Theo dõi đơn hàng, doanh thu và quản lý sản phẩm ngay trên dashboard."
-                : "Khám phá hàng trăm loại trà sữa, cafe và bánh ngọt cao cấp nhất thành phố."}
+                ? "Giám sát tình trạng vận hành, tiếp nhận đơn hàng trực tiếp và đối soát thanh toán."
+                : "Thưởng thức những tách cà phê thơm nồng, trà sữa ủ lạnh cùng bánh nướng tươi ngon mỗi ngày."}
             </p>
             <div className="home-hero-actions">
               <button className="home-hero-btn-primary" onClick={() => navigate("/products")}>
-                <FaCoffee /> Xem thực đơn
+                Khám phá thực đơn <FaArrowRight size={12} />
               </button>
               {isManager && (
                 <button className="home-hero-btn-ghost" onClick={() => navigate("/orders")}>
-                  <FaClipboardList /> Quản lý đơn
+                  <FaClipboardList /> Quản lý đơn hàng
                 </button>
               )}
             </div>
           </div>
-          <div className="home-hero-emoji">☕</div>
+          <div className="home-hero-art">
+            <div className="home-hero-art-circle" />
+          </div>
         </div>
 
-        {/* ── Category pills ── */}
+        {/* ── Danh mục tuyển chọn ── */}
         {!isManager && (
-          <div className="home-categories animate-fadeIn animate-delay-1">
-            {CATEGORIES.map((cat) => (
-              <Link key={cat.label} to={cat.path} className="home-cat-pill">
-                <span className="home-cat-emoji">{cat.emoji}</span>
-                {cat.label}
-              </Link>
-            ))}
+          <div className="home-categories-wrapper animate-fadeIn animate-delay-1">
+            <div className="home-categories-header">
+              <h2 className="home-categories-title">Danh mục nổi bật</h2>
+              <Link to="/products" className="home-categories-seeall">Xem tất cả</Link>
+            </div>
+            <div className="home-categories">
+              {CATEGORIES.map((cat) => {
+                const IconComponent = cat.icon;
+                return (
+                  <Link key={cat.label} to={cat.path} className="home-cat-pill">
+                    <div className="home-cat-icon-box">
+                      <IconComponent size={18} strokeWidth={1.8} />
+                    </div>
+                    <span className="home-cat-name">{cat.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         )}
 
