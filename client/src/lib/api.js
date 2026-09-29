@@ -16,15 +16,18 @@ const API_BASE_URL =
   "http://localhost:5000";
 
 // Tạo instance Axios với cấu hình mặc định (tăng timeout lên 90s để đợi Render cold start)
+// Biến theo dõi trạng thái server waking up (phục vụ hiển thị banner nhẹ nhàng cho khách)
+let activePendingRequests = 0;
+let warmUpTimer = null;
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 90000,
+  timeout: 30000, // 30 giây timeout hợp lý
 });
 
-// Request Interceptor: Tự động chèn token Bearer vào header Authorization trước khi gửi request
+// Response Interceptor: Xử lý thông báo khi server đang thức giấc từ giấc ngủ đông
 api.interceptors.request.use((config) => {
   const token = getToken();
-
   if (token && !config.headers?.Authorization) {
     config.headers = {
       ...config.headers,
@@ -32,8 +35,39 @@ api.interceptors.request.use((config) => {
     };
   }
 
+  activePendingRequests++;
+  // Nếu request kéo dài quá 3 giây (dấu hiệu Render đang cold start), bắn sự kiện bật banner chờ
+  if (!warmUpTimer) {
+    warmUpTimer = setTimeout(() => {
+      if (activePendingRequests > 0) {
+        window.dispatchEvent(new CustomEvent("server-cold-start", { detail: { isSlow: true } }));
+      }
+    }, 3000);
+  }
+
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => {
+    activePendingRequests = Math.max(0, activePendingRequests - 1);
+    if (activePendingRequests === 0) {
+      if (warmUpTimer) clearTimeout(warmUpTimer);
+      warmUpTimer = null;
+      window.dispatchEvent(new CustomEvent("server-cold-start", { detail: { isSlow: false } }));
+    }
+    return response;
+  },
+  (error) => {
+    activePendingRequests = Math.max(0, activePendingRequests - 1);
+    if (activePendingRequests === 0) {
+      if (warmUpTimer) clearTimeout(warmUpTimer);
+      warmUpTimer = null;
+      window.dispatchEvent(new CustomEvent("server-cold-start", { detail: { isSlow: false } }));
+    }
+    return Promise.reject(error);
+  }
+);
 
 // apiUrl: Hàm tiện ích chuyển đổi đường dẫn tương đối thành URL đầy đủ của backend API
 export const apiUrl = (path) => {

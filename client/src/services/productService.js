@@ -11,9 +11,35 @@ import api from '../api';
  * Lấy danh sách sản phẩm, có hỗ trợ lọc theo danh mục cụ thể.
  */
 export const listProducts = async (category = null) => {
+  const cacheKey = `fnb_products_${category || "all"}`;
+  
+  // 1. Lấy dữ liệu cache cũ nếu có để người dùng không phải chờ đợi
+  let cachedData = null;
+  try {
+    const raw = localStorage.getItem(cacheKey);
+    if (raw) cachedData = JSON.parse(raw);
+  } catch (_) {}
+
   const params = category ? { category } : {};
-  const response = await api.get('/api/products', { params });
-  return response.data;
+  
+  // 2. Gọi API để cập nhật dữ liệu mới nhất
+  const fetchPromise = api.get('/api/products', { params }).then((res) => {
+    if (res?.data && Array.isArray(res.data)) {
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(res.data));
+      } catch (_) {}
+    }
+    return res.data;
+  });
+
+  // Nếu đã có cache, trả về cache trước nếu API lâu
+  if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+    // Chạy ngầm fetchPromise để update cache cho lần sau
+    fetchPromise.catch(() => {});
+    return cachedData;
+  }
+
+  return await fetchPromise;
 };
 
 /**

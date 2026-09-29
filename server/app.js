@@ -35,6 +35,17 @@ app.use(express.json({
 app.use(bodyParser.json());
 
 // Đăng ký toàn bộ các định tuyến API vào ứng dụng Express
+
+// Health-check & Keep-alive endpoint (Dùng cho UptimeRobot / CronJob ping giữ Render luôn hoạt động)
+app.get(["/api/ping", "/ping", "/healthz"], (_req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    message: "FnB Server is awake and healthy"
+  });
+});
+
 registerRoutes(app);
 
 // Export đối tượng app để khởi chạy cùng HTTP Server tại server.js

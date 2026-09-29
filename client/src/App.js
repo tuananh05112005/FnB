@@ -1,3 +1,4 @@
+import ServerWarmupAlert from "./components/common/ServerWarmupAlert";
 // ==============================================================
 // TÊN FILE: App.js
 // MÔ TẢ: Điểm khởi đầu cấu hình và định tuyến (routing) của toàn bộ ứng dụng Frontend.
@@ -550,6 +551,7 @@ const App = () => (
     <GeminiChatProvider>
       <NotificationProvider>
         <AppContent />
+        <ServerWarmupAlert />
       </NotificationProvider>
     </GeminiChatProvider>
   </Router>
