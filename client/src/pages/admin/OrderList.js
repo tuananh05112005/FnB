@@ -5,7 +5,7 @@ import {
   FaArrowLeft, FaBoxOpen, FaCalendarAlt, FaCheckCircle,
   FaFilter, FaMoneyBillWave, FaSearch, FaTimes, FaTrash,
   FaUniversity, FaWallet, FaClipboardList, FaCreditCard,
-  FaMoneyBill,
+  FaMoneyBill, FaFileExcel, FaDownload,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
@@ -227,6 +227,73 @@ const OrderList = () => {
     { label: "Đã hủy",         statusKey: "cancelled", value: stats.cancelled,icon: <FaTimes />,         accent: "#ef4444", bg: "#fef2f2", color: "#ef4444" },
   ];
 
+  // Hàm xuất danh sách đơn hàng ra file Excel / CSV (hỗ trợ tiếng Việt đầy đủ)
+  const exportToExcel = () => {
+    if (!filteredOrders.length) {
+      alert("Không có đơn hàng nào trong bộ lọc hiện tại để xuất báo cáo!");
+      return;
+    }
+
+    // Tiêu đề các cột
+    const headers = [
+      "Mã đơn hàng",
+      "Khách hàng",
+      "Email",
+      "Số điện thoại",
+      "Địa chỉ giao hàng",
+      "Món & Topping",
+      "Hình thức thanh toán",
+      "Số tiền (VNĐ)",
+      "Trạng thái",
+      "Ngày đặt"
+    ];
+
+    // Dòng dữ liệu
+    const rows = filteredOrders.map((o) => {
+      const code = o.order_code || ("DH" + String(o.id).padStart(5, "0"));
+      const name = (o.name || "Khách vãng lai").replace(/"/g, '""');
+      const email = (o.email || "").replace(/"/g, '""');
+      const phone = (o.phone || "").replace(/"/g, '""');
+      const address = (o.delivery_address || o.address || "Tại quán").replace(/"/g, '""');
+      const items = (o.product_name || o.items_summary || "Đồ uống").replace(/"/g, '""');
+      const method = o.payment_method === "cash" ? "Tiền mặt" : "Chuyển khoản VietQR";
+      const amount = Number(o.amount || o.total_price || 0);
+      const status = STATUS_BADGE[o.status]?.label || o.status;
+      const date = o.created_at || o.order_date ? new Date(o.created_at || o.order_date).toLocaleString("vi-VN") : "";
+
+      return [
+        `"${code}"`,
+        `"${name}"`,
+        `"${email}"`,
+        `"${phone}"`,
+        `"${address}"`,
+        `"${items}"`,
+        `"${method}"`,
+        amount,
+        `"${status}"`,
+        `"${date}"`
+      ].join(",");
+    });
+
+    // Thêm dòng tổng kết doanh thu ở cuối bảng
+    const totalRev = filteredOrders.reduce((sum, o) => sum + Number(o.amount || o.total_price || 0), 0);
+    const summaryRow = [`"TỔNG CỘNG"`, `""`, `""`, `""`, `""`, `""`, `""`, totalRev, `"${filteredOrders.length} đơn"`, `""`].join(",");
+
+    // Thêm BOM (\uFEFF) để Excel trên Windows tự nhận diện tiếng Việt có dấu chuẩn 100%
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows, summaryRow].join("\r\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const dateStr = new Date().toISOString().split("T")[0];
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Bao_Cao_Doanh_Thu_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="dashboard-page">
       <div className="dashboard-shell" style={{ display: "grid", gap: 20 }}>
@@ -398,6 +465,25 @@ const OrderList = () => {
                 </button>
               )}
 
+              <button
+                type="button"
+                className="dashboard-btn"
+                style={{
+                  background: "#10b981",
+                  color: "#ffffff",
+                  border: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontWeight: 700,
+                  boxShadow: "0 2px 8px rgba(16, 185, 129, 0.25)",
+                  cursor: "pointer"
+                }}
+                onClick={exportToExcel}
+                title="Tải toàn bộ danh sách đơn hàng đang lọc ra file Excel/CSV"
+              >
+                <FaFileExcel size={15} /> Xuất Báo Cáo Excel
+              </button>
               <span className="dashboard-count" style={{ marginLeft: "auto" }}>{filteredOrders.length} đơn hàng</span>
             </div>
 
