@@ -142,6 +142,9 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
           ? { to: "/admin/staffs", label: "Quản lý nhân viên", icon: Users, accent: "pink" }
           : null,
         userRole === "admin" || userRole === "staff"
+          ? { to: "/pos", label: "Bán hàng tại quầy (POS)", icon: Coffee, accent: "amber" }
+          : null,
+        userRole === "admin" || userRole === "staff"
           ? { to: "/orders", label: "Lịch sử giao dịch", icon: History, accent: "violet" }
           : null,
         userRole === "user"

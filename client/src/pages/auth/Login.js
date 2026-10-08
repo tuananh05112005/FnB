@@ -28,7 +28,11 @@ const Login = () => {
     try {
       const res = await api.post("/login", { email, password });
       saveSession({ userId: res.data.user_id, token: res.data.token, role: res.data.role, name: res.data.name });
-      navigate("/");
+      if (res.data.role === "staff") {
+        navigate("/pos");
+      } else {
+        navigate("/");
+      }
     } catch {
       setError("Đăng nhập thất bại. Vui lòng kiểm tra lại email và mật khẩu.");
     } finally { setLoading(false); }

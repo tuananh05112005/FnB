@@ -38,6 +38,7 @@ import OrderDetail from "./pages/OrderDetail";
 import PaymentPage from "./pages/PaymentPage";
 import ProductDetail from "./pages/ProductDetail";
 import Products from "./pages/Products";
+import POSPage from "./pages/POSPage";
 import PrivateRoute from "./routes/PrivateRoute";
 import { GeminiChatProvider } from "./components/chatbot/GeminiChatProvider";
 import FloatingActionButton from "./components/chatbot/FloatingActionButton";
@@ -216,6 +217,17 @@ const AppContent = () => {
         <Route path="/register" element={<Register />} />
         <Route path="/logout" element={<Logout />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+      </Routes>
+    );
+  }
+
+  // Nếu đang ở trang POS của Staff thì render Fullscreen, không hiện Header/Sidebar của trang khách
+  if (location.pathname === "/pos") {
+    return (
+      <Routes>
+        <Route path="/pos" element={
+          <PrivateRoute allowedRoles={["staff", "admin"]}><POSPage /></PrivateRoute>
+        } />
       </Routes>
     );
   }
@@ -489,6 +501,9 @@ const AppContent = () => {
           )}
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/pos" element={
+              <PrivateRoute allowedRoles={["staff", "admin"]}><POSPage /></PrivateRoute>
+            } />
             <Route path="/products" element={<Products />} />
             <Route path="/products/:id" element={<ProductDetail />} />
             <Route path="/carts" element={<Cart />} />
