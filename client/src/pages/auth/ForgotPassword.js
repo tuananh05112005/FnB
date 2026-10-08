@@ -28,8 +28,9 @@ const ForgotPassword = () => {
       await api.post("/api/send-otp", { email });
       setMessage("Mã OTP đã được gửi về email của bạn! Kiểm tra hộp thư đến.");
       setStep(2);
-    } catch {
-      setError("Không thể gửi OTP. Vui lòng kiểm tra lại email.");
+    } catch (err) {
+      const serverMsg = err.response?.data?.message || err.message;
+      setError(serverMsg || "Không thể gửi OTP. Vui lòng kiểm tra lại email.");
     } finally { setLoading(false); }
   };
 
