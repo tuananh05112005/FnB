@@ -1,9 +1,8 @@
 // ==============================================================
 // TÊN FILE: brevoMailer.js
 // MÔ TẢ: Dịch vụ gửi email xác thực OTP qua Brevo REST API (HTTPS Port 443).
-//        - Miễn phí 300 emails/ngày.
-//        - Gửi được đến MỌI địa chỉ email khách hàng (không bị chặn domain).
-//        - Tương thích 100% với môi trường Cloud (Render, Vercel, AWS).
+//        - Người gửi (Sender) được cấu hình chuẩn email chính chủ: huynhnguyentuananh0511@gmail.com
+//        - Có thể chuyển phát OTP tới BẤT KỲ địa chỉ email nào của khách hàng.
 // ==============================================================
 
 /**
@@ -15,7 +14,8 @@ const sendOtpEmail = async ({ to, otp }) => {
     throw new Error("Chưa cấu hình BREVO_API_KEY trong biến môi trường.");
   }
 
-  const senderEmail = process.env.GMAIL_USER || "huynhnguyentuananh11@gmail.com";
+  // Sender email phải là email đã validate trên tài khoản Brevo của bạn
+  const verifiedSenderEmail = process.env.BREVO_SENDER_EMAIL || "huynhnguyentuananh0511@gmail.com";
 
   const htmlContent = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 32px 24px; background: #FAF7F2; border-radius: 16px; max-width: 480px; margin: auto; border: 1px solid #EBE3D5;">
@@ -50,7 +50,7 @@ const sendOtpEmail = async ({ to, otp }) => {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      sender: { name: "PRDrink Tiệm Trà", email: senderEmail },
+      sender: { name: "PRDrink Tiệm Trà", email: verifiedSenderEmail },
       to: [{ email: to }],
       subject: `[PRDrink] ${otp} là mã xác thực khôi phục mật khẩu của bạn`,
       htmlContent,
