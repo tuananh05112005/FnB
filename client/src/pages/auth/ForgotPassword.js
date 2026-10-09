@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaEnvelope, FaKey, FaLock, FaRedo, FaArrowLeft, FaCheckCircle, FaExclamationTriangle } from "react-icons/fa";
+import { FaEnvelope, FaKey, FaLock, FaRedo, FaArrowLeft } from "react-icons/fa";
 
 import { api } from "../../lib/api";
 import "./auth.css";
@@ -21,17 +21,14 @@ const ForgotPassword = () => {
   const [message,         setMessage]         = useState("");
   const [error,           setError]           = useState("");
   const [loading,         setLoading]         = useState(false);
-  const [fallbackOtp,     setFallbackOtp]     = useState(null);
 
   const handleSendOTP = async () => {
-    setError(""); setMessage(""); setLoading(true); setFallbackOtp(null);
+    setError("");
+    setMessage("");
+    setLoading(true);
     try {
       const res = await api.post("/api/send-otp", { email });
-      setMessage(res.data?.message || "Mã OTP đã được gửi về email của bạn!");
-      if (res.data?.otp) {
-        setFallbackOtp(res.data.otp);
-        setOtp(res.data.otp); // Tự động điền mã OTP luôn cho tiện
-      }
+      setMessage(res.data?.message || "Mã OTP đã được gửi về email của bạn! Vui lòng kiểm tra hộp thư đến.");
       setStep(2);
     } catch (err) {
       const serverMsg = err.response?.data?.message || err.message;
@@ -42,12 +39,18 @@ const ForgotPassword = () => {
   };
 
   const handleResetPassword = async () => {
-    setError(""); setMessage(""); setLoading(true);
+    setError("");
+    setMessage("");
+    setLoading(true);
     if (newPassword !== confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp."); setLoading(false); return;
+      setError("Mật khẩu xác nhận không khớp.");
+      setLoading(false);
+      return;
     }
     if (newPassword.length < 6) {
-      setError("Mật khẩu phải có ít nhất 6 ký tự."); setLoading(false); return;
+      setError("Mật khẩu phải có ít nhất 6 ký tự.");
+      setLoading(false);
+      return;
     }
     try {
       await api.post("/api/reset-password", { email, otp_code: otp, new_password: newPassword });
@@ -125,7 +128,7 @@ const ForgotPassword = () => {
               </div>
 
               <button type="button" className="auth-submit-btn" onClick={handleSendOTP} disabled={loading || !email}>
-                {loading ? "⏳ Đang kết nối..." : <><FaEnvelope /> Gửi mã OTP</>}
+                {loading ? "⏳ Đang gửi thư..." : <><FaEnvelope /> Gửi mã OTP</>}
               </button>
             </>
           )}
@@ -137,19 +140,9 @@ const ForgotPassword = () => {
                 <div className="auth-form-tag">🔑 Xác thực OTP</div>
                 <h2 className="auth-form-title">Nhập mã xác thực</h2>
                 <p className="auth-form-subtitle">
-                  Kiểm tra email <strong>{email}</strong> để lấy mã OTP gồm 6 chữ số.
+                  Kiểm tra hộp thư đến của <strong>{email}</strong> để lấy mã OTP gồm 6 chữ số.
                 </p>
               </div>
-
-              {fallbackOtp && (
-                <div style={{ background: "#FEF3C7", border: "1.5px solid #F59E0B", borderRadius: 10, padding: "12px 16px", marginBottom: 16, color: "#92400E", fontSize: "0.88rem" }}>
-                  <div style={{ fontWeight: 800, display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                    <FaCheckCircle color="#10B981" /> Mã OTP đã được tạo:
-                  </div>
-                  <div>Mã xác thực của bạn: <strong style={{ fontSize: "1.1rem", letterSpacing: 2, color: "#1E1B4B" }}>{fallbackOtp}</strong></div>
-                  <div style={{ fontSize: "0.75rem", opacity: 0.8, marginTop: 4 }}>Hệ thống đã tự động điền mã vào ô bên dưới.</div>
-                </div>
-              )}
 
               {error   && <div className="auth-alert auth-alert-danger">{error}</div>}
               {message && <div className="auth-alert auth-alert-success">{message}</div>}
@@ -160,7 +153,7 @@ const ForgotPassword = () => {
                   <FaKey className="auth-input-icon" />
                   <input id="forgot-otp" type="text"
                     className="auth-input"
-                    placeholder="123456"
+                    placeholder="Nhập mã 6 chữ số trong email"
                     maxLength={6}
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)} />
