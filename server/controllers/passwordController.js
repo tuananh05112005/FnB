@@ -2,14 +2,12 @@
 // TÊN FILE: passwordController.js
 // MÔ TẢ: Bộ điều khiển quản lý khôi phục mật khẩu người dùng (Password Reset).
 //        - Tạo mã OTP ngẫu nhiên gồm 6 chữ số, thời hạn 5 phút.
-//        - Ưu tiên gửi qua Resend REST API (HTTPS port 443, tốc độ 1-2s, không bị tường lửa chặn).
-//        - Fallback qua Nodemailer SMTP nếu chưa cấu hình Resend.
+//        - Gửi OTP qua Brevo REST API (HTTPS Port 443 - Không bao giờ bị Cloud chặn).
 //        - Xác thực mã OTP và cập nhật mật khẩu mới an toàn bằng bcrypt.
 // ==============================================================
 
 const bcrypt = require("bcryptjs");
-const { sendOtpEmail } = require("../config/resendMailer");
-const transporter = require("../config/mailer");
+const { sendOtpEmail } = require("../config/brevoMailer");
 const { getQuery } = require("../config/db");
 
 // Sinh mã OTP và gửi qua email khôi phục mật khẩu
@@ -33,38 +31,17 @@ exports.sendOTP = async (req, res) => {
       expiresAt,
     ]);
 
-    // 4. Ưu tiên gửi qua Resend API (HTTPS Port 443 - không bao giờ bị Cloud chặn)
-    if (process.env.RESEND_API_KEY) {
-      try {
-        await sendOtpEmail({ to: email, otp });
-        return res.json({
-          success: true,
-          message: "Mã OTP đã được gửi về email của bạn! Vui lòng kiểm tra hộp thư đến.",
-        });
-      } catch (resendErr) {
-        console.error("Gửi qua Resend API thất bại:", resendErr);
-        return res.status(500).json({ message: "Lỗi gửi email: " + (resendErr.message || "Không thể gửi thư") });
-      }
-    }
-
-    // 5. Nếu chưa có RESEND_API_KEY: gửi qua Nodemailer SMTP
-    const mailOptions = {
-      from: `"PRDrink" <${process.env.GMAIL_USER || "huynhnguyentuananh11@gmail.com"}>`,
-      to: email,
-      subject: `[PRDrink] ${otp} là mã xác thực khôi phục mật khẩu của bạn`,
-      text: `Mã OTP của bạn là: ${otp}. Có hiệu lực trong 5 phút.`,
-    };
-
+    // 4. Gửi email qua Brevo REST API (HTTPS Port 443)
     try {
-      await transporter.sendMail(mailOptions);
+      await sendOtpEmail({ to: email, otp });
       return res.json({
         success: true,
         message: "Mã OTP đã được gửi về email của bạn! Vui lòng kiểm tra hộp thư đến.",
       });
-    } catch (smtpErr) {
-      console.error("Gửi qua SMTP thất bại:", smtpErr);
+    } catch (mailError) {
+      console.error("[OTP] Lỗi gửi email qua Brevo:", mailError);
       return res.status(500).json({
-        message: "Chưa thể gửi email. Vui lòng thêm RESEND_API_KEY vào cấu hình máy chủ.",
+        message: "Lỗi gửi email: " + (mailError.message || "Không thể chuyển phát email"),
       });
     }
   } catch (error) {

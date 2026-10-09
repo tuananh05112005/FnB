@@ -1,33 +1,21 @@
 // ==============================================================
-// TÊN FILE: resendMailer.js
-// MÔ TẢ: Dịch vụ gửi email chuyên nghiệp qua Resend REST API (HTTPS Port 443).
-//        - Không bị chặn bởi bất kỳ tường lửa Cloud nào (kể cả Render Free).
-//        - Tốc độ chuyển phát email tức thì (1 - 2 giây vào hộp thư đến).
+// TÊN FILE: brevoMailer.js
+// MÔ TẢ: Dịch vụ gửi email xác thực OTP qua Brevo REST API (HTTPS Port 443).
+//        - Miễn phí 300 emails/ngày.
+//        - Gửi được đến MỌI địa chỉ email khách hàng (không bị chặn domain).
+//        - Tương thích 100% với môi trường Cloud (Render, Vercel, AWS).
 // ==============================================================
 
-const { Resend } = require("resend");
-
-const getResendClient = () => {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.warn("[Resend] Chưa cấu hình RESEND_API_KEY trong biến môi trường.");
-    return null;
-  }
-  return new Resend(apiKey);
-};
-
 /**
- * Gửi email chứa mã OTP khôi phục mật khẩu
+ * Gửi email chứa mã OTP khôi phục mật khẩu qua Brevo API
  */
 const sendOtpEmail = async ({ to, otp }) => {
-  const resend = getResendClient();
-  if (!resend) {
-    throw new Error("Chưa cấu hình RESEND_API_KEY");
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) {
+    throw new Error("Chưa cấu hình BREVO_API_KEY trong biến môi trường.");
   }
 
-  // Resend hỗ trợ gửi từ onboarding@resend.dev (cho mọi tài khoản mới tạo)
-  // hoặc tên miền riêng đã verify trên Resend dashboard.
-  const fromEmail = process.env.RESEND_FROM_EMAIL || "PRDrink <onboarding@resend.dev>";
+  const senderEmail = process.env.GMAIL_USER || "huynhnguyentuananh11@gmail.com";
 
   const htmlContent = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 32px 24px; background: #FAF7F2; border-radius: 16px; max-width: 480px; margin: auto; border: 1px solid #EBE3D5;">
@@ -54,19 +42,29 @@ const sendOtpEmail = async ({ to, otp }) => {
     </div>
   `;
 
-  const { data, error } = await resend.emails.send({
-    from: fromEmail,
-    to: [to],
-    subject: `[PRDrink] ${otp} là mã xác thực khôi phục mật khẩu của bạn`,
-    html: htmlContent,
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "accept": "application/json",
+      "api-key": apiKey,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      sender: { name: "PRDrink Tiệm Trà", email: senderEmail },
+      to: [{ email: to }],
+      subject: `[PRDrink] ${otp} là mã xác thực khôi phục mật khẩu của bạn`,
+      htmlContent,
+    }),
   });
 
-  if (error) {
-    console.error("[Resend] Lỗi từ máy chủ Resend API:", error);
-    throw new Error(error.message || "Lỗi gửi email qua Resend");
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error("[Brevo] Lỗi phản hồi API:", data);
+    throw new Error(data?.message || "Lỗi gửi email qua Brevo API");
   }
 
-  console.log(`[Resend] Đã chuyển phát email thành công tới ${to}, ID:`, data?.id);
+  console.log(`[Brevo] Đã gửi email OTP thành công tới ${to}, MessageID:`, data?.messageId);
   return data;
 };
 
