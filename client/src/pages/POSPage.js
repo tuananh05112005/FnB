@@ -242,24 +242,27 @@ export default function POSPage() {
       try {
         const orderCode = "DH" + Date.now();
 
+        const currentUserId = parseInt(userId, 10) || 1;
+        const firstProductId = cart[0]?.product?.id || cart[0]?.id || 1;
+
         // 1. Lưu từng món vào bảng giỏ hàng
         for (const item of cart) {
           await api.post("/api/cart/add", {
-            user_id: userId || 1,
-            product_id: item.product.id,
+            user_id: currentUserId,
+            product_id: item.product?.id || item.id,
             quantity: item.qty,
-            size: item.size,
+            size: item.size || "M",
             order_code: orderCode,
-            sugar: item.sugar,
-            ice: item.ice,
+            sugar: item.sugar || "100%",
+            ice: item.ice || "100%",
             toppings: JSON.stringify(item.toppings || []),
           });
         }
 
         // 2. Khởi tạo thanh toán banking SePay sinh QR code
         const payRes = await api.post("/api/payments/create", {
-          user_id: userId || 1,
-          product_id: cart[0].product.id,
+          user_id: currentUserId,
+          product_id: firstProductId,
           name: serviceType === "takeaway" ? "Khách mang về (POS)" : `Khách tại ${tableNumber} (POS)`,
           address: "Tại quầy POS",
           phone: "0000000000",
@@ -320,24 +323,27 @@ export default function POSPage() {
     try {
       const orderCode = "DH" + Date.now();
 
+      const currentUserId = parseInt(userId, 10) || 1;
+      const firstProductId = cart[0]?.product?.id || cart[0]?.id || 1;
+
       // Lưu món vào giỏ hàng backend
       for (const item of cart) {
         await api.post("/api/cart/add", {
-          user_id: userId || 1,
-          product_id: item.product.id,
+          user_id: currentUserId,
+          product_id: item.product?.id || item.id,
           quantity: item.qty,
-          size: item.size,
+          size: item.size || "M",
           order_code: orderCode,
-          sugar: item.sugar,
-          ice: item.ice,
+          sugar: item.sugar || "100%",
+          ice: item.ice || "100%",
           toppings: JSON.stringify(item.toppings || []),
         });
       }
 
       // Tạo thanh toán tiền mặt với status 'paid'
       await api.post("/api/payments/create", {
-        user_id: userId || 1,
-        product_id: cart[0].product.id,
+        user_id: currentUserId,
+        product_id: firstProductId,
         name: serviceType === "takeaway" ? "Khách mang về (POS)" : `Khách tại ${tableNumber} (POS)`,
         address: "Tại quầy POS",
         phone: "0000000000",
