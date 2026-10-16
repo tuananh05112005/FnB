@@ -254,7 +254,10 @@ exports.create = async (req, res) => {
     is_cart,
     order_code,
     user_voucher_id,
+    order_source,
   } = req.body;
+
+  const validOrderSource = order_source === "pos" ? "pos" : "online";
 
   try {
     const query = getQuery();
@@ -336,9 +339,10 @@ exports.create = async (req, res) => {
           payment_method,
           amount,
           payment_status,
-          transaction_code
+          transaction_code,
+          order_source
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           user_id,
@@ -350,6 +354,7 @@ exports.create = async (req, res) => {
           amount,
           "paid",
           transactionCode,
+          validOrderSource,
         ],
       );
 
@@ -480,9 +485,10 @@ exports.create = async (req, res) => {
           payment_method,
           amount,
           payment_status,
-          transaction_code
+          transaction_code,
+          order_source
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           user_id,
@@ -494,6 +500,7 @@ exports.create = async (req, res) => {
           amount,
           "pending",
           transactionCode,
+          validOrderSource,
         ],
       );
 

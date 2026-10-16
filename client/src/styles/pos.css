@@ -1,7 +1,13 @@
 /* ═══════════════════════════════════════════════════════════════
    POS (Point of Sale) – Fullscreen Touchscreen System for Staff
+   - High Performance Dark Boutique Artisan Theme
+   - 100% Fully Responsive (Desktop, iPad/Tablet, Mobile)
+   - Fast Image Loading Skeleton & Fallbacks
+   - Live VietQR SePay & Cash Flow
+   - Direct Thermal Receipt Printing (K80 / K58)
    ═══════════════════════════════════════════════════════════════ */
 
+/* ── Container ──────────────────────────────────────────────── */
 .pos-container {
   display: flex;
   height: 100vh;
@@ -9,10 +15,11 @@
   overflow: hidden;
   background: #17110C;
   color: #FFFDF9;
-  font-family: var(--app-font-sans, system-ui, sans-serif);
+  font-family: var(--app-font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  position: relative;
 }
 
-/* ── Left Area: Menu & Product Controls (65%) ──────────────────── */
+/* ── Left Area: Menu & Products (Flexible) ─────────────────── */
 .pos-menu-area {
   flex: 1;
   display: flex;
@@ -21,16 +28,19 @@
   border-right: 1px solid rgba(245, 200, 66, 0.15);
   background: #1F1710;
   overflow: hidden;
+  position: relative;
 }
 
+/* ── Topbar ─────────────────────────────────────────────────── */
 .pos-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px;
+  padding: 12px 20px;
   background: #160F0A;
   border-bottom: 1px solid rgba(245, 200, 66, 0.12);
-  gap: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .pos-brand {
@@ -48,36 +58,50 @@
   align-items: center;
   justify-content: center;
   color: white;
-  font-weight: 800;
+  font-weight: 900;
+  font-size: 1rem;
   box-shadow: 0 4px 12px rgba(200, 134, 10, 0.3);
+  flex-shrink: 0;
+}
+
+.pos-brand-text {
+  display: flex;
+  flex-direction: column;
 }
 
 .pos-brand-title {
-  font-family: var(--app-font-heading, sans-serif);
   font-size: 1.15rem;
   font-weight: 800;
   color: #FFFDF9;
   margin: 0;
+  letter-spacing: 0.02em;
 }
 
 .pos-brand-sub {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: rgba(255, 253, 249, 0.6);
   margin: 0;
 }
 
-/* Toggle mode button */
+.pos-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Mode Switch Buttons */
 .pos-mode-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 8px 14px;
   border-radius: 99px;
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
   border: 1px solid transparent;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .pos-mode-btn.normal {
@@ -85,24 +109,35 @@
   color: rgba(255, 255, 255, 0.85);
   border-color: rgba(255, 255, 255, 0.15);
 }
+.pos-mode-btn.normal:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: white;
+}
 
 .pos-mode-btn.stock-active {
   background: #DC2626;
   color: white;
   border-color: #EF4444;
-  box-shadow: 0 0 16px rgba(239, 68, 68, 0.4);
-  animation: pulse 1.8s infinite;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.45);
+  animation: posPulse 1.8s infinite;
+}
+
+@keyframes posPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); }
 }
 
 .pos-user-badge {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.06);
-  padding: 6px 14px;
+  padding: 6px 12px;
   border-radius: 99px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 .pos-logout-btn {
@@ -112,14 +147,15 @@
   cursor: pointer;
   display: flex;
   align-items: center;
-  padding: 4px;
+  padding: 3px;
+  border-radius: 4px;
   transition: opacity 0.2s;
 }
 .pos-logout-btn:hover { opacity: 0.8; }
 
-/* Filter & search bar */
+/* ── Filter & Search Bar ────────────────────────────────────── */
 .pos-filter-bar {
-  padding: 12px 20px;
+  padding: 10px 20px;
   display: flex;
   gap: 12px;
   align-items: center;
@@ -135,7 +171,7 @@
 .pos-search-input {
   width: 100%;
   height: 40px;
-  padding: 0 16px 0 38px;
+  padding: 0 36px 0 38px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: #140E0A;
@@ -156,6 +192,22 @@
   color: rgba(255, 255, 255, 0.4);
 }
 
+.pos-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+}
+.pos-search-clear:hover { color: white; }
+
+/* ── Category Tabs ─────────────────────────────────────────── */
 .pos-categories-tabs {
   display: flex;
   gap: 8px;
@@ -163,6 +215,10 @@
   overflow-x: auto;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   background: #17110C;
+  scrollbar-width: none;
+}
+.pos-categories-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .pos-cat-tab {
@@ -176,6 +232,7 @@
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s ease;
+  user-select: none;
 }
 .pos-cat-tab:hover {
   background: rgba(255, 255, 255, 0.1);
@@ -188,17 +245,38 @@
   box-shadow: 0 2px 8px rgba(200, 134, 10, 0.35);
 }
 
-/* Product Grid */
+/* ── Product Grid ──────────────────────────────────────────── */
 .pos-product-grid {
   flex: 1;
-  padding: 16px 20px;
+  padding: 16px 20px 80px;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
   gap: 14px;
   align-content: start;
 }
 
+.pos-loading-state,
+.pos-empty-products {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: rgba(255, 255, 255, 0.5);
+  gap: 12px;
+}
+
+.pos-spinner {
+  animation: spin 1s linear infinite;
+  color: #C8860A;
+}
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+
+/* Product Card */
 .pos-card {
   position: relative;
   background: #251C14;
@@ -214,11 +292,14 @@
 .pos-card:hover {
   transform: translateY(-2px);
   border-color: #C8860A;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+}
+.pos-card:active {
+  transform: scale(0.98);
 }
 .pos-card.sold-out {
   opacity: 0.65;
-  filter: grayscale(0.6);
+  filter: grayscale(0.5);
   border-color: rgba(239, 68, 68, 0.4);
 }
 
@@ -229,10 +310,42 @@
   background: #140E0A;
   overflow: hidden;
 }
+
 .pos-card-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+.pos-card:hover .pos-card-img {
+  transform: scale(1.05);
+}
+
+.pos-card-img-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.25);
+  background: #1C140E;
+}
+
+.pos-soldout-tag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: #DC2626;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  z-index: 2;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .pos-card-body {
@@ -256,33 +369,17 @@
 }
 
 .pos-card-price {
-  font-family: var(--app-font-heading, sans-serif);
   font-size: 0.95rem;
   font-weight: 800;
   color: #F5C842;
   margin-top: auto;
 }
 
-/* Sold out overlay tag */
-.pos-soldout-tag {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  background: #DC2626;
-  color: white;
-  font-size: 0.65rem;
-  font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 6px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-/* Stock management action overlay */
+/* Stock Toggle Mode Overlay */
 .pos-toggle-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(15, 10, 6, 0.85);
+  background: rgba(15, 10, 6, 0.88);
   backdrop-filter: blur(2px);
   display: flex;
   flex-direction: column;
@@ -295,9 +392,9 @@
 
 .pos-toggle-btn {
   width: 100%;
-  padding: 8px 12px;
+  padding: 8px 10px;
   border-radius: 8px;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
   border: none;
@@ -316,7 +413,7 @@
   color: white;
 }
 
-/* ── Right Area: Bill & Checkout (35%) ─────────────────────────── */
+/* ── Right Area: Bill & Checkout ────────────────────────────── */
 .pos-bill-area {
   width: 380px;
   display: flex;
@@ -324,14 +421,23 @@
   height: 100%;
   background: #160F0A;
   overflow: hidden;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  z-index: 10;
 }
 
 .pos-bill-header {
-  padding: 16px 20px;
+  padding: 14px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: #160F0A;
+}
+
+.pos-bill-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .pos-bill-title {
@@ -340,11 +446,47 @@
   margin: 0;
 }
 
-/* Service Type (Dine-in / Takeaway) */
+.pos-bill-badge {
+  background: rgba(245, 200, 66, 0.15);
+  color: #F5C842;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 99px;
+  border: 1px solid rgba(245, 200, 66, 0.3);
+}
+
+.pos-bill-clear-btn {
+  background: transparent;
+  border: none;
+  color: #EF4444;
+  cursor: pointer;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+}
+.pos-bill-clear-btn:hover { opacity: 0.8; }
+
+.pos-bill-close-mobile {
+  display: none;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Service Types (Dine-in / Takeaway) */
 .pos-service-types {
   display: flex;
   gap: 8px;
-  padding: 12px 20px;
+  padding: 10px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -370,14 +512,34 @@
   border-color: #F5C842;
 }
 
-/* Order item list */
+.pos-table-select-row {
+  padding: 8px 20px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: #1A120B;
+}
+
+.pos-table-select {
+  background: #251C14;
+  color: #F5C842;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  outline: none;
+}
+
+/* Order Item List */
 .pos-order-items {
   flex: 1;
   overflow-y: auto;
-  padding: 14px 20px;
+  padding: 12px 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .pos-empty-cart {
@@ -389,6 +551,7 @@
   flex-direction: column;
   align-items: center;
   gap: 10px;
+  padding: 30px 10px;
 }
 
 .pos-order-item {
@@ -416,16 +579,25 @@
 }
 
 .pos-item-meta {
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   color: #F5C842;
-  margin: 0;
+  margin: 2px 0 0;
 }
+
+.pos-item-del-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 2px;
+}
+.pos-item-del-btn:hover { color: #EF4444; }
 
 .pos-item-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .pos-qty-control {
@@ -467,12 +639,12 @@
 
 /* Bill Footer Summary */
 .pos-bill-summary {
-  padding: 16px 20px;
+  padding: 14px 20px;
   background: #140E0A;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .pos-sum-row {
@@ -493,7 +665,7 @@
   margin-top: 4px;
 }
 
-/* Action buttons */
+/* Action Checkout Buttons */
 .pos-checkout-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -503,7 +675,7 @@
 }
 
 .pos-pay-btn {
-  padding: 14px 10px;
+  padding: 13px 10px;
   border-radius: 10px;
   font-weight: 800;
   font-size: 0.9rem;
@@ -515,6 +687,7 @@
   border: none;
   transition: all 0.2s ease;
 }
+
 .pos-pay-cash {
   background: #10B981;
   color: white;
@@ -541,4 +714,632 @@
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+/* ── Mobile Floating Cart Bar ───────────────────────────────── */
+.pos-mobile-cart-bar {
+  display: none;
+  position: fixed;
+  bottom: 14px;
+  left: 14px;
+  right: 14px;
+  background: #251C14;
+  border: 1px solid rgba(245, 200, 66, 0.4);
+  border-radius: 16px;
+  padding: 12px 18px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  z-index: 50;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.pos-mobile-cart-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pos-mobile-cart-badge {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #C8860A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+.pos-mobile-cart-badge span {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #EF4444;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 800;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pos-mobile-cart-action {
+  background: #10B981;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+/* ── MODALS (Cash & VietQR SePay) ───────────────────────────── */
+.pos-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.pos-modal-box {
+  background: #201711;
+  border: 1px solid rgba(245, 200, 66, 0.35);
+  border-radius: 18px;
+  padding: 24px;
+  width: 450px;
+  max-width: 95vw;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+  animation: modalScale 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@keyframes modalScale {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.pos-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.pos-modal-title {
+  margin: 0;
+  color: #F5C842;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.pos-modal-close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+.pos-modal-close:hover { color: white; }
+
+.pos-modal-error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #FCA5A5;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Cash Details */
+.pos-cash-details {
+  background: #140E0A;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.pos-cash-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.pos-cash-label {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.pos-cash-input {
+  width: 100%;
+  height: 46px;
+  background: #251C14;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  color: white;
+  padding: 0 14px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.pos-cash-input:focus {
+  border-color: #10B981;
+}
+
+.pos-quick-money-grid {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.pos-quick-money-btn {
+  flex: 1;
+  min-width: 60px;
+  padding: 8px 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.pos-quick-money-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: #F5C842;
+}
+
+.pos-change-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.pos-modal-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.pos-modal-btn {
+  flex: 1;
+  padding: 13px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 0.92rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.pos-modal-btn.btn-cancel {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+.pos-modal-btn.btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.pos-modal-btn.btn-confirm {
+  background: #10B981;
+  color: white;
+}
+.pos-modal-btn.btn-confirm:hover {
+  background: #059669;
+}
+.pos-modal-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── VietQR SePay Modal Specifics ───────────────────────────── */
+.pos-qr-box {
+  width: 480px;
+}
+
+.pos-qr-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.pos-qr-img-frame {
+  position: relative;
+  background: white;
+  padding: 12px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.pos-qr-img {
+  width: 220px;
+  height: 220px;
+  display: block;
+  border-radius: 8px;
+}
+
+.pos-qr-scan-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #10B981, transparent);
+  box-shadow: 0 0 10px #10B981;
+  animation: scanEffect 2s linear infinite;
+}
+
+@keyframes scanEffect {
+  0% { top: 12px; }
+  50% { top: 232px; }
+  100% { top: 12px; }
+}
+
+.pos-qr-info-box {
+  width: 100%;
+  background: #140E0A;
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pos-qr-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.pos-copy-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #F5C842;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 3px 6px;
+  display: flex;
+  align-items: center;
+}
+.pos-copy-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+.pos-radar-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  padding: 8px 12px;
+  border-radius: 8px;
+  width: 100%;
+  justify-content: center;
+}
+
+.pos-radar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 8px #10B981;
+  animation: radarPing 1.2s infinite;
+}
+
+@keyframes radarPing {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.4); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+/* ── Receipt Thermal Bill (K80 / K58) ───────────────────────── */
+.pos-receipt-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.pos-receipt-card {
+  background: white;
+  color: #111;
+  border-radius: 10px;
+  padding: 24px;
+  width: 350px;
+  max-width: 92vw;
+  font-family: "Courier New", Courier, monospace;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+}
+
+.pos-receipt-header {
+  text-align: center;
+  border-bottom: 1px dashed #777;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.pos-receipt-brand {
+  margin: 0 0 4px;
+  font-size: 1.3rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.pos-receipt-subtitle {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #444;
+  font-weight: 600;
+}
+
+.pos-receipt-meta {
+  margin-top: 6px;
+  font-size: 0.74rem;
+  color: #333;
+  line-height: 1.4;
+}
+
+.pos-receipt-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-bottom: 1px dashed #777;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.pos-receipt-item-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.pos-receipt-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  border-bottom: 1px dashed #777;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.pos-receipt-sum-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.pos-receipt-footer {
+  text-align: center;
+  font-size: 0.76rem;
+  color: #444;
+  margin: 0;
+}
+
+.pos-receipt-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.pos-receipt-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 800;
+  cursor: pointer;
+  border: none;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: opacity 0.2s;
+}
+.pos-receipt-btn.btn-print {
+  background: #2563EB;
+  color: white;
+}
+.pos-receipt-btn.btn-new {
+  background: #10B981;
+  color: white;
+}
+.pos-receipt-btn:hover { opacity: 0.9; }
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE DESIGN (All Screen Modes)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 1. Tablet Landscape (iPad 1024px - 1199px) ─────────────── */
+@media (max-width: 1199px) {
+  .pos-bill-area {
+    width: 340px;
+  }
+  .pos-product-grid {
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+    gap: 10px;
+    padding: 14px 16px;
+  }
+}
+
+/* ── 2. Tablet Portrait (iPad 768px - 1023px) ───────────────── */
+@media (max-width: 1023px) {
+  .pos-bill-area {
+    width: 320px;
+  }
+  .pos-brand-sub {
+    display: none;
+  }
+  .pos-product-grid {
+    grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+    gap: 10px;
+  }
+  .pos-card-img-wrap {
+    height: 95px;
+  }
+}
+
+/* ── 3. Mobile / Small Screen (< 768px) ─────────────────────── */
+@media (max-width: 767px) {
+  .pos-container {
+    flex-direction: column;
+  }
+
+  .pos-topbar {
+    padding: 10px 14px;
+  }
+
+  .pos-brand-title {
+    font-size: 1rem;
+  }
+
+  .pos-btn-text {
+    display: none;
+  }
+
+  .pos-mode-btn {
+    padding: 8px 10px;
+  }
+
+  .pos-user-role {
+    display: none;
+  }
+  .pos-user-badge {
+    padding: 6px 8px;
+  }
+
+  .pos-filter-bar {
+    padding: 8px 14px;
+  }
+
+  .pos-categories-tabs {
+    padding: 8px 14px;
+  }
+
+  .pos-product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 12px 14px 90px;
+  }
+
+  .pos-card-img-wrap {
+    height: 100px;
+  }
+
+  .pos-card-name {
+    font-size: 0.82rem;
+  }
+  .pos-card-price {
+    font-size: 0.88rem;
+  }
+
+  /* Bill Area becomes a full-screen drawer on Mobile */
+  .pos-bill-area {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1000;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .pos-bill-area.pos-bill-mobile-open {
+    transform: translateY(0);
+  }
+
+  .pos-bill-close-mobile {
+    display: flex;
+  }
+
+  /* Show floating bottom cart bar on mobile */
+  .pos-mobile-cart-bar {
+    display: flex;
+  }
+}
+
+/* ── 4. Very Small Mobile (< 400px) ─────────────────────────── */
+@media (max-width: 400px) {
+  .pos-product-grid {
+    grid-template-columns: 1fr;
+  }
+  .pos-card-img-wrap {
+    height: 130px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PRINT STYLES (Standard 58mm / 80mm Thermal Receipt)
+   ═══════════════════════════════════════════════════════════════ */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .pos-modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .receipt-printable,
+  .receipt-printable * {
+    visibility: visible !important;
+  }
+
+  .receipt-printable {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 80mm !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    color: black !important;
+    background: white !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
 }
