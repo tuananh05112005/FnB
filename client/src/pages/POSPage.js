@@ -268,7 +268,6 @@ export default function POSPage() {
           phone: "0000000000",
           payment_method: "banking",
           amount: totalAmount,
-          order_source: "pos",
           is_cart: true,
           order_code: orderCode,
           generateQR: true,
@@ -349,7 +348,6 @@ export default function POSPage() {
         phone: "0000000000",
         payment_method: "cash",
         amount: totalAmount,
-        order_source: "pos",
         is_cart: true,
         order_code: orderCode,
       });

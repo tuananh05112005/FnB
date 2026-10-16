@@ -234,72 +234,6 @@ CREATE PAYMENT
 ====================================================
 */
 
-async function insertPaymentRecord(query, fields) {
-  try {
-    return await query(
-      `
-      INSERT INTO payments (
-        user_id,
-        product_id,
-        name,
-        address,
-        phone,
-        payment_method,
-        amount,
-        payment_status,
-        transaction_code,
-        order_source
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        fields.user_id,
-        fields.product_id,
-        fields.name,
-        fields.address,
-        fields.phone,
-        fields.payment_method,
-        fields.amount,
-        fields.payment_status,
-        fields.transaction_code,
-        fields.order_source || "online",
-      ]
-    );
-  } catch (err) {
-    if (err.errno === 1054 || err.code === "ER_BAD_FIELD_ERROR") {
-      // Database production chưa có cột order_source, fallback an toàn
-      return await query(
-        `
-        INSERT INTO payments (
-          user_id,
-          product_id,
-          name,
-          address,
-          phone,
-          payment_method,
-          amount,
-          payment_status,
-          transaction_code
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-        [
-          fields.user_id,
-          fields.product_id,
-          fields.name,
-          fields.address,
-          fields.phone,
-          fields.payment_method,
-          fields.amount,
-          fields.payment_status,
-          fields.transaction_code,
-        ]
-      );
-    }
-    throw err;
-  }
-}
-
 /**
  * create: API khởi tạo hóa đơn thanh toán mới (POST /api/payments).
  * Hỗ trợ thanh toán tiền mặt (Cash) và chuyển khoản ngân hàng (Banking) tự sinh mã QR động (VietQR).
@@ -320,10 +254,7 @@ exports.create = async (req, res) => {
     is_cart,
     order_code,
     user_voucher_id,
-    order_source,
   } = req.body;
-
-  const validOrderSource = order_source === "pos" ? "pos" : "online";
 
   try {
     const query = getQuery();
@@ -394,18 +325,33 @@ exports.create = async (req, res) => {
       const isCart = is_cart || false;
       const transactionCode = order_code || (isCart ? `CART_DH${Date.now()}` : `DH${Date.now()}`);
 
-      const result = await insertPaymentRecord(query, {
-        user_id,
-        product_id,
-        name,
-        address,
-        phone,
-        payment_method,
-        amount,
-        payment_status: "paid",
-        transaction_code: transactionCode,
-        order_source: validOrderSource,
-      });
+      const result = await query(
+        `
+        INSERT INTO payments (
+          user_id,
+          product_id,
+          name,
+          address,
+          phone,
+          payment_method,
+          amount,
+          payment_status,
+          transaction_code
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          user_id,
+          product_id,
+          name,
+          address,
+          phone,
+          payment_method,
+          amount,
+          "paid",
+          transactionCode,
+        ],
+      );
 
       /*
       ============================================
@@ -523,18 +469,33 @@ exports.create = async (req, res) => {
       const isCart = is_cart || false;
       const transactionCode = order_code || (isCart ? `CART_DH${Date.now()}` : `DH${Date.now()}`);
 
-      const result = await insertPaymentRecord(query, {
-        user_id,
-        product_id,
-        name,
-        address,
-        phone,
-        payment_method,
-        amount,
-        payment_status: "pending",
-        transaction_code: transactionCode,
-        order_source: validOrderSource,
-      });
+      const result = await query(
+        `
+        INSERT INTO payments (
+          user_id,
+          product_id,
+          name,
+          address,
+          phone,
+          payment_method,
+          amount,
+          payment_status,
+          transaction_code
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          user_id,
+          product_id,
+          name,
+          address,
+          phone,
+          payment_method,
+          amount,
+          "pending",
+          transactionCode,
+        ],
+      );
 
       /*
       ============================================
